@@ -106,6 +106,9 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 
 		bg.Line().Var().Err().Error()
 		bg.Var().Id("request").Id(method.requestStructName())
+		if successCode := method.tags.ValueInt(tagHttpSuccess, 0); successCode != 0 {
+			bg.Id(_ctx_).Dot("SetStatusCode").Call(Lit(successCode))
+		}
 
 		if len(method.arguments()) != 0 {
 			bg.Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Request").Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(

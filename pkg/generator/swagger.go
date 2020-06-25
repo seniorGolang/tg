@@ -35,6 +35,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 
 	doc = &swagger{
 		Transport: tr,
+		schemas:   make(swSchemas),
 	}
 	return
 }

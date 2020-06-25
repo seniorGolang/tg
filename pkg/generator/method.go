@@ -102,25 +102,25 @@ func (m *method) uploadVarsMap() (headers map[string]string) {
 
 func (m *method) downloadVarsMap() (headers map[string]string) {
 
-	if m.uploadVars != nil {
+	if m.downloadVars != nil {
 		return m.uploadVars
 	}
 
-	m.uploadVars = make(map[string]string)
+	m.downloadVars = make(map[string]string)
 
 	if uploadVars := m.tags.Value(tagDownloadVars); uploadVars != "" {
 
-		uploadPairs := strings.Split(uploadVars, ",")
+		downloadPairs := strings.Split(uploadVars, ",")
 
-		for _, pair := range uploadPairs {
+		for _, pair := range downloadPairs {
 			if pairTokens := strings.Split(pair, "|"); len(pairTokens) == 2 {
 				arg := strings.TrimSpace(pairTokens[0])
 				upload := strings.TrimSpace(pairTokens[1])
-				m.uploadVars[arg] = upload
+				m.downloadVars[arg] = upload
 			}
 		}
 	}
-	return m.uploadVars
+	return m.downloadVars
 }
 
 func (m method) httpPath() string {
