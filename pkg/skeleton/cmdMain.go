@@ -41,16 +41,11 @@ func UpdateCmdMain(repoName, baseDir string, jaeger, mongo bool) (err error) {
 		baseDir:     baseDir,
 		repoName:    repoName,
 		projectName: projectName,
-		tracer:      TracerJaeger,
 		withMongo:   mongo,
 	}
 
 	if err = genConfig(meta); err != nil {
 		return
-	}
-
-	if !jaeger {
-		meta.tracer = TracerZipkin
 	}
 	return makeCmdMain(meta, pkgBase, path.Join(meta.baseDir, "cmd", "service"))
 }
@@ -96,20 +91,16 @@ func renderMain(meta metaInfo, basePkg, mainPath string, services []types.Interf
 
 	srcFile := NewFile("main")
 
-	srcFile.ImportName(pkgLog, "logger")
-	srcFile.ImportName(pkgUtils, "utils")
-	srcFile.ImportName(pkgMongo, "mongo")
+	srcFile.ImportName(pkgLog, "logrus")
 	srcFile.ImportName(pkgSignal, "signal")
 	srcFile.ImportName(pkgSyscall, "syscall")
 	srcFile.ImportName(path.Join(basePkg, "pkg", meta.projectName, "config"), "config")
 	srcFile.ImportName(path.Join(basePkg, "pkg", meta.projectName, "service"), "service")
-	srcFile.ImportName(path.Join(basePkg, "pkg", meta.projectName, "transport", "server"), "server")
+	srcFile.ImportName(path.Join(basePkg, "pkg", meta.projectName, "transport"), "transport")
 
-	srcFile.Add(renderMainVars())
-	srcFile.Line()
-	srcFile.Add(renderMainConst(meta))
-	srcFile.Line().Var().Id("log").Op("=").Qual(pkgLog, "Log").Dot("WithField").Call(Lit("module"), Id("serviceName")).Line()
-	srcFile.Add(renderMainFunc(meta, basePkg, services))
+	srcFile.Add(Const().Id("serviceName").Op("=").Lit(meta.projectName))
+	srcFile.Var().Id("log").Op("=").Qual(pkgLog, "New").Call()
+	srcFile.Line().Add(renderMainFunc(meta, basePkg, services))
 
 	return srcFile.Save(path.Join(mainPath, "main.go"))
 }
@@ -118,35 +109,32 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 
 	return Func().Id("main").Params().BlockFunc(func(g *Group) {
 
-		g.Line()
-
 		pkgConfig := path.Join(basePkg, "pkg", meta.projectName, "config")
 
-		g.Qual(pkgConfig, "SetBuildInfo").Call(Id("serviceName"), Id("GitSHA"), Id("Version"), Id("BuildStamp"), Id("BuildNumber"))
+		// if config.Service().ReportCaller {
+		//		log.SetReportCaller(true)
+		//	}
+		//	if level, err := logrus.ParseLevel(config.Service().LogLevel); err == nil {
+		//		log.SetLevel(level)
+		//	}
 
-		g.Line()
+		g.Line().If(Qual(pkgConfig, "Service").Call().Dot("ReportCaller")).Block(
+			Id("log").Dot("SetReportCaller").Call(Lit(true)),
+		)
+		g.If(List(Id("level"), Err()).Op(":=").Qual(pkgLog, "ParseLevel").Call(Qual(pkgConfig, "Service").Call().Dot("LogLevel")).Op(";").Err().Op("==").Nil()).Block(
+			Id("log").Dot("SetLevel").Call(Id("level")),
+		)
 
-		g.Id("shutdown").Op(":=").Make(Chan().Qual(pkgOS, "Signal"), Lit(1))
+		g.Line().Id("shutdown").Op(":=").Make(Chan().Qual(pkgOS, "Signal"), Lit(1))
 		g.Qual(pkgSignal, "Notify").Call(Id("shutdown"), Qual(pkgSyscall, "SIGINT"))
 
-		g.Line()
-
-		g.Defer().Id("log").Dot("Info").Call(Lit("msg"), Lit("goodbye"))
-
-		g.Line()
-
-		if meta.withMongo {
-			g.Id("mongoDB").Op(":=").Qual(pkgMongo, "Connect").Call(Qual(pkgConfig, "Values").Call().Dot("MongoAddr"))
-			g.Defer().Id("mongoDB").Dot("ConnSession").Call().Dot("Close").Call()
-		}
-
-		g.Line()
+		g.Line().Defer().Id("log").Dot("Info").Call(Lit("msg"), Lit("goodbye"))
 
 		pkgService := path.Join(basePkg, "pkg", meta.projectName, "service")
 
-		appArgs := []Code{Qual(pkgConfig, "App").Call()}
+		appArgs := []Code{Id("log")}
 
-		g.Comment("TODO implement me!")
+		g.Line().Comment("TODO implement me!")
 
 		for _, service := range services {
 			svcName := "svc" + utils.ToCamel(service.Name)
@@ -156,14 +144,12 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 
 		g.Line()
 
-		pkgServer := path.Join(basePkg, "pkg", meta.projectName, "transport", "server")
+		pkgTransport := path.Join(basePkg, "pkg", meta.projectName, "transport")
 
-		if meta.tracer == TracerJaeger {
-			g.Id("app").Op(":=").Qual(pkgServer, "New").Call(appArgs...).Dot("WithJaeger").Call()
-		} else if meta.tracer == TracerZipkin {
-			g.Id("app").Op(":=").Qual(pkgServer, "New").Call(appArgs...).Dot("WithZipkin").Call(Qual(pkgConfig, "Values").Call().Dot("Zipkin"))
+		if meta.withTracer {
+			g.Id("srv").Op(":=").Qual(pkgTransport, "New").Call(appArgs...).Dot("WithTrace").Call()
 		} else {
-			g.Id("app").Op(":=").Qual(pkgServer, "New").Call(appArgs...)
+			g.Id("srv").Op(":=").Qual(pkgTransport, "New").Call(appArgs...)
 		}
 
 		g.Line()
@@ -186,34 +172,19 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 		}
 
 		if _, found := serve["http-server"]; found {
-			g.Id("app").Dot("ServeHTTP").Call()
+			g.Id("srv").Dot("ServeHTTP").Call(Qual(pkgConfig, "Service").Call().Dot("ServiceBind"))
 		}
 
-		g.Id("app").Dot("ServePPROF").Call()
-		g.Id("app").Dot("ServeMetrics").Call()
+		g.Line().Id("srv").Dot("ServeMetrics").Call(Qual(pkgConfig, "Service").Call().Dot("MetricsBind"))
+		g.If(Qual(pkgConfig, "Service").Call().Dot("EnablePPROF")).Block(
+			Id("srv").Dot("ServePPROF").Call(Qual(pkgConfig, "Service").Call().Dot("PprofBind")),
+		)
 
-		g.Line()
+		g.Line().Op("<-").Id("shutdown")
 
-		g.Op("<-").Id("shutdown")
-
-		g.Line()
-
-		g.Id("log").Dot("Info").Call(Lit("shutdown application"))
-		g.Id("app").Dot("Shutdown").Call()
+		g.Line().Id("log").Dot("Info").Call(Lit("shutdown application"))
+		g.Id("srv").Dot("Shutdown").Call()
 	})
-}
-
-func renderMainVars() Code {
-	return Var().Op("(").Line().
-		Id("GitSHA").Op("=").Lit("").Line().
-		Id("Version").Op("=").Lit("").Line().
-		Id("BuildStamp").Op("=").Lit("").Line().
-		Id("BuildNumber").Op("=").Lit("").Line().
-		Op(")")
-}
-
-func renderMainConst(meta metaInfo) Code {
-	return Const().Id("serviceName").Op("=").Lit(meta.projectName)
 }
 
 func getProjectName(mainPath string) (projectName string, err error) {

@@ -3,16 +3,11 @@
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package skeleton
 
-const (
-	TracerZipkin = iota
-	TracerJaeger
-)
-
 type metaInfo struct {
 	repoName    string
 	baseDir     string
 	projectName string
 
-	tracer    int
-	withMongo bool
+	withMongo  bool
+	withTracer bool
 }

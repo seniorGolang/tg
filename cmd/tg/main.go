@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"time"
@@ -39,16 +40,16 @@ func main() {
 			Action: cmdInit,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
+					Name:  "project",
+					Usage: "project name",
+				},
+				&cli.StringFlag{
 					Name:  "repo",
 					Usage: "base repository",
 				},
 				&cli.BoolFlag{
-					Name:  "jaeger",
+					Name:  "trace",
 					Usage: "use Jaeger tracer",
-				},
-				&cli.BoolFlag{
-					Name:  "zipkin",
-					Usage: "use Zipkin tracer",
 				},
 				&cli.BoolFlag{
 					Name:  "mongo",
@@ -161,12 +162,13 @@ func cmdInit(c *cli.Context) (err error) {
 		}
 	}()
 
+	fmt.Println(c.Bool("mongo"))
+
 	return skeleton.GenerateSkeleton(log,
-		c.Args().First(),
+		c.String("project"),
 		c.String("repo"),
-		".",
-		c.Bool("jaeger"),
-		c.Bool("zipkin"),
+		"./"+c.Args().First(),
+		c.Bool("trace"),
 		c.Bool("mongo"),
 	)
 }

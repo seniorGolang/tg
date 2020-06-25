@@ -4,28 +4,33 @@
 package skeleton
 
 import (
+	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/seniorGolang/tg/pkg/generator"
 )
 
-func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir string, jaeger, zipkin, mongo bool) (err error) {
+func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir string, trace, mongo bool) (err error) {
+
+	if baseDir, err = filepath.Abs(baseDir); err != nil {
+		return
+	}
+	if err = os.MkdirAll(baseDir, 0777); err != nil {
+		return
+	}
+	if err = os.Chdir(baseDir); err != nil {
+		return
+	}
 
 	meta := metaInfo{
 		baseDir:     baseDir,
 		repoName:    repoName,
 		projectName: projectName,
 		withMongo:   mongo,
-	}
-
-	if jaeger {
-		meta.tracer = TracerJaeger
-	}
-	if zipkin {
-		meta.tracer = TracerZipkin
 	}
 
 	log.Info("init go.mod")
@@ -36,8 +41,9 @@ func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir str
 		packageName = path.Join(meta.repoName, meta.projectName)
 	}
 
-	if err = exec.Command("go", "mod", "init", path.Join(meta.repoName)).Run(); err != nil {
-		log.Warning("go.mod already exist")
+	cmdMakeMod := exec.Command("go", "mod", "init", packageName)
+	if err = cmdMakeMod.Run(); err != nil {
+		log.WithError(err).Warning("go mod creation error")
 	}
 
 	if err = genConfig(meta); err != nil {
@@ -50,7 +56,7 @@ func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir str
 
 	var tr generator.Transport
 	if tr, err = generator.NewTransport(log, path.Join(meta.baseDir, "pkg", projectName, "service")); err == nil {
-		if err = tr.RenderServer(path.Join(meta.baseDir, "pkg", projectName)); err != nil {
+		if err = tr.RenderServer(path.Join(meta.baseDir, "pkg", projectName, "transport")); err != nil {
 			return
 		}
 	} else {

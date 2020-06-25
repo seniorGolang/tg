@@ -36,15 +36,15 @@ func renderBaseService(meta metaInfo, servicesPath string) (err error) {
 	}
 
 	srcFile := NewFile("service")
-	srcFile.PackageComment("@i2s version=0.0.1")
-	srcFile.PackageComment(fmt.Sprintf("@i2s backend=%s", meta.projectName))
-	srcFile.PackageComment(fmt.Sprintf("@i2s title=`%s API`", meta.projectName))
-	srcFile.PackageComment(fmt.Sprintf("@i2s description=`A service which provide %s API`", meta.projectName))
-	srcFile.PackageComment(fmt.Sprintf("@i2s servers=`http://%s:9000`", meta.projectName))
+	srcFile.PackageComment("@tg version=0.0.1")
+	srcFile.PackageComment(fmt.Sprintf("@tg backend=%s", meta.projectName))
+	srcFile.PackageComment(fmt.Sprintf("@tg title=`%s API`", meta.projectName))
+	srcFile.PackageComment(fmt.Sprintf("@tg description=`A service which provide %s API`", meta.projectName))
+	srcFile.PackageComment(fmt.Sprintf("@tg servers=`http://%s:9000`", meta.projectName))
 
 	srcFile.ImportName(pkgContext, "context")
 
-	srcFile.Comment("@i2s jsonRPC-server log trace metrics test")
+	srcFile.Comment("@tg jsonRPC-server log trace metrics test")
 	srcFile.Type().Id(utils.ToCamel(meta.projectName)).Interface(
 		Id("Method").Params(Id("ctx").Qual(pkgContext, "Context")).Params(Err().Error()),
 	)
