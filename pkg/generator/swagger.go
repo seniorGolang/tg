@@ -189,7 +189,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 			} else if service.tags.Contains(tagServerHTTP) && method.tags.Contains(tagMethodHTTP) {
 
-				doc.log.WithField("module", "swagger").Infof("service %s append HTTP methods", serviceName)
+				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceName, method.Name)
 
 				httpValue, found := swaggerDoc.Paths[method.jsonrpcPath()]
 
