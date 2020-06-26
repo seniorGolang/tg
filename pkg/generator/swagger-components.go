@@ -92,7 +92,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
 
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
-			doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
+			if doc.knownCount(vType.TypeName) < 2 {
+				doc.knownInc(vType.TypeName)
+				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
+			}
 		}
 
 	case types.TMap:
@@ -123,7 +126,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.Next)
 
 		if nextType := doc.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			doc.schemas[vType.Next.String()] = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+			if doc.knownCount(vType.Next.String()) < 2 {
+				doc.knownInc(vType.Next.String())
+				doc.schemas[vType.Next.String()] = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+			}
 		}
 
 	case types.TEllipsis:
@@ -310,4 +316,18 @@ func jsonName(fieldInfo types.StructField) (value string) {
 		value = tagValues[0]
 	}
 	return
+}
+
+func (doc *swagger) knownCount(typeName string) int {
+	if _, found := doc.knownTypes[typeName]; !found {
+		return 0
+	}
+	return doc.knownTypes[typeName]
+}
+
+func (doc *swagger) knownInc(typeName string) {
+	if _, found := doc.knownTypes[typeName]; !found {
+		doc.knownTypes[typeName] = 0
+	}
+	doc.knownTypes[typeName]++
 }

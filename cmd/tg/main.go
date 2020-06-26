@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"time"
 
@@ -78,6 +79,10 @@ func main() {
 					Name:  "outSwagger",
 					Usage: "path to output swagger file",
 				},
+				&cli.StringFlag{
+					Name:  "redoc",
+					Usage: "path to output redoc bundle",
+				},
 				&cli.BoolFlag{
 					Name:  "jaeger",
 					Usage: "use Jaeger tracer",
@@ -140,6 +145,10 @@ func main() {
 				&cli.StringSliceFlag{
 					Name:  "iface",
 					Usage: "interfaces included to swagger",
+				},
+				&cli.StringFlag{
+					Name:  "redoc",
+					Usage: "path to output redoc bundle",
 				},
 			},
 
@@ -221,6 +230,13 @@ func cmdTransport(c *cli.Context) (err error) {
 	if c.String("outSwagger") != "" {
 		err = tr.RenderSwagger(c.String("outSwagger"))
 	}
+	if c.String("redoc") != "" {
+		var output []byte
+		log.Infof("write to %s", c.String("redoc"))
+		if output, err = exec.Command("redoc-cli", "bundle", c.String("outSwagger"), "-o", c.String("redoc")).Output(); err != nil {
+			log.WithError(err).Error(string(output))
+		}
+	}
 	return
 }
 
@@ -242,5 +258,14 @@ func cmdSwagger(c *cli.Context) (err error) {
 	if c.String("outFile") != "" {
 		outPath = c.String("outFile")
 	}
-	return tr.RenderSwagger(outPath)
+	if err = tr.RenderSwagger(outPath); err == nil {
+		if c.String("redoc") != "" {
+			var output []byte
+			log.Infof("write to %s", c.String("redoc"))
+			if output, err = exec.Command("redoc-cli", "bundle", outPath, "-o", c.String("redoc")).Output(); err != nil {
+				log.WithError(err).Error(string(output))
+			}
+		}
+	}
+	return
 }

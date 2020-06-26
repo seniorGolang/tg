@@ -28,14 +28,16 @@ const (
 type swagger struct {
 	*Transport
 
-	schemas swSchemas
+	schemas    swSchemas
+	knownTypes map[string]int
 }
 
 func newSwagger(tr *Transport) (doc *swagger) {
 
 	doc = &swagger{
-		Transport: tr,
-		schemas:   make(swSchemas),
+		Transport:  tr,
+		schemas:    make(swSchemas),
+		knownTypes: make(map[string]int),
 	}
 	return
 }
