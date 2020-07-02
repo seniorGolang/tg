@@ -4,7 +4,6 @@
 package generator
 
 import (
-	"fmt"
 	"path"
 	"path/filepath"
 
@@ -23,34 +22,29 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
 	srcFile.Type().Id("http"+svc.Name).Struct(
-		Op("*").Id("httpServer"),
+		Id("log").Qual(packageLogrus, "FieldLogger"),
+		Id("errorHandler").Id("ErrorHandler"),
 		Id("svc").Op("*").Id("server"+svc.Name),
 	)
 
 	srcFile.Line().Func().Id("New"+svc.Name).Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("svc"+svc.Name).Qual(svc.pkgPath, svc.Name)).Params(Id("srv").Op("*").Id("http"+svc.Name)).Block(
 
 		Line().Id("srv").Op("=").Op("&").Id("http"+svc.Name).Values(Dict{
-			Id("httpServer"): Op("&").Id("httpServer").Values(Dict{
-				Id("log"):                Id("log"),
-				Id("maxRequestBodySize"): Id("maxRequestBodySize"),
-			}),
+			Id("log"): Id("log"),
 			Id("svc"): Id("newServer" + svc.Name).Call(Id("svc" + svc.Name)),
 		}),
 		Return(),
 	)
 
-	srcFile.Line().Func().Params(Id("http").Id("http" + svc.Name)).Id(svc.Name).Params().Params(Id("MiddlewareSet" + svc.Name)).Block(
+	srcFile.Line().Func().Params(Id("http").Id("http" + svc.Name)).Id("Service").Params().Params(Id("MiddlewareSet" + svc.Name)).Block(
 		Return(Id("http").Dot("svc")),
 	)
 
 	srcFile.Line().Add(svc.withLogFunc())
 	srcFile.Line().Add(svc.withTraceFunc())
+	srcFile.Line().Add(svc.withErrorHandler())
 
-	srcFile.Line().Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id("ServeHTTP").Params(Id("address").String(), Id("options").Op("...").Id("Option")).BlockFunc(func(bg *Group) {
-
-		bg.Line().Id("http").Dot("applyOptions").Call(Id("options").Op("..."))
-
-		bg.Line().Id("route").Op(":=").Qual(packageFastHttpRouter, "New").Call()
+	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")).BlockFunc(func(bg *Group) {
 
 		prefix := svc.tags.Value(tagHttpPrefix)
 
@@ -80,22 +74,17 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 				bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Id("http").Dot("serve"+method.Name))
 			}
 		}
-
-		bg.Line().Id("http").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit(fmt.Sprintf("enable '%s' HTTP transport", svc.Name))).Line()
-
-		bg.Line().Id("http").Dot("srvHttp").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-			Id("ReadTimeout"):        Qual(packageTime, "Second").Op("*").Lit(10),
-			Id("Handler"):            Qual(packageCors, "AllowAll").Call().Dot("Handler").Call(Id("route").Dot("Handler")),
-			Id("MaxRequestBodySize"): Id("http").Dot("maxRequestBodySize"),
-		})
-
-		bg.Line().Go().Func().Params().Block(
-			Err().Op(":=").Id("http").Dot("srvHttp").Dot("ListenAndServe").Call(Id("address")),
-			Id("ExitOnError").Call(Id("http").Dot("log"), Err(), Lit(fmt.Sprintf("serve '%s' http on ", svc.Name)).Op("+").Id("address")),
-		).Call()
 	})
-
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-http.go"))
+}
+
+func (svc *service) withErrorHandler() Code {
+
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithErrorHandler").Params(Id("handler").Id("ErrorHandler")).Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+
+		bg.Id("http").Dot("errorHandler").Op("=").Call(Id("handler"))
+		bg.Return(Id("http"))
+	})
 }
 
 func (svc *service) withLogFunc() Code {

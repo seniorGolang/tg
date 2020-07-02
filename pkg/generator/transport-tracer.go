@@ -55,7 +55,7 @@ func (tr Transport) extractSpanFunc() Code {
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
 		Line().If(Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Warning").Call(Lit("extract span from HTTP headers")),
+			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("extract span from HTTP headers")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
@@ -85,7 +85,7 @@ func (tr Transport) injectSpanFunc() Code {
 			Qual(packageOpentracing, "HTTPHeaders"),
 			Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers")),
 		).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Warning").Call(Lit("inject span to HTTP headers")),
+			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("inject span to HTTP headers")),
 		),
 		Line().For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),

@@ -94,10 +94,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		bg.Defer().Id("injectSpan").Call(Id("http").Dot("log"), Id("span"), Id(_ctx_))
 		bg.Defer().Id("span").Dot("Finish").Call()
 
-		bg.Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpBefore")).Block(
-			Id("handler").Call(Id(_ctx_)),
-		)
-
 		bg.Line().If(Id("value").Op(":=").Id(_ctx_).Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request canceled")),
@@ -123,9 +119,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		bg.Add(method.urlArgs(Line().If(Err().Op("!=").Nil()).Block(
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-				Id("handler").Call(Id(_ctx_)),
-			),
+
 			Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 			Return(),
 		)))
@@ -133,9 +127,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		bg.Add(method.urlParams(Line().If(Err().Op("!=").Nil()).Block(
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-				Id("handler").Call(Id(_ctx_)),
-			),
 			Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 			Return(),
 		)))
@@ -144,9 +135,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			return Line().If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-				Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-					Id("handler").Call(Id(_ctx_)),
-				),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
@@ -156,9 +144,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			return Line().If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-				Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-					Id("handler").Call(Id(_ctx_)),
-				),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
@@ -169,9 +154,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.Line().If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call()),
-				Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-					Id("handler").Call(Id(_ctx_)),
-				),
 				Id(_ctx_).Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusBadRequest")),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
@@ -229,9 +211,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				).Else().Block(
 					Id(_ctx_).Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusInternalServerError")),
 				),
-			)
-			bg.Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-				Id("handler").Call(Id(_ctx_)),
 			)
 			bg.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("result"))
 		}
