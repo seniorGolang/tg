@@ -30,6 +30,7 @@ func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir str
 		baseDir:     baseDir,
 		repoName:    repoName,
 		projectName: projectName,
+		withTracer:  trace,
 		withMongo:   mongo,
 	}
 
