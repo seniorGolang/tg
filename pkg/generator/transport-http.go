@@ -23,25 +23,6 @@ func (tr Transport) renderHTTP(outDir string) (err error) {
 		Id("Cookie").Params().Params(Op("*").Qual(packageFastHttp, "Cookie")),
 	)
 
-	srcFile.Type().Id("httpServer").Struct(
-
-		Id("maxRequestBodySize").Int(),
-
-		Line().Id("log").Qual(packageLogrus, "FieldLogger"),
-
-		Line().Id("httpAfter").Op("[]").Id("Handler"),
-		Id("httpBefore").Op("[]").Id("Handler"),
-		Id("errorHandler").Id("ErrorHandler"),
-
-		Line().Id("srvHttp").Op("*").Qual(packageFastHttp, "Server"),
-	)
-
-	srcFile.Line().Func().Params(Id("http").Op("*").Id("httpServer")).Id("applyOptions").Params(Id("options").Op("...").Id("Option")).Block(
-		For(List(Op("_"), Id("option")).Op(":=").Range().Id("options")).Block(
-			Id("option").Call(Id("http")),
-		),
-	)
-
 	srcFile.Line().Func().Id("uploadFile").Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx"), Id("key").String()).Params(Id("data").Op("[]").Byte(), Err().Error()).Block(
 
 		Line().Var().Id("fileHeader").Op("*").Qual(packageMultipart, "FileHeader"),

@@ -61,10 +61,6 @@ func (svc *service) serveServiceBatchFunc() Code {
 			Return(),
 		),
 
-		Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpBefore")).Block(
-			Id("handler").Call(Id(_ctx_)),
-		),
-
 		Line().If(Id("value").Op(":=").Id(_ctx_).Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 			Return(),
 		),
@@ -75,9 +71,6 @@ func (svc *service) serveServiceBatchFunc() Code {
 		Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("PostBody").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True()),
 			Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-				Id("handler").Call(Id(_ctx_)),
-			),
 			Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil())),
 			Return(),
 		),
@@ -121,9 +114,6 @@ func (svc *service) serveServiceBatchFunc() Code {
 			Id("span").Dot("Finish").Call(),
 		),
 		Id("wg").Dot("Wait").Call(),
-		Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-			Id("handler").Call(Id(_ctx_)),
-		),
 		Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("responses")),
 	)
 }
@@ -242,10 +232,6 @@ func (svc *service) serveMethodFunc() Code {
 				Id(_ctx_).Dot("Error").Call(Lit("only POST method supported"), Qual(packageFastHttp, "StatusMethodNotAllowed")),
 			)
 
-			bg.Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpBefore")).Block(
-				Id("handler").Call(Id(_ctx_)),
-			)
-
 			bg.Line().If(Id("value").Op(":=").Id(_ctx_).Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request canceled")),
@@ -259,9 +245,6 @@ func (svc *service) serveMethodFunc() Code {
 			bg.Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("PostBody").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-				Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-					Id("handler").Call(Id(_ctx_)),
-				),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil())),
 				Return(),
 			)
@@ -272,19 +255,11 @@ func (svc *service) serveMethodFunc() Code {
 			bg.Line().If(Id("method").Op("!=").Lit("").Op("&&").Id("method").Op("!=").Id("methodName")).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method ").Op("+").Id("methodNameOrigin")),
-				Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-					Id("handler").Call(Id(_ctx_)),
-				),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil())),
 				Return(),
 			)
 
 			bg.Line().Id("response").Op("=").Id("methodHandler").Call(Id("span"), Id(_ctx_), Id("request"))
-
-			bg.Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("http").Dot("httpAfter")).Block(
-				Id("handler").Call(Id(_ctx_)),
-			)
-
 			bg.Line().If(Id("response").Op("!=").Nil()).Block(
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("response")),
 			)

@@ -25,6 +25,8 @@ func (tr Transport) renderMetrics(outDir string) (err error) {
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 	srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
 
+	srcFile.Line().Var().Id("srvMetrics").Op("*").Qual(packageFastHttp, "Server")
+
 	srcFile.Line().Add(prometheusCounterRequestCount())
 	srcFile.Line().Add(prometheusCounterRequestCountAll())
 	srcFile.Line().Add(prometheusSummaryRequestCount())
@@ -36,16 +38,16 @@ func (tr Transport) renderMetrics(outDir string) (err error) {
 
 func (tr Transport) serveMetricsFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeMetrics").Params(Id("address").String()).Block(
+	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("address").String()).Block(
 
-		Line().Id("srv").Dot("srvMetrics").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
+		Line().Id("srvMetrics").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
 			Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
 			Id("Handler"):     Qual(packageFastHttpAdapt, "NewFastHTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call()),
 		}),
 
 		Line().Go().Func().Params().Block(
-			Err().Op(":=").Id("srv").Dot("srvMetrics").Dot("ListenAndServe").Call(Id("address")),
-			Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve metrics on ").Op("+").Id("address")),
+			Err().Op(":=").Id("srvMetrics").Dot("ListenAndServe").Call(Id("address")),
+			Id("ExitOnError").Call(Id("log"), Err(), Lit("serve metrics on ").Op("+").Id("address")),
 		).Call(),
 	)
 }

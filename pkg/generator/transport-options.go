@@ -17,30 +17,34 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 
 	srcFile.ImportName(packageFastHttp, "fasthttp")
 
-	srcFile.Type().Id("Option").Func().Params(Id("srv").Op("*").Id("httpServer"))
-	srcFile.Line().Type().Id("Handler").Op("=").Qual(packageFastHttp, "RequestHandler")
+	srcFile.Line().Type().Id("ServiceRoute").Interface(
+		Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")),
+	)
+
+	srcFile.Line().Type().Id("Option").Func().Params(Id("srv").Op("*").Id("Server"))
+	srcFile.Type().Id("Handler").Op("=").Qual(packageFastHttp, "RequestHandler")
 	srcFile.Type().Id("ErrorHandler").Func().Params(Err().Error()).Params(Error())
 
+	srcFile.Line().Func().Id("Service").Params(Id("svc").Id("ServiceRoute")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Router").Call()),
+		)),
+	)
+
 	srcFile.Line().Func().Id("AfterHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("httpServer")).Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("httpAfter").Op("=").Append(Id("srv").Dot("httpAfter"), Id("handler")),
 		)),
 	)
 
 	srcFile.Line().Func().Id("BeforeHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("httpServer")).Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("httpBefore").Op("=").Append(Id("srv").Dot("httpBefore"), Id("handler")),
 		)),
 	)
 
-	srcFile.Line().Func().Id("ErrorHandle").Params(Id("handler").Id("ErrorHandler")).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("httpServer")).Block(
-			Id("srv").Dot("errorHandler").Op("=").Id("handler"),
-		)),
-	)
-
 	srcFile.Line().Func().Id("MaxBodySize").Params(Id("max").Int()).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("httpServer")).Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("maxRequestBodySize").Op("=").Id("max"),
 		)),
 	)
