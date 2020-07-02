@@ -111,13 +111,6 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 
 		pkgConfig := path.Join(basePkg, "pkg", meta.projectName, "config")
 
-		// if config.Service().ReportCaller {
-		//		log.SetReportCaller(true)
-		//	}
-		//	if level, err := logrus.ParseLevel(config.Service().LogLevel); err == nil {
-		//		log.SetLevel(level)
-		//	}
-
 		g.Line().If(Qual(pkgConfig, "Service").Call().Dot("ReportCaller")).Block(
 			Id("log").Dot("SetReportCaller").Call(Lit(true)),
 		)
@@ -134,17 +127,17 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 
 		appArgs := []Code{Id("log")}
 
+		pkgTransport := path.Join(basePkg, "pkg", meta.projectName, "transport")
+
 		g.Line().Comment("TODO implement me!")
 
 		for _, service := range services {
-			svcName := "svc" + utils.ToCamel(service.Name)
+			svcName := service.Name
 			g.Var().Id(svcName).Qual(pkgService, service.Name)
-			appArgs = append(appArgs, Id(svcName))
+			appArgs = append(appArgs, Qual(pkgTransport, "Service").Call(Qual(pkgTransport, "New"+svcName).Call(Id("log"), Id(svcName))))
 		}
 
 		g.Line()
-
-		pkgTransport := path.Join(basePkg, "pkg", meta.projectName, "transport")
 
 		if meta.withTracer {
 			g.Id("srv").Op(":=").Qual(pkgTransport, "New").Call(appArgs...).Dot("WithTrace").Call()
@@ -175,7 +168,7 @@ func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) C
 			g.Id("srv").Dot("ServeHTTP").Call(Qual(pkgConfig, "Service").Call().Dot("ServiceBind"))
 		}
 
-		g.Line().Id("srv").Dot("ServeMetrics").Call(Qual(pkgConfig, "Service").Call().Dot("MetricsBind"))
+		g.Line().Qual(pkgTransport, "ServeMetrics").Call(Id("log"), Qual(pkgConfig, "Service").Call().Dot("MetricsBind"))
 		g.If(Qual(pkgConfig, "Service").Call().Dot("EnablePPROF")).Block(
 			Id("srv").Dot("ServePPROF").Call(Qual(pkgConfig, "Service").Call().Dot("PprofBind")),
 		)

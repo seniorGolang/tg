@@ -173,13 +173,13 @@ func cmdInit(c *cli.Context) (err error) {
 
 	fmt.Println(c.Bool("mongo"))
 
-	return skeleton.GenerateSkeleton(log,
-		c.String("project"),
-		c.String("repo"),
-		"./"+c.Args().First(),
-		c.Bool("trace"),
-		c.Bool("mongo"),
-	)
+	repo := c.String("repo")
+	project := c.String("project")
+
+	if repo == "" {
+		repo = project
+	}
+	return skeleton.GenerateSkeleton(log, project, repo, "./"+c.Args().First(), c.Bool("trace"), c.Bool("mongo"))
 }
 
 func cmdClient(c *cli.Context) (err error) {
