@@ -31,6 +31,15 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 		)),
 	)
 
+	for serviceName := range tr.services {
+		srcFile.Line().Func().Id(serviceName).Params(Id("svc").Op("*").Id("http" + serviceName)).Id("Option").Block(
+			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+				Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
+				Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Router").Call()),
+			)),
+		)
+	}
+
 	srcFile.Line().Func().Id("AfterHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("httpAfter").Op("=").Append(Id("srv").Dot("httpAfter"), Id("handler")),

@@ -46,11 +46,9 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")).BlockFunc(func(bg *Group) {
 
-		prefix := svc.tags.Value(tagHttpPrefix)
-
 		if svc.tags.Contains(tagServerJsonRPC) {
 
-			bg.Line().Id("route").Dot("POST").Call(Lit(path.Join("/", prefix, svc.lcName())), Id("http").Dot("serveBatch"))
+			bg.Line().Id("route").Dot("POST").Call(Lit(path.Join("/", svc.lcName())), Id("http").Dot("serveBatch"))
 
 			for _, method := range svc.methods {
 
