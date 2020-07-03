@@ -10,102 +10,90 @@ import (
 	"time"
 
 	"github.com/fasthttp/router"
-	"github.com/lab259/cors"
 	"github.com/savsgio/gotils"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
-
-	"github.com/seniorGolang/tg/example/implement"
-	"github.com/seniorGolang/tg/example/interfaces"
 )
 
 const maxRequestBodySize = 104857600
 
 type Server struct {
-	*httpServer
+	log logrus.FieldLogger
 
-	srvHealth  *fasthttp.Server
-	srvPPROF   *fasthttp.Server
-	srvMetrics *fasthttp.Server
+	httpAfter  []Handler
+	httpBefore []Handler
+
+	maxRequestBodySize int
+
+	srvHTTP   *fasthttp.Server
+	srvHealth *fasthttp.Server
+	srvPPROF  *fasthttp.Server
 
 	reporterCloser io.Closer
 
-	router      *router.Router
-	httpJsonRPC *httpJsonRPC
+	router *router.Router
 
-	httpUser *httpUser
+	httpJsonRPC *httpJsonRPC
+	httpUser    *httpUser
 }
 
-func New(log logrus.FieldLogger, svcJsonRPC interfaces.JsonRPC, svcUser interfaces.User) (srv *Server) {
+func New(log logrus.FieldLogger, options ...Option) (srv *Server) {
 
 	srv = &Server{
-		httpJsonRPC: NewJsonRPC(log, svcJsonRPC),
-		httpServer: &httpServer{
-			log:                log,
-			maxRequestBodySize: maxRequestBodySize,
-		},
-		httpUser: NewUser(log, svcUser),
-		router:   router.New(),
+		log:                log,
+		maxRequestBodySize: maxRequestBodySize,
+		router:             router.New(),
 	}
 	srv.router.POST("/", srv.serveBatch)
-	srv.router.POST("/jsonrpc", srv.httpJsonRPC.serveBatch)
-	srv.router.POST("/jsonRPC/test", srv.httpJsonRPC.serveTest)
-
-	srv.router.GET("/api/v2/user/info", srv.httpUser.serveGetUser)
-	srv.router.POST("/api/v2/user/file", srv.httpUser.serveUploadFile)
-	srv.router.PATCH("/api/v2/user/custom/response", srv.httpUser.serveCustomResponse)
-	srv.router.DELETE("/api/v2/user/custom", implement.CustomHandler)
-
+	for _, option := range options {
+		option(srv)
+	}
 	return
 }
 
-func (srv Server) User() MiddlewareSetUser {
-	return srv.httpUser.svc
-}
-
-func (srv Server) JsonRPC() MiddlewareSetJsonRPC {
-	return srv.httpJsonRPC.svc
-}
-
-func (srv *Server) ServeHTTP(address string, options ...Option) {
-
-	srv.applyOptions(options...)
-	srv.httpUser.applyOptions(options...)
-	srv.httpJsonRPC.applyOptions(options...)
+func (srv *Server) ServeHTTP(address string) {
 
 	srv.log.WithField("address", address).Info("enable HTTP transport")
 
-	srv.srvHttp = &fasthttp.Server{
-		Handler:            cors.AllowAll().Handler(srv.router.Handler),
+	srv.srvHTTP = &fasthttp.Server{
+		Handler:            srv.httpHandler(),
 		MaxRequestBodySize: srv.maxRequestBodySize,
 		ReadTimeout:        time.Second * 10,
 	}
-
 	go func() {
-		err := srv.srvHttp.ListenAndServe(address)
+		err := srv.srvHTTP.ListenAndServe(address)
 		ExitOnError(srv.log, err, "serve http on "+address)
 	}()
 }
 
-func (srv *Server) ServeHTTPS(address, certFile, keyFile string, options ...Option) {
-
-	srv.applyOptions(options...)
-	srv.httpUser.applyOptions(options...)
-	srv.httpJsonRPC.applyOptions(options...)
+func (srv *Server) ServeHTTPS(address, certFile, keyFile string) {
 
 	srv.log.WithField("address", address).Info("enable HTTP transport")
 
-	srv.srvHttp = &fasthttp.Server{
-		Handler:            cors.AllowAll().Handler(srv.router.Handler),
+	srv.srvHTTP = &fasthttp.Server{
+		Handler:            srv.httpHandler(),
 		MaxRequestBodySize: srv.maxRequestBodySize,
 		ReadTimeout:        time.Second * 10,
 	}
-
 	go func() {
-		err := srv.srvHttp.ListenAndServeTLS(address, certFile, keyFile)
+		err := srv.srvHTTP.ListenAndServeTLS(address, certFile, keyFile)
 		ExitOnError(srv.log, err, "serve http on "+address)
 	}()
+}
+
+func (srv *Server) httpHandler() fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+
+		for _, before := range srv.httpBefore {
+			before(ctx)
+		}
+		srv.router.Handler(ctx)
+
+		for _, after := range srv.httpAfter {
+			after(ctx)
+		}
+	}
 }
 
 func (srv *Server) Router() *router.Router {
@@ -113,14 +101,22 @@ func (srv *Server) Router() *router.Router {
 }
 
 func (srv *Server) WithLog(log logrus.FieldLogger) *Server {
-	srv.JsonRPC().WithLog(log)
-	srv.User().WithLog(log)
+	if srv.httpJsonRPC != nil {
+		srv.JsonRPC().WithLog(log)
+	}
+	if srv.httpUser != nil {
+		srv.User().WithLog(log)
+	}
 	return srv
 }
 
 func (srv *Server) WithTrace() *Server {
-	srv.JsonRPC().WithTrace()
-	srv.User().WithTrace()
+	if srv.httpUser != nil {
+		srv.User().WithTrace()
+	}
+	if srv.httpJsonRPC != nil {
+		srv.JsonRPC().WithTrace()
+	}
 	return srv
 }
 
@@ -142,32 +138,31 @@ func (srv *Server) ServePPROF(address string) {
 
 func (srv *Server) ServeHealth(address string) {
 
-	srv.srvMetrics = &fasthttp.Server{
+	srv.srvHealth = &fasthttp.Server{
 		Handler: func(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusOK)
 			_, _ = ctx.WriteString("ok")
 		},
 		ReadTimeout: time.Second * 10,
 	}
-
 	go func() {
-		err := srv.srvMetrics.ListenAndServe(address)
+		err := srv.srvHealth.ListenAndServe(address)
 		ExitOnError(srv.log, err, "serve health on "+address)
 	}()
 }
 
 func (srv *Server) Shutdown() {
 
-	if srv.srvHttp != nil {
-		_ = srv.srvHttp.Shutdown()
+	if srv.srvHTTP != nil {
+		_ = srv.srvHTTP.Shutdown()
 	}
 
 	if srv.srvHealth != nil {
 		_ = srv.srvHealth.Shutdown()
 	}
 
-	if srv.srvMetrics != nil {
-		_ = srv.srvMetrics.Shutdown()
+	if srvMetrics != nil {
+		_ = srvMetrics.Shutdown()
 	}
 
 	if srv.srvPPROF != nil {
@@ -182,4 +177,12 @@ func sendResponse(log logrus.FieldLogger, ctx *fasthttp.RequestCtx, resp interfa
 	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
 		log.WithField("body", gotils.B2S(ctx.PostBody())).WithError(err).Error("response write error")
 	}
+}
+
+func (srv Server) JsonRPC() *httpJsonRPC {
+	return srv.httpJsonRPC
+}
+
+func (srv Server) User() *httpUser {
+	return srv.httpUser
 }

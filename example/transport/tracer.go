@@ -68,7 +68,7 @@ func injectSpan(log logrus.FieldLogger, span otg.Span, ctx *fasthttp.RequestCtx)
 	headers := make(http.Header)
 
 	if err := otg.GlobalTracer().Inject(span.Context(), otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers)); err != nil {
-		log.WithError(err).Warning("inject span to HTTP headers")
+		log.WithError(err).Debug("inject span to HTTP headers")
 	}
 
 	for key, values := range headers {
@@ -88,7 +88,7 @@ func extractSpan(log logrus.FieldLogger, opName string, ctx *fasthttp.RequestCtx
 	wireContext, err := otg.GlobalTracer().Extract(otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers))
 
 	if err != nil {
-		log.WithError(err).Warning("extract span from HTTP headers")
+		log.WithError(err).Debug("extract span from HTTP headers")
 	} else {
 		opts = append(opts, otg.ChildOf(wireContext))
 	}

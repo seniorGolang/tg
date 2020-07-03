@@ -2,34 +2,28 @@
 package transport
 
 import (
-	"time"
-
 	"github.com/fasthttp/router"
-	"github.com/lab259/cors"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 
 	"github.com/seniorGolang/tg/example/interfaces"
 )
 
 type httpJsonRPC struct {
-	*httpServer
-	svc *serverJsonRPC
+	log          logrus.FieldLogger
+	errorHandler ErrorHandler
+	svc          *serverJsonRPC
 }
 
 func NewJsonRPC(log logrus.FieldLogger, svcJsonRPC interfaces.JsonRPC) (srv *httpJsonRPC) {
 
 	srv = &httpJsonRPC{
-		httpServer: &httpServer{
-			log:                log,
-			maxRequestBodySize: maxRequestBodySize,
-		},
+		log: log,
 		svc: newServerJsonRPC(svcJsonRPC),
 	}
 	return
 }
 
-func (http httpJsonRPC) JsonRPC() MiddlewareSetJsonRPC {
+func (http httpJsonRPC) Service() MiddlewareSetJsonRPC {
 	return http.svc
 }
 
@@ -43,25 +37,13 @@ func (http *httpJsonRPC) WithTrace() *httpJsonRPC {
 	return http
 }
 
-func (http *httpJsonRPC) ServeHTTP(address string, options ...Option) {
+func (http *httpJsonRPC) WithErrorHandler(handler ErrorHandler) *httpJsonRPC {
+	http.errorHandler = handler
+	return http
+}
 
-	http.applyOptions(options...)
-
-	route := router.New()
+func (http *httpJsonRPC) SetRoutes(route *router.Router) {
 
 	route.POST("/jsonrpc", http.serveBatch)
 	route.POST("/jsonRPC/test", http.serveTest)
-
-	http.log.WithField("address", address).Info("enable 'JsonRPC' HTTP transport")
-
-	http.srvHttp = &fasthttp.Server{
-		Handler:            cors.AllowAll().Handler(route.Handler),
-		MaxRequestBodySize: http.maxRequestBodySize,
-		ReadTimeout:        time.Second * 10,
-	}
-
-	go func() {
-		err := http.srvHttp.ListenAndServe(address)
-		ExitOnError(http.log, err, "serve 'JsonRPC' http on "+address)
-	}()
 }

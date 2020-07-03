@@ -7,9 +7,12 @@ import (
 	kitPrometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdPrometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
 )
+
+var srvMetrics *fasthttp.Server
 
 var RequestCount = kitPrometheus.NewCounterFrom(stdPrometheus.CounterOpts{
 	Help:      "Number of requests received",
@@ -32,15 +35,15 @@ var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
 	Subsystem: "requests",
 }, []string{"method", "service", "success"})
 
-func (srv *Server) ServeMetrics(address string) {
+func ServeMetrics(log logrus.FieldLogger, address string) {
 
-	srv.srvMetrics = &fasthttp.Server{
+	srvMetrics = &fasthttp.Server{
 		Handler:     fasthttpadaptor.NewFastHTTPHandler(promhttp.Handler()),
 		ReadTimeout: time.Second * 10,
 	}
 
 	go func() {
-		err := srv.srvMetrics.ListenAndServe(address)
-		ExitOnError(srv.log, err, "serve metrics on "+address)
+		err := srvMetrics.ListenAndServe(address)
+		ExitOnError(log, err, "serve metrics on "+address)
 	}()
 }

@@ -40,10 +40,6 @@ func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
-
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
@@ -76,10 +72,6 @@ func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		}
 	}
-
-	for _, handler := range http.httpAfter {
-		handler(ctx)
-	}
 	sendResponse(http.log, ctx, result)
 }
 
@@ -109,10 +101,6 @@ func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
-
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
@@ -125,10 +113,6 @@ func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
 	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
-
-		for _, handler := range http.httpAfter {
-			handler(ctx)
-		}
 		ctx.SetStatusCode(fasthttp.StatusBadRequest)
 		sendResponse(http.log, ctx, "upload file 'fileBytes' error: "+err.Error())
 		return
@@ -146,10 +130,6 @@ func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
 		} else {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		}
-	}
-
-	for _, handler := range http.httpAfter {
-		handler(ctx)
 	}
 	sendResponse(http.log, ctx, result)
 }
@@ -179,10 +159,6 @@ func (http *httpUser) serveCustomResponse(ctx *fasthttp.RequestCtx) {
 	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
 
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
@@ -231,10 +207,6 @@ func (http *httpUser) serveCustomHandler(ctx *fasthttp.RequestCtx) {
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
-
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
@@ -265,10 +237,6 @@ func (http *httpUser) serveCustomHandler(ctx *fasthttp.RequestCtx) {
 		} else {
 			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 		}
-	}
-
-	for _, handler := range http.httpAfter {
-		handler(ctx)
 	}
 	sendResponse(http.log, ctx, result)
 }

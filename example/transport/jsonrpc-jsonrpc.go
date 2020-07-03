@@ -76,10 +76,6 @@ func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
-
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		return
 	}
@@ -90,10 +86,6 @@ func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
 	if err = json.Unmarshal(ctx.PostBody(), &requests); err != nil {
 		ext.Error.Set(batchSpan, true)
 		batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
-
-		for _, handler := range http.httpAfter {
-			handler(ctx)
-		}
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 		return
 	}
@@ -128,10 +120,6 @@ func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
 		span.Finish()
 	}
 	wg.Wait()
-
-	for _, handler := range http.httpAfter {
-		handler(ctx)
-	}
 	sendResponse(http.log, ctx, responses)
 }
 
@@ -149,10 +137,6 @@ func (http *httpJsonRPC) serveMethod(ctx *fasthttp.RequestCtx, methodName string
 		ctx.Error("only POST method supported", fasthttp.StatusMethodNotAllowed)
 	}
 
-	for _, handler := range http.httpBefore {
-		handler(ctx)
-	}
-
 	if value := ctx.Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
@@ -166,10 +150,6 @@ func (http *httpJsonRPC) serveMethod(ctx *fasthttp.RequestCtx, methodName string
 	if err = json.Unmarshal(ctx.PostBody(), &request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
-
-		for _, handler := range http.httpAfter {
-			handler(ctx)
-		}
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 		return
 	}
@@ -180,19 +160,11 @@ func (http *httpJsonRPC) serveMethod(ctx *fasthttp.RequestCtx, methodName string
 	if method != "" && method != methodName {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "invalid method "+methodNameOrigin)
-
-		for _, handler := range http.httpAfter {
-			handler(ctx)
-		}
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method "+methodNameOrigin, nil))
 		return
 	}
 
 	response = methodHandler(span, ctx, request)
-
-	for _, handler := range http.httpAfter {
-		handler(ctx)
-	}
 
 	if response != nil {
 		sendResponse(http.log, ctx, response)

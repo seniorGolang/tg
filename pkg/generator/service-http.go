@@ -69,6 +69,10 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 				if !method.isHTTP() {
 					continue
 				}
+				if method.tags.Contains(tagHandler) {
+					bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Qual(method.handlerQual()))
+					continue
+				}
 				bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Id("http").Dot("serve"+method.Name))
 			}
 		}

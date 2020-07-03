@@ -5,29 +5,11 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 
-	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 )
 
 type cookieType interface {
 	Cookie() *fasthttp.Cookie
-}
-type httpServer struct {
-	maxRequestBodySize int
-
-	log logrus.FieldLogger
-
-	httpAfter    []Handler
-	httpBefore   []Handler
-	errorHandler ErrorHandler
-
-	srvHttp *fasthttp.Server
-}
-
-func (http *httpServer) applyOptions(options ...Option) {
-	for _, option := range options {
-		option(http)
-	}
 }
 
 func uploadFile(ctx *fasthttp.RequestCtx, key string) (data []byte, err error) {

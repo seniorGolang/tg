@@ -2,34 +2,29 @@
 package transport
 
 import (
-	"time"
-
 	"github.com/fasthttp/router"
-	"github.com/lab259/cors"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 
+	"github.com/seniorGolang/tg/example/implement"
 	"github.com/seniorGolang/tg/example/interfaces"
 )
 
 type httpUser struct {
-	*httpServer
-	svc *serverUser
+	log          logrus.FieldLogger
+	errorHandler ErrorHandler
+	svc          *serverUser
 }
 
 func NewUser(log logrus.FieldLogger, svcUser interfaces.User) (srv *httpUser) {
 
 	srv = &httpUser{
-		httpServer: &httpServer{
-			log:                log,
-			maxRequestBodySize: maxRequestBodySize,
-		},
+		log: log,
 		svc: newServerUser(svcUser),
 	}
 	return
 }
 
-func (http httpUser) User() MiddlewareSetUser {
+func (http httpUser) Service() MiddlewareSetUser {
 	return http.svc
 }
 
@@ -43,27 +38,15 @@ func (http *httpUser) WithTrace() *httpUser {
 	return http
 }
 
-func (http *httpUser) ServeHTTP(address string, options ...Option) {
+func (http *httpUser) WithErrorHandler(handler ErrorHandler) *httpUser {
+	http.errorHandler = handler
+	return http
+}
 
-	http.applyOptions(options...)
-
-	route := router.New()
+func (http *httpUser) SetRoutes(route *router.Router) {
 
 	route.GET("/api/v2/user/info", http.serveGetUser)
 	route.POST("/api/v2/user/file", http.serveUploadFile)
 	route.PATCH("/api/v2/user/custom/response", http.serveCustomResponse)
-	route.DELETE("/api/v2/user/custom", http.serveCustomHandler)
-
-	http.log.WithField("address", address).Info("enable 'User' HTTP transport")
-
-	http.srvHttp = &fasthttp.Server{
-		Handler:            cors.AllowAll().Handler(route.Handler),
-		MaxRequestBodySize: http.maxRequestBodySize,
-		ReadTimeout:        time.Second * 10,
-	}
-
-	go func() {
-		err := http.srvHttp.ListenAndServe(address)
-		ExitOnError(http.log, err, "serve 'User' http on "+address)
-	}()
+	route.DELETE("/api/v2/user/custom", implement.CustomHandler)
 }

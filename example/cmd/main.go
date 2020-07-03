@@ -23,7 +23,12 @@ func main() {
 	svcUser := implement.NewUser(log.WithField("module", "user"))
 	svcJsonRPC := implement.NewJsonRPC(log.WithField("module", "jsonRPC"))
 
-	srv := transport.New(log, svcJsonRPC, svcUser).WithLog(log).WithTrace().TraceJaeger("example")
+	services := []transport.Option{
+		transport.User(transport.NewUser(log, svcUser)),
+		transport.JsonRPC(transport.NewJsonRPC(log, svcJsonRPC)),
+	}
+
+	srv := transport.New(log, services...).WithLog(log).WithTrace().TraceJaeger("example")
 
 	srv.ServeHTTP(":9000")
 
