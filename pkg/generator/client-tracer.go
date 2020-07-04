@@ -35,7 +35,7 @@ func (tr Transport) extractSpanClientFunc() Code {
 		Id("span").Op("=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
 
 		Line().If(Id("span").Op("==").Nil()).Block(
-			Id("log").Dot("Warning").Call(Lit("context does not contain span")),
+			Id("log").Dot("Debug").Call(Lit("context does not contain span")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("span").Dot("Context").Call())),
 		),

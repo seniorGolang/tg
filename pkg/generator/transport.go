@@ -45,6 +45,7 @@ const (
 	tagHttpSuccess   = "http-success"
 	tagServerJsonRPC = "jsonRPC-server"
 	tagHttpResponse  = "http-response"
+	tagPackageUUID   = "uuidPackage"
 )
 
 type Transport struct {

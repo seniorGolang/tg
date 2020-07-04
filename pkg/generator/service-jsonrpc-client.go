@@ -63,33 +63,31 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 			})),
 		}),
 
-		Line().Var().Err().Error(),
+		Var().Err().Error(),
 		Var().Id("response").Id(method.responseStructName()),
 
-		Line().If(Id("ret").Op("==").Nil()).Block(
-			Return(),
-		),
-
-		Line().Id("request").Dot("retHandler").Op("=").Func().Params(Id("jsonrpcResponse").Id("baseJsonRPC")).Block(
-			Line().If(Id("jsonrpcResponse").Dot("Error").Op("!=").Nil()).Block(
-				Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("jsonrpcResponse").Dot("Error")),
+		Line().If(Id("ret").Op("!=").Nil()).Block(
+			Id("request").Dot("retHandler").Op("=").Func().Params(Id("jsonrpcResponse").Id("baseJsonRPC")).Block(
+				If(Id("jsonrpcResponse").Dot("Error").Op("!=").Nil()).Block(
+					Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("jsonrpcResponse").Dot("Error")),
+					Id("ret").CallFunc(func(cg *Group) {
+						for _, ret := range method.resultsWithoutError() {
+							cg.Id("response").Dot(utils.ToCamel(ret.Name))
+						}
+						cg.Err()
+					}),
+					Return(),
+				),
+				Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("jsonrpcResponse").Dot("Result"), Op("&").Id("response")),
 				Id("ret").CallFunc(func(cg *Group) {
 					for _, ret := range method.resultsWithoutError() {
 						cg.Id("response").Dot(utils.ToCamel(ret.Name))
 					}
 					cg.Err()
 				}),
-				Return(),
 			),
-			Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("jsonrpcResponse").Dot("Result"), Op("&").Id("response")),
-			Id("ret").CallFunc(func(cg *Group) {
-				for _, ret := range method.resultsWithoutError() {
-					cg.Id("response").Dot(utils.ToCamel(ret.Name))
-				}
-				cg.Err()
-			}),
+			Id("request").Dot("ID").Op("=").Op("[]").Byte().Call(Lit(`"`).Op("+").Qual(packageUUID, "NewV4").Call().Dot("String").Call().Op("+").Lit(`"`)),
 		),
-		Id("request").Dot("ID").Op("=").Op("[]").Byte().Call(Lit(`"`).Op("+").Qual(packageUUID, "NewV4").Call().Dot("String").Call().Op("+").Lit(`"`)),
 		Return(),
 	)
 }
@@ -97,10 +95,6 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method) Code {
 
 	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).Block(
-
-		Line().Var().Id("wd").Qual(packageSync, "WaitGroup"),
-
-		Line().Id("wd").Dot("Add").Call(Lit(1)),
 
 		Line().Id("retHandler").Op(":=").Func().ParamsFunc(func(pg *Group) {
 			for _, ret := range method.Results {
@@ -110,11 +104,9 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method)
 			for _, ret := range method.Results {
 				bg.Id(ret.Name).Op("=").Id("_" + ret.Name)
 			}
-			bg.Id("wd").Dot("Done").Call()
 		}),
 
-		Line().Err().Op("=").Id("cli").Dot("Batch").Call(Id(_ctx_), Id("cli").Dot("Req"+method.Name).CallFunc(func(cg *Group) {
-
+		Err().Op("=").Id("cli").Dot("Batch").Call(Id(_ctx_), Id("cli").Dot("Req"+method.Name).CallFunc(func(cg *Group) {
 			cg.Id("retHandler")
 			for _, arg := range method.argsWithoutContext() {
 
@@ -126,8 +118,6 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method)
 				cg.Add(argCode)
 			}
 		})),
-
-		Line().Id("wd").Dot("Wait").Call(),
 		Return(),
 	)
 }

@@ -152,7 +152,6 @@ func (m method) handlerQual() (pkgPath, handler string) {
 	if !m.tags.Contains(tagHandler) {
 		return
 	}
-
 	if tokens := strings.Split(m.tags.Value(tagHandler), ":"); len(tokens) == 2 {
 		return tokens[0], tokens[1]
 	}
@@ -162,20 +161,15 @@ func (m method) handlerQual() (pkgPath, handler string) {
 func (m method) urlArgs(errStatement *Statement) (g *Statement) {
 
 	g = Line()
-
 	if len(m.argPathMap()) != 0 {
-
 		for arg, param := range m.argPathMap() {
-
 			vArg := m.argByName(arg)
-
 			if vArg == nil {
 				m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("param", param).Warning("argument not found")
 				continue
 			}
-
 			g.Line().List(Id("_"+vArg.Name), Id("_")).Op(":=").Id(_ctx_).Dot("UserValue").Call(Lit(param)).Op(".").Call(String())
-			g.Line().Add(argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id(
+			g.Line().Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id(
 				"request").Dot(utils.ToCamel(vArg.Name)), errStatement)).Line()
 		}
 	}
@@ -280,13 +274,13 @@ func (m method) urlParams(errStatement *Statement) (g *Statement) {
 				g.Line().For(List(Id("_"), Id("param")).Op(":=").Range().Id("arr"+utils.ToCamel(param))).Block(
 
 					Line().Var().Id("_"+vArg.Name).Id(vType.String()),
-					Add(argToTypeConverter(Qual(packageGotils, "B2S").Call(Id("param")), vType, Id("_"+param), errStatement)),
+					Add(m.argToTypeConverter(Qual(packageGotils, "B2S").Call(Id("param")), vType, Id("_"+param), errStatement)),
 					Line().Id("request").Dot(utils.ToCamel(vArg.Name)).Op("=").Append(Id("request").Dot(utils.ToCamel(vArg.Name)), Id("_"+vArg.Name)).Line(),
 				)
 				break
 			}
 			g.Line().Id("_"+vArg.Name).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("QueryArgs").Call().Dot("Peek").Call(Lit(param)))
-			g.Line().Add(argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(vArg.Name)), errStatement)).Line()
+			g.Line().Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(vArg.Name)), errStatement)).Line()
 		}
 	}
 	return g
@@ -305,7 +299,7 @@ func (m method) httpHeaders(errStatement func(arg, header string) *Statement) (b
 				continue
 			}
 			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(header))).Op(";").Id("_" + arg).Op("!=").Lit("")).Block(
-				Add(argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
+				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
 			).Line()
 		}
 	}
@@ -320,7 +314,7 @@ func (m method) httpCookies(errStatement func(arg, header string) *Statement) (b
 		for arg, header := range m.argCookieMap() {
 			vArg := m.argByName(arg)
 			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Cookie").Call(Lit(header))).Op(";").Id("_" + arg).Op("!=").Lit("")).Block(
-				Add(argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
+				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
 			).Line()
 		}
 	}
@@ -493,9 +487,11 @@ func (m method) argsWithoutContext() (args []types.Variable) {
 	return m.Args
 }
 
-func argToTypeConverter(from *Statement, vType types.Type, id *Statement, errStatement *Statement) *Statement {
+func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statement, errStatement *Statement) *Statement {
 
 	op := "="
+
+	uuidPackage := m.tags.Value(tagPackageUUID, packageUUID)
 
 	typename := types.TypeName(vType)
 	if typename == nil {
@@ -515,7 +511,7 @@ func argToTypeConverter(from *Statement, vType types.Type, id *Statement, errSta
 	case "uint32":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(32)).Add(errStatement)
 	case "UUID":
-		return id.Op(op).Qual(packageUUID, "FromStringOrNil").Call(from)
+		return id.Op(op).Qual(uuidPackage, "FromStringOrNil").Call(from)
 
 	case "Time":
 		return List(id, Err()).Op(op).Qual(packageTime, "Parse").Call(Qual(packageTime, "RFC3339Nano"), from).Add(errStatement)
