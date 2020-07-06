@@ -46,6 +46,7 @@ const (
 	tagServerJsonRPC = "jsonRPC-server"
 	tagHttpResponse  = "http-response"
 	tagPackageUUID   = "uuidPackage"
+	tagSwaggerTags   = "swaggerTags"
 )
 
 type Transport struct {

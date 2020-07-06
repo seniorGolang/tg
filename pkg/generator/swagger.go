@@ -73,7 +73,10 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 		service := doc.services[serviceName]
 
-		doc.log.WithField("module", "swagger").Infof("service %s append jsonRPC methods", serviceName)
+		serviceTags := []string{service.Name}
+		serviceTags = strings.Split(service.tags.Value(tagSwaggerTags, service.Name), ",")
+
+		doc.log.WithField("module", "swagger").Infof("service %s append jsonRPC methods", serviceTags)
 
 		for _, method := range service.methods {
 
@@ -161,7 +164,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),
 					Parameters:  parameters,
-					Tags:        []string{service.Name},
+					Tags:        serviceTags,
 					Deprecated:  method.tags.Contains(tagDeprecated),
 					RequestBody: &swRequestBody{
 						Content: swContent{
@@ -189,7 +192,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 			} else if service.tags.Contains(tagServerHTTP) && method.tags.Contains(tagMethodHTTP) {
 
-				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceName, method.Name)
+				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceTags, method.Name)
 
 				httpValue, found := swaggerDoc.Paths[method.jsonrpcPath()]
 
@@ -208,7 +211,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),
 					Parameters:  parameters,
-					Tags:        []string{service.Name},
+					Tags:        serviceTags,
 					Deprecated:  method.tags.Contains(tagDeprecated),
 					RequestBody: &swRequestBody{
 						Content: doc.clearContent(swContent{
