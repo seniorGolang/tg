@@ -103,7 +103,7 @@ func (tr Transport) serveBatchFunc() Code {
 
 							Line().Id("wg").Dot("Add").Call(Lit(1)),
 
-							Go().Func().Params(Id("request").Id("baseJsonRPC")).Block(
+							Func().Params(Id("request").Id("baseJsonRPC")).Block(
 								Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request"))),
 								Id("wg").Dot("Done").Call(),
 							).Call(Id("request")),

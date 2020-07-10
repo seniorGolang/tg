@@ -99,7 +99,7 @@ func (svc *service) serveServiceBatchFunc() Code {
 
 						Line().Id("wg").Dot("Add").Call(Lit(1)),
 
-						Go().Func().Params(Id("request").Id("baseJsonRPC")).Block(
+						Func().Params(Id("request").Id("baseJsonRPC")).Block(
 							Id("responses").Dot("append").Call(Id("http").Dot(method.lccName()).Call(Id("span"), Id(_ctx_), Id("request"))),
 							Id("wg").Dot("Done").Call(),
 						).Call(Id("request")),
