@@ -117,7 +117,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Properties = make(swProperties)
 
 		for _, field := range vType.Fields {
-			schema.Properties[jsonName(field)] = doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+			if fieldName := jsonName(field); fieldName != "-" {
+				schema.Properties[fieldName] = doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+			}
 		}
 
 	case types.TImport:
@@ -311,6 +313,9 @@ func castType(originName string) (typeName, format string) {
 
 func jsonName(fieldInfo types.StructField) (value string) {
 
+	if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
+		return "-"
+	}
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 {
 		value = tagValues[0]
