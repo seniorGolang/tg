@@ -80,6 +80,10 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 		for _, method := range service.methods {
 
+			if method.tags.Contains(tagSwaggerTags) {
+				serviceTags = strings.Split(method.tags.Value(tagSwaggerTags), ",")
+			}
+
 			successCode := method.tags.ValueInt(tagHttpSuccess, fasthttp.StatusOK)
 
 			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.argumentsWithUploads())
