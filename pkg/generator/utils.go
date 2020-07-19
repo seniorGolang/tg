@@ -58,7 +58,7 @@ func structField(ctx context.Context, field types.StructField) *Statement {
 
 	s.Add(fieldType(ctx, field.Variable.Type, false))
 
-	tags := map[string]string{"json": jsonName(field)}
+	tags := map[string]string{"json": field.Name}
 
 	for tag, values := range field.Tags {
 		tags[tag] = strings.Join(values, ",")
