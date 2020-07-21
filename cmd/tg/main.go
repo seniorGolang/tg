@@ -4,7 +4,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -170,9 +169,6 @@ func cmdInit(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-
-	fmt.Println(c.Bool("mongo"))
-
 	repo := c.String("repo")
 	project := c.String("project")
 

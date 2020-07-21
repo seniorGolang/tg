@@ -150,7 +150,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Nullable = true
 
 	default:
-		fmt.Println("unknown type", vType)
+		doc.log.WithField("type", vType).Error("unknown type")
 		return
 	}
 	return

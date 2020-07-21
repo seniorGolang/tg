@@ -4,7 +4,6 @@
 package generator
 
 import (
-	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -45,7 +44,6 @@ func newService(log logrus.FieldLogger, filePath string, iface types.Interface, 
 		svc.methods = append(svc.methods, newMethod(log, svc, method))
 	}
 
-	fmt.Println(filePath)
 	absPath, _ := filepath.Abs(filepath.Dir(filePath))
 	svc.pkgPath, _ = utils.GetPkgPath(filepath.Dir(filePath), true)
 	svc.pkgPath = path.Join(svc.pkgPath, path.Dir(strings.TrimPrefix(filePath, absPath)))
