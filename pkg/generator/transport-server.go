@@ -26,6 +26,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
 
 	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
+	srcFile.Line().Type().Id("middleware").Func().Params(Qual(packageFastHttp, "RequestHandler")).Params(Qual(packageFastHttp, "RequestHandler"))
 
 	for _, service := range tr.services {
 		srcFile.ImportName(service.pkgPath, filepath.Base(service.pkgPath))
@@ -136,15 +137,20 @@ func (tr Transport) serverNewFunc() Code {
 
 func (tr Transport) serveHTTP() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTP").Params(Id("address").String()).BlockFunc(
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTP").Params(Id("address").String(), Id("wraps").Op("...").Id("middleware")).BlockFunc(
 
 		func(bg *Group) {
 
-			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport")).Line()
+			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport"))
 
-			bg.Line().Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
+			bg.Id("handler").Op(":=").Id("srv").Dot("httpHandler").Call()
+
+			bg.Line().For(List(Id("_"), Id("wrap")).Op(":=").Range().Id("wraps")).Block(
+				Id("handler").Op("=").Id("wrap").Call(Id("handler")),
+			)
+			bg.Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
 				Id("ReadTimeout"):        Qual(packageTime, "Second").Op("*").Lit(10),
-				Id("Handler"):            Id("srv").Dot("httpHandler").Call(),
+				Id("Handler"):            Id("handler"),
 				Id("MaxRequestBodySize"): Id("srv").Dot("maxRequestBodySize"),
 			})
 			bg.Go().Func().Params().Block(
@@ -157,15 +163,20 @@ func (tr Transport) serveHTTP() Code {
 
 func (tr Transport) serveHTTPS() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTPS").Params(List(Id("address"), Id("certFile"), Id("keyFile")).String()).BlockFunc(
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTPS").Params(Id("address"), Id("certFile"), Id("keyFile").String(), Id("wraps").Op("...").Id("middleware")).BlockFunc(
 
 		func(bg *Group) {
 
-			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport")).Line()
+			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport"))
 
-			bg.Line().Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
+			bg.Id("handler").Op(":=").Id("srv").Dot("httpHandler").Call()
+
+			bg.Line().For(List(Id("_"), Id("wrap")).Op(":=").Range().Id("wraps")).Block(
+				Id("handler").Op("=").Id("wrap").Call(Id("handler")),
+			)
+			bg.Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
 				Id("ReadTimeout"):        Qual(packageTime, "Second").Op("*").Lit(10),
-				Id("Handler"):            Id("srv").Dot("httpHandler").Call(),
+				Id("Handler"):            Id("handler"),
 				Id("MaxRequestBodySize"): Id("srv").Dot("maxRequestBodySize"),
 			})
 			bg.Go().Func().Params().Block(
