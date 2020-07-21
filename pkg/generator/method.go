@@ -217,6 +217,8 @@ func (m method) argumentsWithUploads() (vars []types.StructField) {
 				m.tags.Set(arg.Name+".type", "file")
 				m.tags.Set(arg.Name+".format", "byte")
 			}
+			arg.Tags = map[string][]string{"json": {arg.Name}}
+			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)
 		}
 	}
@@ -234,6 +236,8 @@ func (m method) results() (vars []types.StructField) {
 		_, inDownload := m.downloadVarsMap()[arg.Name]
 
 		if !inHeader && !inCookie && !inDownload {
+			arg.Tags = map[string][]string{"json": {arg.Name}}
+			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)
 		}
 	}
