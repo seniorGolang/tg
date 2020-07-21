@@ -313,6 +313,9 @@ func castType(originName string) (typeName, format string) {
 
 func jsonName(fieldInfo types.StructField) (value string) {
 
+	if fieldInfo.Variable.Name == "" {
+		fieldInfo.Variable.Name = fieldInfo.Type.String()
+	}
 	if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
 		return "-"
 	}
