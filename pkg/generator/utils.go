@@ -160,10 +160,10 @@ func paramNames(fields []types.Variable) *Statement {
 	return List(list...)
 }
 
-func responseParamNames(response string, fields []types.Variable) *Statement {
+func callParamNames(object string, fields []types.Variable) *Statement {
 	var list []Code
 	for _, field := range fields {
-		v := Id(response).Dot(utils.ToCamel(field.Name))
+		v := Id(object).Dot(utils.ToCamel(field.Name))
 		if types.IsEllipsis(field.Type) {
 			v.Op("...")
 		}

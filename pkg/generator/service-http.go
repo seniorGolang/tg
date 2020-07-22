@@ -25,13 +25,15 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 		Id("log").Qual(packageLogrus, "FieldLogger"),
 		Id("errorHandler").Id("ErrorHandler"),
 		Id("svc").Op("*").Id("server"+svc.Name),
+		Id("base").Qual(svc.pkgPath, svc.Name),
 	)
 
 	srcFile.Line().Func().Id("New"+svc.Name).Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("svc"+svc.Name).Qual(svc.pkgPath, svc.Name)).Params(Id("srv").Op("*").Id("http"+svc.Name)).Block(
 
 		Line().Id("srv").Op("=").Op("&").Id("http"+svc.Name).Values(Dict{
-			Id("log"): Id("log"),
-			Id("svc"): Id("newServer" + svc.Name).Call(Id("svc" + svc.Name)),
+			Id("log"):  Id("log"),
+			Id("base"): Id("svc" + svc.Name),
+			Id("svc"):  Id("newServer" + svc.Name).Call(Id("svc" + svc.Name)),
 		}),
 		Return(),
 	)
@@ -84,7 +86,7 @@ func (svc *service) withErrorHandler() Code {
 
 	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithErrorHandler").Params(Id("handler").Id("ErrorHandler")).Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
 
-		bg.Id("http").Dot("errorHandler").Op("=").Call(Id("handler"))
+		bg.Id("http").Dot("errorHandler").Op("=").Id("handler")
 		bg.Return(Id("http"))
 	})
 }

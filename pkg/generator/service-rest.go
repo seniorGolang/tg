@@ -161,16 +161,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}
 
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
-
-			responseID := Id("response")
-			if len(method.results()) > 0 {
-				bg.Line().Var().Id("response").Id(method.responseStructName())
-			} else {
-				responseID = Id("_")
-			}
-			bg.List(responseID, Err()).Op("=").Id("http").Dot(method.lccName()).Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span")), Id("request"))
-			bg.Add(toID(responseMethod).Call(Id("http").Dot("log"), Id(_ctx_), responseParamNames("response", method.resultsWithoutError()), Err()))
-
+			bg.Add(toID(responseMethod).Call(Id("http").Dot("base"), Id(_ctx_), callParamNames("request", method.argsWithoutContext()), Err()))
 		} else {
 
 			bg.Var().Id("result").Interface()
