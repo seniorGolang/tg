@@ -131,6 +131,7 @@ func (tr Transport) jsonrpcClientCallFunc() Code {
 		Line().Var().Id("responses").Op("[]").Id("baseJsonRPC"),
 
 		Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("resp").Dot("Body").Call(), Op("&").Id("responses")).Op(";").Err().Op("!=").Nil()).Block(
+			Id("cli").Dot("log").Dot("WithError").Call(Err()).Dot("WithField").Call(Lit("response"), String().Call(Id("resp").Dot("Body").Call())).Dot("Error").Call(Lit("unmarshal response error")),
 			Return(),
 		),
 
