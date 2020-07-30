@@ -42,6 +42,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.Line().Add(tr.routerFunc())
 	srcFile.Line().Add(tr.withLogFunc())
 	srcFile.Line().Add(tr.withTraceFunc())
+	srcFile.Line().Add(tr.withMetricsFunc())
 
 	srcFile.Line().Add(tr.serveProfileFunc())
 	srcFile.Line().Add(tr.serveHealthFunc())
@@ -85,6 +86,19 @@ func (tr Transport) withTraceFunc() Code {
 		for serviceName := range tr.services {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
 				Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
+			)
+		}
+		bg.Return(Id("srv"))
+	})
+}
+
+func (tr Transport) withMetricsFunc() Code {
+
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+
+		for serviceName := range tr.services {
+			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+				Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
 			)
 		}
 		bg.Return(Id("srv"))

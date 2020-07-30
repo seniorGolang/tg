@@ -44,6 +44,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile.Line().Add(svc.withLogFunc())
 	srcFile.Line().Add(svc.withTraceFunc())
+	srcFile.Line().Add(svc.withMetricsFunc())
 	srcFile.Line().Add(svc.withErrorHandler())
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")).BlockFunc(func(bg *Group) {
@@ -105,6 +106,15 @@ func (svc *service) withTraceFunc() Code {
 	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithTrace").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
 
 		bg.Id("http").Dot("svc").Dot("WithTrace").Call()
+		bg.Return(Id("http"))
+	})
+}
+
+func (svc *service) withMetricsFunc() Code {
+
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithMetrics").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+
+		bg.Id("http").Dot("svc").Dot("WithMetrics").Call()
 		bg.Return(Id("http"))
 	})
 }
