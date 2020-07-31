@@ -127,10 +127,12 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		Line().Var().Err().Error(),
 		Var().Id("request").Id(method.requestStructName()),
 
-		Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("requestBase").Dot("Params"), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(
-			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil())),
+		Line().If(Id("requestBase").Dot("Params").Op("!=").Nil()).Block(
+			If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("requestBase").Dot("Params"), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(
+				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil())),
+			),
 		),
 
 		Line().If(Id("requestBase").Dot("Version").Op("!=").Id("Version")).Block(
