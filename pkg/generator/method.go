@@ -217,7 +217,13 @@ func (m method) argumentsWithUploads() (vars []types.StructField) {
 				m.tags.Set(arg.Name+".type", "file")
 				m.tags.Set(arg.Name+".format", "byte")
 			}
-			arg.Tags = map[string][]string{"json": {arg.Name}}
+			if jsonTags, _ := arg.Tags["json"]; len(jsonTags) == 0 {
+				if arg.Tags == nil {
+					arg.Tags = map[string][]string{"json": {arg.Name}}
+				} else {
+					arg.Tags["json"] = []string{arg.Name}
+				}
+			}
 			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)
 		}
