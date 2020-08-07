@@ -98,7 +98,7 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method)
 
 		Line().Id("retHandler").Op(":=").Func().ParamsFunc(func(pg *Group) {
 			for _, ret := range method.Results {
-				pg.Id("_" + ret.Name).Id(ret.Type.String())
+				pg.Id("_" + ret.Name).Add(fieldType(context.Background(), ret.Type, true))
 			}
 		}).BlockFunc(func(bg *Group) {
 			for _, ret := range method.Results {
