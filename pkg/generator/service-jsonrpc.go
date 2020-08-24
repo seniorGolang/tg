@@ -143,7 +143,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 
 		Line().Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span")),
 
-		method.httpHeaders(func(arg, header string) *Statement {
+		method.httpArgHeaders(func(arg, header string) *Statement {
 
 			return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).Line().
 				Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).Line().

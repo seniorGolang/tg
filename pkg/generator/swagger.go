@@ -92,7 +92,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 			var parameters []swParameter
 			var retHeaders map[string]swHeader
 
-			for argName, headerKey := range method.argHeaderMap() {
+			for argName, headerKey := range method.varHeaderMap() {
 
 				if arg := method.argByName(argName); arg != nil {
 

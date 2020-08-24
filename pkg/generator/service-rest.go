@@ -131,7 +131,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			Return(),
 		)))
 
-		bg.Add(method.httpHeaders(func(arg, header string) *Statement {
+		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
@@ -169,30 +169,21 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span")), Id("request"))
 			bg.Id("result").Op("=").Id("response")
 
+			ex := Line()
 			if len(method.retCookieMap()) > 0 {
-
-				bg.Line().If(Err().Op("==").Nil()).BlockFunc(func(bg *Group) {
-
-					for retName := range method.retCookieMap() {
-
-						if ret := method.resultByName(retName); ret != nil {
-
-							bg.If(List(Id("rCookie"), Id("ok")).Op(":=").Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Block(
-								Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("rCookie").Dot("Cookie").Call()),
-							)
-							// ).Else().Block(
-							// 	Id("cookie").Op(":=").Op("&").Qual(packageFastHttp, "Cookie").Values(Dict{}),
-							// 	Id("cookie").Dot("SetKey").Call(Lit(cookie)),
-							// 	Id("cookie").Dot("SetSecure").Call(True()),
-							// 	Id("cookie").Dot("SetHTTPOnly").Call(True()),
-							// 	Id("cookie").Dot("SetPath").Call(Lit("/")),
-							// 	Id("cookie").Dot("SetMaxAge").Call(Id("defaultCookieExpire")),
-							// 	Id("cookie").Dot("SetValue").Call(Id("response").Dot(utils.ToCamel(retName))),
-							// 	Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("cookie")),
-							// )
-						}
+				for retName := range method.retCookieMap() {
+					if ret := method.resultByName(retName); ret != nil {
+						ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
+							Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
+							Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
+							Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("rCookie").Dot("Cookie").Call()),
+						)
 					}
-				})
+				}
+			}
+			ex.Add(method.httpRetHeaders())
+			if len(*ex) > 2 {
+				bg.Line().If(Err().Op("==").Nil()).Block(ex)
 			}
 
 			bg.Line().If(Err().Op("!=").Nil()).Block(

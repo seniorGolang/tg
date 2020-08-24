@@ -32,7 +32,7 @@ type method struct {
 
 	pathToArg   map[string]string
 	paramToArg  map[string]string
-	headerToArg map[string]string
+	headerToVar map[string]string
 	cookieToVar map[string]string
 	cookieToArg map[string]string
 	cookieToRet map[string]string
@@ -47,7 +47,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 		tags:     tags.ParseTags(fn.Docs),
 	}
 	m.argFields = m.varsToFields(m.argsWithoutContext(), m.tags, m.argCookieMap())
-	m.resultFields = m.varsToFields(m.resultsWithoutError(), m.tags, m.retCookieMap())
+	m.resultFields = m.varsToFields(m.resultsWithoutError(), m.tags, m.retCookieMap(), m.varHeaderMap())
 	return
 }
 
@@ -184,7 +184,7 @@ func (m method) arguments() (vars []types.StructField) {
 
 		_, inPath := m.argPathMap()[arg.Name]
 		_, inArgs := m.argParamMap()[arg.Name]
-		_, inHeader := m.argHeaderMap()[arg.Name]
+		_, inHeader := m.varHeaderMap()[arg.Name]
 		_, inCookie := m.varCookieMap()[arg.Name]
 		_, inUpload := m.uploadVarsMap()[arg.Name]
 
@@ -208,7 +208,7 @@ func (m method) argumentsWithUploads() (vars []types.StructField) {
 
 		_, inPath := m.argPathMap()[arg.Name]
 		_, inArgs := m.argParamMap()[arg.Name]
-		_, inHeader := m.argHeaderMap()[arg.Name]
+		_, inHeader := m.varHeaderMap()[arg.Name]
 		_, inCookie := m.varCookieMap()[arg.Name]
 
 		if !inArgs && !inPath && !inHeader && !inCookie {
@@ -237,7 +237,7 @@ func (m method) results() (vars []types.StructField) {
 
 	for _, arg := range argsAll {
 
-		_, inHeader := m.argHeaderMap()[arg.Name]
+		_, inHeader := m.varHeaderMap()[arg.Name]
 		_, inCookie := m.varCookieMap()[arg.Name]
 		_, inDownload := m.downloadVarsMap()[arg.Name]
 
@@ -296,21 +296,41 @@ func (m method) urlParams(errStatement *Statement) (g *Statement) {
 	return g
 }
 
-func (m method) httpHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	block = Line()
-	if len(m.argHeaderMap()) != 0 {
-
-		for arg, header := range m.argHeaderMap() {
-
+	if len(m.varHeaderMap()) != 0 {
+		for arg, header := range m.varHeaderMap() {
 			vArg := m.argByName(arg)
 			if vArg == nil {
-				m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("header", header).Warning("argument not found")
+				if m.resultByName(arg) == nil {
+					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("header", header).Warning("argument not found")
+				}
 				continue
 			}
 			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(header))).Op(";").Id("_" + arg).Op("!=").Lit("")).Block(
 				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
 			).Line()
+		}
+	}
+	return block
+}
+
+func (m method) httpRetHeaders() (block *Statement) {
+
+	block = Line()
+	if len(m.varHeaderMap()) != 0 {
+		for ret, header := range m.varHeaderMap() {
+			vArg := m.resultByName(ret)
+			if vArg == nil {
+				if m.argByName(ret) == nil {
+					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("ret", ret).WithField("header", header).Warning("result not found")
+				}
+				continue
+			}
+			block.If(Id("response").Dot(utils.ToCamel(ret)).Op("!=").Lit("").Block(
+				Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Lit(header), Id("response").Dot(utils.ToCamel(ret))),
+			))
 		}
 	}
 	return block
@@ -431,13 +451,13 @@ func (m *method) varCookieMap() (cookies map[string]string) {
 	return m.cookieToVar
 }
 
-func (m *method) argHeaderMap() (headers map[string]string) {
+func (m *method) varHeaderMap() (headers map[string]string) {
 
-	if m.headerToArg != nil {
-		return m.headerToArg
+	if m.headerToVar != nil {
+		return m.headerToVar
 	}
 
-	m.headerToArg = make(map[string]string)
+	m.headerToVar = make(map[string]string)
 
 	if httpHeaders := m.tags.Value(tagHttpHeader); httpHeaders != "" {
 
@@ -447,11 +467,11 @@ func (m *method) argHeaderMap() (headers map[string]string) {
 			if pairTokens := strings.Split(pair, "|"); len(pairTokens) == 2 {
 				arg := strings.TrimSpace(pairTokens[0])
 				header := strings.TrimSpace(pairTokens[1])
-				m.headerToArg[arg] = header
+				m.headerToVar[arg] = header
 			}
 		}
 	}
-	return m.headerToArg
+	return m.headerToVar
 }
 
 func (m method) argByName(argName string) (variable *types.Variable) {
@@ -529,16 +549,17 @@ func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statem
 	return Line().Add(from)
 }
 
-func (m method) varsToFields(vars []types.Variable, tags tags.DocTags, cookiesMap map[string]string) (fields []types.StructField) {
+func (m method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes ...map[string]string) (fields []types.StructField) {
 
 	for _, variable := range vars {
 
 		field := types.StructField{Variable: variable, Tags: make(map[string][]string)}
 
-		if _, found := cookiesMap[variable.Name]; found {
-			field.Tags["json"] = []string{"-"}
+		for _, exclude := range excludes {
+			if _, found := exclude[variable.Name]; found {
+				field.Tags["json"] = []string{"-"}
+			}
 		}
-
 		for key, value := range tags.Sub(variable.Name) {
 
 			if key == tagTag {

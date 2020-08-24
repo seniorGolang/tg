@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/dave/jennifer v1.4.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fasthttp/router v1.2.2
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/go-kit/kit v0.10.0
