@@ -88,7 +88,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 
 		bg.Line().Id("span").Op(":=").Id("extractSpan").Call(
 			Id("http").Dot("log"),
-			Qual(packageFmt, "Sprintf").Call(Lit("jsonRPC:%s"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("URI").Call().Dot("Path").Call())),
+			Qual(packageFmt, "Sprintf").Call(Lit("request:%s"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("URI").Call().Dot("Path").Call())),
 			Id(_ctx_),
 		)
 		bg.Defer().Id("injectSpan").Call(Id("http").Dot("log"), Id("span"), Id(_ctx_))
