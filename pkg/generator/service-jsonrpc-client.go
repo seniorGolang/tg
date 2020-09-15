@@ -106,7 +106,7 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method)
 			}
 		}),
 
-		Err().Op("=").Id("cli").Dot("Batch").Call(Id(_ctx_), Id("cli").Dot("Req"+method.Name).CallFunc(func(cg *Group) {
+		If(Id("blockErr").Op(":=").Id("cli").Dot("Batch").Call(Id(_ctx_), Id("cli").Dot("Req"+method.Name).CallFunc(func(cg *Group) {
 			cg.Id("retHandler")
 			for _, arg := range method.argsWithoutContext() {
 
@@ -117,7 +117,10 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method)
 				}
 				cg.Add(argCode)
 			}
-		})),
+		})).Op(";").Id("blockErr").Op("!=").Nil()).Block(
+			Err().Op("=").Id("blockErr"),
+			Return(),
+		),
 		Return(),
 	)
 }
