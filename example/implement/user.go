@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 
+	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
 )
 
@@ -33,10 +34,10 @@ func (svc *UserService) CustomHandler(ctx context.Context, arg0 int, arg1 string
 	panic("implement me")
 }
 
-func CustomResponseHandler(log logrus.FieldLogger, ctx *fasthttp.RequestCtx, err error) {
+func CustomResponseHandler(ctx *fasthttp.RequestCtx, svc interfaces.User, err error, arg0 int, arg1 string, opts ...interface{}) {
 	panic("implement me")
 }
 
-func CustomHandler(ctx *fasthttp.RequestCtx) {
+func CustomHandler(ctx *fasthttp.RequestCtx, svc interfaces.User) {
 	panic("implement me")
 }

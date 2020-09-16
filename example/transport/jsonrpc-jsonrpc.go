@@ -21,10 +21,12 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fasthttp.RequestCtx, r
 	var err error
 	var request requestJsonRPCTest
 
-	if err = json.Unmarshal(requestBase.Params, &request); err != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request body could not be decoded: "+err.Error())
-		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "request body could not be decoded: "+err.Error(), nil)
+	if requestBase.Params != nil {
+		if err = json.Unmarshal(requestBase.Params, &request); err != nil {
+			ext.Error.Set(span, true)
+			span.SetTag("msg", "request body could not be decoded: "+err.Error())
+			return makeErrorResponseJsonRPC(requestBase.ID, parseError, "request body could not be decoded: "+err.Error(), nil)
+		}
 	}
 
 	if requestBase.Version != Version {
@@ -107,7 +109,7 @@ func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
 		case "test":
 
 			wg.Add(1)
-			go func(request baseJsonRPC) {
+			func(request baseJsonRPC) {
 				responses.append(http.test(span, ctx, request))
 				wg.Done()
 			}(request)

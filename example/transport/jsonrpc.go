@@ -120,7 +120,7 @@ func (srv *Server) serveBatch(ctx *fasthttp.RequestCtx) {
 		case "jsonrpc.test":
 
 			wg.Add(1)
-			go func(request baseJsonRPC) {
+			func(request baseJsonRPC) {
 				responses.append(srv.httpJsonRPC.test(span, ctx, request))
 				wg.Done()
 			}(request)

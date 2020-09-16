@@ -12,13 +12,15 @@ type httpJsonRPC struct {
 	log          logrus.FieldLogger
 	errorHandler ErrorHandler
 	svc          *serverJsonRPC
+	base         interfaces.JsonRPC
 }
 
 func NewJsonRPC(log logrus.FieldLogger, svcJsonRPC interfaces.JsonRPC) (srv *httpJsonRPC) {
 
 	srv = &httpJsonRPC{
-		log: log,
-		svc: newServerJsonRPC(svcJsonRPC),
+		base: svcJsonRPC,
+		log:  log,
+		svc:  newServerJsonRPC(svcJsonRPC),
 	}
 	return
 }
@@ -37,6 +39,11 @@ func (http *httpJsonRPC) WithTrace() *httpJsonRPC {
 	return http
 }
 
+func (http *httpJsonRPC) WithMetrics() *httpJsonRPC {
+	http.svc.WithMetrics()
+	return http
+}
+
 func (http *httpJsonRPC) WithErrorHandler(handler ErrorHandler) *httpJsonRPC {
 	http.errorHandler = handler
 	return http
@@ -44,6 +51,6 @@ func (http *httpJsonRPC) WithErrorHandler(handler ErrorHandler) *httpJsonRPC {
 
 func (http *httpJsonRPC) SetRoutes(route *router.Router) {
 
-	route.POST("/jsonrpc", http.serveBatch)
+	route.POST("/jsonRPC", http.serveBatch)
 	route.POST("/jsonRPC/test", http.serveTest)
 }

@@ -18,6 +18,8 @@ import (
 
 const maxRequestBodySize = 104857600
 
+type middleware func(fasthttp.RequestHandler) fasthttp.RequestHandler
+
 type Server struct {
 	log logrus.FieldLogger
 
@@ -52,12 +54,16 @@ func New(log logrus.FieldLogger, options ...Option) (srv *Server) {
 	return
 }
 
-func (srv *Server) ServeHTTP(address string) {
+func (srv *Server) ServeHTTP(address string, wraps ...middleware) {
 
 	srv.log.WithField("address", address).Info("enable HTTP transport")
+	handler := srv.httpHandler()
 
+	for _, wrap := range wraps {
+		handler = wrap(handler)
+	}
 	srv.srvHTTP = &fasthttp.Server{
-		Handler:            srv.httpHandler(),
+		Handler:            handler,
 		MaxRequestBodySize: srv.maxRequestBodySize,
 		ReadTimeout:        time.Second * 10,
 	}
@@ -67,12 +73,16 @@ func (srv *Server) ServeHTTP(address string) {
 	}()
 }
 
-func (srv *Server) ServeHTTPS(address, certFile, keyFile string) {
+func (srv *Server) ServeHTTPS(address, certFile, keyFile string, wraps ...middleware) {
 
 	srv.log.WithField("address", address).Info("enable HTTP transport")
+	handler := srv.httpHandler()
 
+	for _, wrap := range wraps {
+		handler = wrap(handler)
+	}
 	srv.srvHTTP = &fasthttp.Server{
-		Handler:            srv.httpHandler(),
+		Handler:            handler,
 		MaxRequestBodySize: srv.maxRequestBodySize,
 		ReadTimeout:        time.Second * 10,
 	}
@@ -111,11 +121,21 @@ func (srv *Server) WithLog(log logrus.FieldLogger) *Server {
 }
 
 func (srv *Server) WithTrace() *Server {
+	if srv.httpJsonRPC != nil {
+		srv.JsonRPC().WithTrace()
+	}
 	if srv.httpUser != nil {
 		srv.User().WithTrace()
 	}
+	return srv
+}
+
+func (srv *Server) WithMetrics() *Server {
 	if srv.httpJsonRPC != nil {
-		srv.JsonRPC().WithTrace()
+		srv.JsonRPC().WithMetrics()
+	}
+	if srv.httpUser != nil {
+		srv.User().WithMetrics()
 	}
 	return srv
 }
@@ -179,10 +199,10 @@ func sendResponse(log logrus.FieldLogger, ctx *fasthttp.RequestCtx, resp interfa
 	}
 }
 
-func (srv Server) JsonRPC() *httpJsonRPC {
-	return srv.httpJsonRPC
-}
-
 func (srv Server) User() *httpUser {
 	return srv.httpUser
+}
+
+func (srv Server) JsonRPC() *httpJsonRPC {
+	return srv.httpJsonRPC
 }

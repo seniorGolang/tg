@@ -202,7 +202,7 @@ components:
       type: object
       properties:
         fileBytes:
-          type: file
+          type: string
           format: byte
       description: Загрузка файла
     responseJsonRPCTest:

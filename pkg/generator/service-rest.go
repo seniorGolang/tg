@@ -161,7 +161,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}
 
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
-			bg.Add(toID(responseMethod).Call(Id("http").Dot("base"), Id(_ctx_), callParamNames("request", method.argsWithoutContext()), Err()))
+			bg.Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("base"), Err(), callParamNames("request", method.argsWithoutContext())))
 		} else {
 
 			bg.Var().Id("result").Interface()

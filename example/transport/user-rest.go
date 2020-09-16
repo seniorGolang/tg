@@ -36,7 +36,7 @@ func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (
 
 func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
 
-	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
@@ -97,7 +97,7 @@ func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadF
 
 func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
 
-	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
@@ -156,7 +156,7 @@ func (http *httpUser) customResponse(ctx context.Context, request requestUserCus
 
 func (http *httpUser) serveCustomResponse(ctx *fasthttp.RequestCtx) {
 
-	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
@@ -177,8 +177,7 @@ func (http *httpUser) serveCustomResponse(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	_, err = http.customResponse(opentracing.ContextWithSpan(ctx, span), request)
-	implement.CustomResponseHandler(http.log, ctx, err)
+	implement.CustomResponseHandler(ctx, http.base, err, request.Arg0, request.Arg1, request.Opts...)
 }
 
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
@@ -203,7 +202,7 @@ func (http *httpUser) customHandler(ctx context.Context, request requestUserCust
 
 func (http *httpUser) serveCustomHandler(ctx *fasthttp.RequestCtx) {
 
-	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
 
