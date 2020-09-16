@@ -111,11 +111,11 @@ func (srv *Server) Router() *router.Router {
 }
 
 func (srv *Server) WithLog(log logrus.FieldLogger) *Server {
-	if srv.httpJsonRPC != nil {
-		srv.JsonRPC().WithLog(log)
-	}
 	if srv.httpUser != nil {
 		srv.User().WithLog(log)
+	}
+	if srv.httpJsonRPC != nil {
+		srv.JsonRPC().WithLog(log)
 	}
 	return srv
 }
@@ -199,10 +199,10 @@ func sendResponse(log logrus.FieldLogger, ctx *fasthttp.RequestCtx, resp interfa
 	}
 }
 
-func (srv Server) User() *httpUser {
-	return srv.httpUser
-}
-
 func (srv Server) JsonRPC() *httpJsonRPC {
 	return srv.httpJsonRPC
+}
+
+func (srv Server) User() *httpUser {
+	return srv.httpUser
 }
