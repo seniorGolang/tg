@@ -57,6 +57,6 @@ func (http *httpUser) SetRoutes(route *router.Router) {
 	route.POST("/api/v2/user/file", http.serveUploadFile)
 	route.PATCH("/api/v2/user/custom/response", http.serveCustomResponse)
 	route.DELETE("/api/v2/user/custom", func(ctx *fasthttp.RequestCtx) {
-		implement.CustomHandler(ctx, http.svc)
+		implement.CustomHandler(ctx, http.base)
 	})
 }

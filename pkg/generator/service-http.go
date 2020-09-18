@@ -74,7 +74,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 				}
 				if method.tags.Contains(tagHandler) {
 					bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
-						Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("svc")),
+						Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("base")),
 					))
 					continue
 				}
