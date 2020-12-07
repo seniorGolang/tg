@@ -90,15 +90,15 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin"))
 			}))
 
-			g.Line()
+			g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
+				Id("fields").Op("[").Lit("requestID").Op("]").Op("=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")),
+			)
 
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
 
 				g.Id("m").Dot("log").Dot("WithError").Call(Err()).Dot("WithFields").Call(Id("fields")).Dot("Info").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 				g.Return()
 			})
-
-			g.Line()
 
 			g.Id("m").Dot("log").Dot("WithFields").Call(Id("fields")).Dot("Info").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 

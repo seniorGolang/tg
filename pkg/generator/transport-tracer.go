@@ -29,7 +29,9 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile.ImportAlias(packageZipkinHttp, "httpReporter")
 	srcFile.ImportAlias(packageOpenZipkinOpenTracing, "zipkinTracer")
 
-	srcFile.Add(tr.traceJaegerFunc())
+	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
+
+	srcFile.Line().Add(tr.traceJaegerFunc())
 	srcFile.Line().Add(tr.traceZipkinFunc())
 
 	srcFile.Line().Add(tr.injectSpanFunc())
@@ -47,21 +49,28 @@ func (tr Transport) extractSpanFunc() Code {
 		Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 
 		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
-		Line().Id(_ctx_).Dot("Request").Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
+		Id("requestID").Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
+		If(Id("requestID").Op("==").Lit("")).Block(
+			Id("requestID").Op("=").Qual(packageUUID, "NewV4").Call().Dot("String").Call(),
+		),
+		Id(_ctx_).Dot("Request").Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
 			Id("headers").Dot("Set").Call(Qual(packageGotils, "B2S").Call(Id("key")), Qual(packageGotils, "B2S").Call(Id("value"))),
 		)),
 
-		Line().Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
+		Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
-		Line().If(Err().Op("!=").Nil()).Block(
+		If(Err().Op("!=").Nil()).Block(
 			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("extract span from HTTP headers")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
-		Line().Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
+		Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
 		Line().Qual(packageOpentracingExt, "HTTPUrl").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("URI").Call().Dot("String").Call()),
 		Qual(packageOpentracingExt, "HTTPMethod").Dot("Set").Call(Id("span"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Method").Call())),
+		Id("span").Dot("SetTag").Call(Lit("requestID"), Id("requestID")),
+		Id(_ctx_).Dot("Request").Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
+		Id(_ctx_).Dot("SetUserValue").Call(Id("headerRequestID"), Id("requestID")),
 		Line().Return(),
 	)
 }
@@ -79,7 +88,7 @@ func (tr Transport) injectSpanFunc() Code {
 	return Func().Id("injectSpan").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
 
 		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
-		Line().If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
+		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(
 			Id("span").Dot("Context").Call(),
 			Qual(packageOpentracing, "HTTPHeaders"),
@@ -87,9 +96,10 @@ func (tr Transport) injectSpanFunc() Code {
 		).Op(";").Err().Op("!=").Nil()).Block(
 			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("inject span to HTTP headers")),
 		),
-		Line().For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
+		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
 		),
+		Id(_ctx_).Dot("Response").Dot("Header").Dot("SetBytesV").Call(Id("headerRequestID"), Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
 	)
 }
 
