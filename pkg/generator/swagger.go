@@ -182,7 +182,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 							Content: swContent{
 								contentJSON: swMedia{Schema: swSchema{
 									OneOf: []swSchema{
-										jsonrpcSchema("params", swSchema{Ref: "#/components/schemas/" + method.responseStructName()}),
+										jsonrpcSchema("result", swSchema{Ref: "#/components/schemas/" + method.responseStructName()}),
 										jsonrpcErrorSchema(),
 									},
 								},
