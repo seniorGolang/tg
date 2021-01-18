@@ -51,9 +51,9 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method) Code {
 
-	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).Id("Req"+method.Name).Params(Id("ret").Id("ret"+svc.Name+method.Name), funcDefinitionParams(ctx, method.argsWithoutContext())).Params(Id("request").Id("BaseJsonRPC")).Block(
+	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).Id("Req"+method.Name).Params(Id("ret").Id("ret"+svc.Name+method.Name), funcDefinitionParams(ctx, method.argsWithoutContext())).Params(Id("request").Id("baseJsonRPC")).Block(
 
-		Line().Id("request").Op("=").Id("BaseJsonRPC").Values(Dict{
+		Line().Id("request").Op("=").Id("baseJsonRPC").Values(Dict{
 			Id("Version"): Id("Version"),
 			Id("Method"):  Lit(svc.lcName() + "." + method.lcName()),
 			Id("Params"): Id("request" + svc.Name + method.Name).Values(DictFunc(func(d Dict) {
@@ -67,7 +67,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 		Var().Id("response").Id(method.responseStructName()),
 
 		Line().If(Id("ret").Op("!=").Nil()).Block(
-			Id("request").Dot("retHandler").Op("=").Func().Params(Id("jsonrpcResponse").Id("BaseJsonRPC")).Block(
+			Id("request").Dot("retHandler").Op("=").Func().Params(Id("jsonrpcResponse").Id("baseJsonRPC")).Block(
 				If(Id("jsonrpcResponse").Dot("Error").Op("!=").Nil()).Block(
 					Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("jsonrpcResponse").Dot("Error")),
 					Id("ret").CallFunc(func(cg *Group) {
