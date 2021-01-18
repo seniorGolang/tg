@@ -148,7 +148,11 @@ func (tr Transport) makeErrorResponseJsonRPCFunc() Code {
 
 func (tr Transport) baseJsonRPC(isClient bool) Code {
 
-	return Type().Id("baseJsonRPC").StructFunc(func(tg *Group) {
+	name := "baseJsonRPC"
+	if isClient {
+		name = "BaseJsonRPC"
+	}
+	return Type().Id(name).StructFunc(func(tg *Group) {
 
 		tg.Id("ID").Id("idJsonRPC").Tag(map[string]string{"json": "id"})
 		tg.Id("Version").Id("string").Tag(map[string]string{"json": "jsonrpc"})
@@ -165,7 +169,7 @@ func (tr Transport) baseJsonRPC(isClient bool) Code {
 		tg.Id("Result").Qual(packageJson, "RawMessage").Tag(map[string]string{"json": "result,omitempty"})
 
 		if isClient {
-			tg.Line().Id("retHandler").Func().Params(Id("baseJsonRPC"))
+			tg.Line().Id("retHandler").Func().Params(Id(name))
 		}
 	})
 }

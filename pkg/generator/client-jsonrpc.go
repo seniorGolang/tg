@@ -65,7 +65,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 		Return(Id("jsonrpcError")),
 	)
 
-	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("Batch").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
+	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("Batch").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("...").Id("BaseJsonRPC")).Params(Err().Error()).Block(
 
 		Line().Id("span").Op(":=").Id("extractSpan").Call(Id("cli").Dot("log"), Id(_ctx_), Id("cli").Dot("name")),
 		Return(Id("cli").Dot("jsonrpcCall").Call(Id("cli").Dot("log"), Id("span"), Id("requests").Op("..."))),
@@ -100,7 +100,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 func (tr Transport) jsonrpcClientCallFunc() Code {
 
 	return Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("jsonrpcCall").
-		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
+		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("BaseJsonRPC")).Params(Err().Error()).Block(
 
 		Line().Defer().Id("span").Dot("Finish").Call(),
 
@@ -119,7 +119,7 @@ func (tr Transport) jsonrpcClientCallFunc() Code {
 			Return(),
 		),
 
-		Id("responseMap").Op(":=").Make(Map(String()).Func().Params(Id("baseJsonRPC"))),
+		Id("responseMap").Op(":=").Make(Map(String()).Func().Params(Id("BaseJsonRPC"))),
 
 		Line().For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
 
@@ -128,7 +128,7 @@ func (tr Transport) jsonrpcClientCallFunc() Code {
 			),
 		),
 
-		Line().Var().Id("responses").Op("[]").Id("baseJsonRPC"),
+		Line().Var().Id("responses").Op("[]").Id("BaseJsonRPC"),
 
 		Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("resp").Dot("Body").Call(), Op("&").Id("responses")).Op(";").Err().Op("!=").Nil()).Block(
 			Id("cli").Dot("log").Dot("WithError").Call(Err()).Dot("WithField").Call(Lit("response"), String().Call(Id("resp").Dot("Body").Call())).Dot("Error").Call(Lit("unmarshal response error")),
@@ -146,8 +146,8 @@ func (tr Transport) jsonrpcClientCallFunc() Code {
 }
 
 func (tr Transport) jsonrpcBatchTypeFunc() Code {
-	return Type().Id("Batch").Op("[]").Id("baseJsonRPC").
-		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("Append").Params(Id("request").Id("baseJsonRPC")).Block(
+	return Type().Id("Batch").Op("[]").Id("BaseJsonRPC").
+		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("Append").Params(Id("request").Id("BaseJsonRPC")).Block(
 		Op("*").Id("batch").Op("=").Append(Op("*").Id("batch"), Id("request")),
 	)
 }
