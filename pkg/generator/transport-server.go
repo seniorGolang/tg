@@ -72,7 +72,7 @@ func (tr Transport) withLogFunc() Code {
 
 		for serviceName := range tr.services {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(Id("log")),
+				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(Id("log")),
 			)
 		}
 		bg.Return(Id("srv"))
@@ -85,7 +85,7 @@ func (tr Transport) withTraceFunc() Code {
 
 		for serviceName := range tr.services {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
+				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
 			)
 		}
 		bg.Return(Id("srv"))
@@ -98,7 +98,7 @@ func (tr Transport) withMetricsFunc() Code {
 
 		for serviceName := range tr.services {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
+				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
 			)
 		}
 		bg.Return(Id("srv"))

@@ -79,15 +79,13 @@ func (tr Transport) serveBatchFunc() Code {
 
 		Line().Id("responses").Op(":=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests"))),
 
-		Line().Var().Id("wg").Qual(packageSync, "WaitGroup"),
+		Line().Var().Id("n").Int(),
+		Var().Id("wg").Qual(packageSync, "WaitGroup"),
 
 		Line().For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
 
 			Line().Id("methodNameOrigin").Op(":=").Id("request").Dot("Method"),
 			Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method")),
-
-			Line().Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call())),
-			Id("span").Dot("SetTag").Call(Lit("batch"), True()),
 
 			Line().Switch(Id("method")).BlockFunc(func(bg *Group) {
 
@@ -100,25 +98,38 @@ func (tr Transport) serveBatchFunc() Code {
 						}
 
 						bg.Line().Case(Lit(service.lcName()+"."+method.lcName())).Block(
-
-							Line().Id("wg").Dot("Add").Call(Lit(1)),
-
-							Func().Params(Id("request").Id("baseJsonRPC")).Block(
-								Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request"))),
+							Id("wg").Dot("Add").Call(Lit(1)),
+							Go().Func().Params(Id("request").Id("baseJsonRPC")).Block(
+								Line().Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call())),
+								Id("span").Dot("SetTag").Call(Lit("batch"), True()),
+								Defer().Id("span").Dot("Finish").Call(),
+								If(Id("request").Dot("ID").Op("!=").Nil()).Block(
+									Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request"))),
+									Id("wg").Dot("Done").Call(),
+									Return(),
+								),
+								Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request")),
 								Id("wg").Dot("Done").Call(),
 							).Call(Id("request")),
 						)
 					}
 				}
 				bg.Line().Default().Block(
+					Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call())),
+					Id("span").Dot("SetTag").Call(Lit("batch"), True()),
 					Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 					Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'")),
 					Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil())),
+					Id("span").Dot("Finish").Call(),
 				)
 			}),
-			Id("span").Dot("Finish").Call(),
+			Line().If(Id("n").Op(">").Id("maxParallelBatch")).Block(
+				Id("n").Op("=").Lit(0),
+				Id("wg").Dot("Wait").Call(),
+			),
+			Id("n").Op("++"),
 		),
-		Id("wg").Dot("Wait").Call(),
+		Line().Id("wg").Dot("Wait").Call(),
 		Line().For(List(Id("_"), Id("handler")).Op(":=").Range().Id("srv").Dot("httpAfter")).Block(
 			Id("handler").Call(Id(_ctx_)),
 		),
@@ -207,6 +218,7 @@ func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
 	}
 
 	return Const().Op("(").
+		Line().Id("maxParallelBatch").Op("=").Lit(100).
 		Line().Comment("Version defines the version of the JSON RPC implementation").
 		Line().Id("Version").Op("=").Lit("2.0").
 
