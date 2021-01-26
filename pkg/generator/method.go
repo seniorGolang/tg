@@ -308,8 +308,19 @@ func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement)
 				}
 				continue
 			}
-			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(header))).Op(";").Id("_" + arg).Op("!=").Lit("")).Block(
-				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
+
+			argID := Id(vArg.Name)
+			argType := vArg.Type.String()
+
+			switch t := vArg.Type.(type) {
+			case types.TPointer:
+				argID = Op("&").Add(argID)
+				argType = t.NextType().String()
+			}
+			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(header))).Op(";").Id("_"+arg).Op("!=").Lit("")).Block(
+				Var().Id(vArg.Name).Id(argType),
+				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id(vArg.Name), errStatement(arg, header))),
+				Id("request").Dot(utils.ToCamel(arg)).Op("=").Add(argID),
 			).Line()
 		}
 	}

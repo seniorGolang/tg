@@ -193,7 +193,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 				Err().Op("=").Id("http").Dot("errorHandler").Call(Err()),
 			),
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-			Id("span").Dot("SetTag").Call(Lit("msg"), Err().Dot("Error").Call()),
+			Id("span").Dot("SetTag").Call(Lit("msg"), Err()),
 			Id("span").Dot("SetTag").Call(Lit("errData"), Id("toString").Call(Err())),
 			Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("internalError"), Err().Dot("Error").Call(), Err())),
 		),
