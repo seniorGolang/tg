@@ -51,7 +51,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 		if svc.tags.Contains(tagServerJsonRPC) {
 
-			bg.Line().Id("route").Dot("POST").Call(Lit(path.Join("/", svc.lccName())), Id("http").Dot("serveBatch"))
+			bg.Line().Id("route").Dot("POST").Call(Lit(svc.batchPath()), Id("http").Dot("serveBatch"))
 
 			for _, method := range svc.methods {
 
