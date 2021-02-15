@@ -18,6 +18,7 @@ import (
 
 	"github.com/seniorGolang/tg/pkg/mod"
 	"github.com/seniorGolang/tg/pkg/tags"
+	"github.com/seniorGolang/tg/pkg/utils"
 )
 
 func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
@@ -36,7 +37,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	}
 
 	for _, field := range fields {
-		field.Docs = mTags.Sub(field.Name).ToDocs()
+		field.Base.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
 	}
 	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
@@ -61,11 +62,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			_ = json.Unmarshal([]byte(example), &value)
 			schema.Example = value
 		}
-
 		if format := varTags.Value(tagFormat); format != "" {
 			schema.Format = format
 		}
-
 		if newType := varTags.Value(tagType); newType != "" {
 			schema.Type = newType
 			return
