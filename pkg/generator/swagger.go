@@ -227,8 +227,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 							Description: codeToText(successCode),
 							Headers:     retHeaders,
 							Content: doc.clearContent(swContent{
-								responseContentType: swMedia{Schema: swSchema{Ref: "#/components/schemas/" + method.responseStructName()},
-								},
+								responseContentType: swMedia{Schema: swSchema{Ref: "#/components/schemas/" + method.responseStructName()}},
 							}),
 						},
 					},

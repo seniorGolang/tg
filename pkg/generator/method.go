@@ -158,24 +158,6 @@ func (m method) handlerQual() (pkgPath, handler string) {
 	return
 }
 
-func (m method) urlArgs(errStatement *Statement) (g *Statement) {
-
-	g = Line()
-	if len(m.argPathMap()) != 0 {
-		for arg, param := range m.argPathMap() {
-			vArg := m.argByName(arg)
-			if vArg == nil {
-				m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("param", param).Warning("argument not found")
-				continue
-			}
-			g.Line().List(Id("_"+vArg.Name), Id("_")).Op(":=").Id(_ctx_).Dot("UserValue").Call(Lit(param)).Op(".").Call(String())
-			g.Line().Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id(
-				"request").Dot(utils.ToCamel(vArg.Name)), errStatement)).Line()
-		}
-	}
-	return
-}
-
 func (m method) arguments() (vars []types.StructField) {
 
 	argsAll := m.fieldsArgument()
@@ -250,81 +232,89 @@ func (m method) results() (vars []types.StructField) {
 	return
 }
 
-func (m method) urlParams(errStatement *Statement) (g *Statement) {
+func (m method) urlArgs(errStatement func(arg, header string) *Statement) (g *Statement) {
 
-	g = Line()
+	return m.argFromString("urlParam", m.argPathMap(),
+		func(srcName string) Code {
+			return Id(_ctx_).Dot("UserValue").Call(Lit(srcName)).Op(".").Call(String())
+		},
+		errStatement,
+	)
+}
 
-	if len(m.argParamMap()) != 0 {
+func (m method) urlParams(errStatement func(arg, header string) *Statement) (block *Statement) {
 
-		for arg, param := range m.argParamMap() {
-
-			vArg := m.argByName(arg)
-
-			if types.IsArray(vArg.Type) || types.IsEllipsis(vArg.Type) {
-
-				vArg := m.argByName(param)
-
-				if vArg == nil {
-					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("path", param).Warning("argument not found")
-					continue
-				}
-
-				var vType = vArg.Type
-
-				if types.IsArray(vArg.Type) {
-					vType = vArg.Type.(types.TArray).Next
-				}
-
-				if types.IsEllipsis(vArg.Type) {
-					vType = vArg.Type.(types.TEllipsis).Next
-				}
-
-				g.Line().Id("arr" + utils.ToCamel(param)).Op(":=").Id(_ctx_).Dot("QueryArgs").Call().Dot("PeekMulti").Call(Lit(param))
-
-				g.Line().For(List(Id("_"), Id("param")).Op(":=").Range().Id("arr"+utils.ToCamel(param))).Block(
-
-					Line().Var().Id("_"+vArg.Name).Id(vType.String()),
-					Add(m.argToTypeConverter(Qual(packageGotils, "B2S").Call(Id("param")), vType, Id("_"+param), errStatement)),
-					Line().Id("request").Dot(utils.ToCamel(vArg.Name)).Op("=").Append(Id("request").Dot(utils.ToCamel(vArg.Name)), Id("_"+vArg.Name)).Line(),
-				)
-				break
-			}
-			g.Line().Id("_"+vArg.Name).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("QueryArgs").Call().Dot("Peek").Call(Lit(param)))
-			g.Line().Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(vArg.Name)), errStatement)).Line()
-		}
-	}
-	return g
+	return m.argFromString("urlParam", m.argParamMap(),
+		func(srcName string) Code {
+			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("QueryArgs").Call().Dot("Peek").Call(Lit(srcName)))
+		},
+		errStatement,
+	)
 }
 
 func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
 
+	return m.argFromString("header", m.varHeaderMap(),
+		func(srcName string) Code {
+			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(srcName)))
+		},
+		errStatement,
+	)
+}
+
+func (m method) httpCookies(errStatement func(arg, header string) *Statement) (block *Statement) {
+
+	return m.argFromString("cookie", m.varCookieMap(),
+		func(srcName string) Code {
+			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Cookie").Call(Lit(srcName)))
+		},
+		errStatement,
+	)
+}
+
+func (m method) argFromString(typeName string, varMap map[string]string, strCodeFn func(srcName string) Code, errStatement func(arg, header string) *Statement) (block *Statement) {
+
 	block = Line()
-	if len(m.varHeaderMap()) != 0 {
-		for arg, header := range m.varHeaderMap() {
-			vArg := m.argByName(arg)
+	if len(varMap) != 0 {
+		for argName, srcName := range varMap {
+			argTokens := strings.Split(argName, ".")
+			argName = argTokens[0]
+			argVarName := strings.Join(argTokens, "")
+			vArg := m.argByName(argName)
 			if vArg == nil {
-				if m.resultByName(arg) == nil {
-					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", arg).WithField("header", header).Warning("argument not found")
+				if m.resultByName(argName) == nil {
+					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", argVarName).WithField(typeName, srcName).Warning("argument not found")
 				}
 				continue
 			}
-
-			argID := Id(vArg.Name)
-			argType := vArg.Type.String()
-
-			switch t := vArg.Type.(type) {
+			argID := Id(argVarName)
+			argType := vArg.Type
+			argTypeName := argType.String()
+			if len(argTokens) > 1 {
+				argType = nestedType(vArg.Type, "", argTokens)
+			}
+			switch t := argType.(type) {
 			case types.TPointer:
 				argID = Op("&").Add(argID)
-				argType = t.NextType().String()
+				argTypeName = t.NextType().String()
 			}
-			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(header))).Op(";").Id("_"+arg).Op("!=").Lit("")).Block(
-				Var().Id(vArg.Name).Id(argType),
-				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id(vArg.Name), errStatement(arg, header))),
-				Id("request").Dot(utils.ToCamel(arg)).Op("=").Add(argID),
-			).Line()
+			block.If(Id("_" + argVarName).Op(":=").Add(strCodeFn(srcName)).Op(";").Id("_" + argVarName).Op("!=").Lit("")).
+				BlockFunc(func(g *Group) {
+					g.Var().Id(argVarName).Id(argTypeName)
+					g.Add(m.argToTypeConverter(Id("_"+argVarName), argType, Id(argVarName), errStatement(argVarName, srcName)))
+					reqID := g.Id("request").Dot(utils.ToCamel(argName))
+					if len(argTokens) > 1 {
+						for _, token := range argTokens[1:] {
+							reqID = reqID.Dot(token)
+						}
+						reqID.Op("=").Add(argID)
+						return
+					}
+					reqID.Op("=").Add(argID)
+				}).Line()
 		}
 	}
-	return block
+	return
 }
 
 func (m method) httpRetHeaders() (block *Statement) {
@@ -342,21 +332,6 @@ func (m method) httpRetHeaders() (block *Statement) {
 			block.If(Id("response").Dot(utils.ToCamel(ret)).Op("!=").Lit("").Block(
 				Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Lit(header), Id("response").Dot(utils.ToCamel(ret))),
 			))
-		}
-	}
-	return block
-}
-
-func (m method) httpCookies(errStatement func(arg, header string) *Statement) (block *Statement) {
-
-	block = Line()
-	if len(m.argCookieMap()) != 0 {
-
-		for arg, header := range m.argCookieMap() {
-			vArg := m.argByName(arg)
-			block.If(Id("_"+arg).Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Cookie").Call(Lit(header))).Op(";").Id("_" + arg).Op("!=").Lit("")).Block(
-				Add(m.argToTypeConverter(Id("_"+vArg.Name), vArg.Type, Id("request").Dot(utils.ToCamel(arg)), errStatement(arg, header))),
-			).Line()
 		}
 	}
 	return block

@@ -1,13 +1,13 @@
 module github.com/seniorGolang/tg
 
-go 1.14
+go 1.16
 
 require (
 	github.com/andybalholm/brotli v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dave/jennifer v1.4.1
 	github.com/fasthttp/router v1.2.2
-	github.com/fatih/structtag v1.2.0 // indirect
+	github.com/fatih/structtag v1.2.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/klauspost/compress v1.11.7 // indirect
@@ -18,6 +18,7 @@ require (
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rogpeppe/go-internal v1.7.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/satori/go.uuid v1.2.0
 	github.com/savsgio/gotils v0.0.0-20200616100644-13ff1fd2c28c
 	github.com/seniorGolang/dumper v1.2.0
 	github.com/sirupsen/logrus v1.7.0

@@ -221,23 +221,17 @@ func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
 		Line().Id("maxParallelBatch").Op("=").Lit(100).
 		Line().Comment("Version defines the version of the JSON RPC implementation").
 		Line().Id("Version").Op("=").Lit("2.0").
-
 		Line().Comment("contentTypeJson defines the content type to be served").
 		Line().Id("contentTypeJson").Op("=").Lit("application/json").
-
 		Line().Comment("ParseError defines invalid JSON was received by the server").
 		Line().Comment("An error occurred on the server while parsing the JSON text").
 		Line().Id(export("parseError", exportErrors)).Op("=").Lit(-32700).
-
 		Line().Comment("InvalidRequestError defines the JSON sent is not a valid Request object").
 		Line().Id(export("invalidRequestError", exportErrors)).Op("=").Lit(-32600).
-
 		Line().Comment("MethodNotFoundError defines the method does not exist / is not available").
 		Line().Id(export("methodNotFoundError", exportErrors)).Op("=").Lit(-32601).
-
 		Line().Comment("InvalidParamsError defines invalid method parameter(s)").
 		Line().Id(export("invalidParamsError", exportErrors)).Op("=").Lit(-32602).
-
 		Line().Comment("InternalError defines a server error").
 		Line().Id(export("internalError", exportErrors)).Op("=").Lit(-32603).
 		Op(")")

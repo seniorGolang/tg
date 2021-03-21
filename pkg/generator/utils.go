@@ -4,12 +4,20 @@
 package generator
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 
 	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
+	"github.com/vetcher/go-astra"
 	"github.com/vetcher/go-astra/types"
 
+	"github.com/seniorGolang/tg/pkg/mod"
 	"github.com/seniorGolang/tg/pkg/utils"
 )
 
@@ -50,6 +58,41 @@ func isErrorLast(fields []types.Variable) bool {
 	return name != nil &&
 		types.TypeImport(fields[len(fields)-1].Type) == nil &&
 		*name == "error"
+}
+
+func nestedType(field types.Type, pkg string, path []string) (nested types.Type) {
+
+	if len(path) == 0 {
+		return field
+	}
+	switch f := field.(type) {
+	case types.TImport:
+		return nestedType(f.Next, f.Import.Package, path)
+	case types.TName:
+		if nextType := searchType(pkg, f.TypeName); nextType != nil {
+			return nestedType(nextType, pkg, path[1:])
+		}
+		return f
+	case types.Struct:
+		for _, field := range f.Fields {
+			if field.Name == path[0] {
+				return nestedType(field.Type, pkg, path[1:])
+			}
+		}
+	case types.TArray:
+		return f
+	case types.TMap:
+		return f
+	case types.TPointer:
+		return nestedType(f.Next, pkg, path[1:])
+	case types.TInterface:
+		return f
+	case types.TEllipsis:
+		return f
+	default:
+		return f
+	}
+	return
 }
 
 func structField(ctx context.Context, field types.StructField) *Statement {
@@ -170,4 +213,115 @@ func callParamNames(object string, fields []types.Variable) *Statement {
 		list = append(list, v)
 	}
 	return List(list...)
+}
+
+func searchType(pkg, name string) (retType types.Type) {
+
+	if retType = parseType(pkg, name); retType == nil {
+
+		pkgPath := mod.PkgModPath(pkg)
+
+		if retType = parseType(pkgPath, name); retType == nil {
+
+			pkgPath = path.Join("./vendor", pkg)
+
+			if retType = parseType(pkgPath, name); retType == nil {
+
+				pkgPath = trimLocalPkg(pkg)
+				retType = parseType(pkgPath, name)
+			}
+		}
+	}
+	return
+}
+
+func trimLocalPkg(pkg string) (pgkPath string) {
+
+	module := getModName()
+
+	if module == "" {
+		return pkg
+	}
+
+	moduleTokens := strings.Split(module, "/")
+	pkgTokens := strings.Split(pkg, "/")
+
+	if len(pkgTokens) < len(moduleTokens) {
+		return pkg
+	}
+
+	pgkPath = path.Join(strings.Join(pkgTokens[len(moduleTokens):], "/"))
+	return
+}
+
+func getModName() (module string) {
+
+	modFile, err := os.OpenFile("go.mod", os.O_RDONLY, os.ModePerm)
+
+	if err != nil {
+		return
+	}
+	defer modFile.Close()
+
+	rd := bufio.NewReader(modFile)
+	if module, err = rd.ReadString('\n'); err != nil {
+		return ""
+	}
+	module = strings.Trim(module, "\n")
+
+	moduleTokens := strings.Split(module, " ")
+
+	if len(moduleTokens) == 2 {
+		module = strings.TrimSpace(moduleTokens[1])
+	}
+	return
+}
+
+func parseType(relPath, name string) (retType types.Type) {
+
+	pkgPath, _ := filepath.Abs(relPath)
+
+	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
+
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		if !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+
+		var srcFile *types.File
+		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
+			retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name))
+			return err
+		}
+		for _, typeInfo := range srcFile.Interfaces {
+
+			if typeInfo.Name == name {
+				retType = types.TInterface{Interface: &typeInfo}
+				return
+			}
+		}
+		for _, typeInfo := range srcFile.Types {
+
+			if typeInfo.Name == name {
+				retType = typeInfo.Type
+				return
+			}
+		}
+		for _, structInfo := range srcFile.Structures {
+
+			if structInfo.Name == name {
+				retType = structInfo
+				return
+			}
+		}
+		return
+	})
+	return
 }

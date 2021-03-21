@@ -132,7 +132,6 @@ func (tr Transport) serverType() Code {
 func (tr Transport) serverNewFunc() Code {
 
 	return Func().Id("New").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
-
 		BlockFunc(func(bg *Group) {
 			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(Dict{
 				Id("log"):                Id("log"),

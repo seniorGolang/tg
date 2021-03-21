@@ -57,7 +57,9 @@ func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
 	}
 
 	if _cookie := gotils.B2S(ctx.Request.Header.Cookie("sessionCookie")); _cookie != "" {
-		request.Cookie = _cookie
+		var cookie string
+		cookie = _cookie
+		request.Cookie = cookie
 	}
 
 	var result interface{}

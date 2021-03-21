@@ -116,20 +116,23 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			)
 		}
 
-		bg.Add(method.urlArgs(Line().If(Err().Op("!=").Nil()).Block(
-			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+		bg.Add(method.urlArgs(func(arg, header string) *Statement {
+			return Line().If(Err().Op("!=").Nil()).Block(
+				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+				Return(),
+			)
+		}))
 
-			Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Return(),
-		)))
-
-		bg.Add(method.urlParams(Line().If(Err().Op("!=").Nil()).Block(
-			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Return(),
-		)))
+		bg.Add(method.urlParams(func(arg, header string) *Statement {
+			return Line().If(Err().Op("!=").Nil()).Block(
+				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
+				Return(),
+			)
+		}))
 
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).Block(
