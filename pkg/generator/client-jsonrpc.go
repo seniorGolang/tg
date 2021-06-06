@@ -68,7 +68,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("Batch").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
 
 		Line().Id("span").Op(":=").Id("extractSpan").Call(Id("cli").Dot("log"), Id(_ctx_), Id("cli").Dot("name")),
-		Return(Id("cli").Dot("jsonrpcCall").Call(Id("cli").Dot("log"), Id("span"), Id("requests").Op("..."))),
+		Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("span"), Id("requests").Op("..."))),
 	)
 
 	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("BatchFunc").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("batchFunc").Func().Params(Id("requests").Op("*").Id("Batch"))).Params(Err().Error()).Block(
@@ -78,7 +78,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 		Line().Id("batchFunc").Call(Op("&").Id("requests")),
 		Id("span").Op(":=").Id("extractSpan").Call(Id("cli").Dot("log"), Id(_ctx_), Id("cli").Dot("name")),
 
-		Line().Return(Id("cli").Dot("jsonrpcCall").Call(Id("cli").Dot("log"), Id("span"), Id("requests").Op("..."))),
+		Line().Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("span"), Id("requests").Op("..."))),
 	)
 
 	srcFile.Line().Add(tr.jsonrpcClientCallFunc())
@@ -93,6 +93,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 		Id("name").String(),
 		Id("log").Qual(packageLogrus, "FieldLogger"),
 		Id("client").Qual(packageFastHttp, "Client"),
+		Id("headers").Op("[]").String(),
 		Line().Id("errorDecoder").Id("ErrorDecoder"),
 	)
 }
@@ -100,7 +101,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 func (tr Transport) jsonrpcClientCallFunc() Code {
 
 	return Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("jsonrpcCall").
-		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
+		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
 
 		Line().Defer().Id("span").Dot("Finish").Call(),
 
@@ -109,6 +110,17 @@ func (tr Transport) jsonrpcClientCallFunc() Code {
 
 		Line().Id("req").Dot("SetRequestURI").Call(Id("cli").Dot("url")),
 		Line().Id("req").Dot("Header").Dot("SetMethod").Call(Qual(packageFastHttp, "MethodPost")),
+
+		Line().List(Id("requestID"), Id("_")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op(".(").String().Op(")"),
+		If(Id("requestID").Op("==").Lit("")).Block(
+			Id("requestID").Op("=").Qual(packageUUID, "NewV4").Call().Dot("String").Call(),
+		),
+		Id("req").Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
+		For(List(Id("_"), Id("header")).Op(":=").Range().Id("cli").Dot("headers")).Block(
+			If(List(Id("value"), Id("ok")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("header")).Op(".(").String().Op(")")).Op(";").Id("ok").Block(
+				Id("req").Dot("Header").Dot("Set").Call(Id("header"), Id("value")),
+			),
+		),
 
 		Line().If(Err().Op("=").Qual(packageJson, "NewEncoder").Call(Id("req").Dot("BodyWriter").Call()).Dot("Encode").Call(Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),

@@ -113,20 +113,16 @@ func (tr Transport) serviceKeys() (keys []string) {
 func (tr Transport) RenderClient(outDir string) (err error) {
 
 	tr.cleanup(outDir)
-
 	if err = os.MkdirAll(outDir, 0777); err != nil {
 		return
 	}
-
-	err = tr.renderClientTracer(outDir)
-	err = tr.renderClientOptions(outDir)
-
+	showError(tr.log, tr.renderClientTracer(outDir), "renderHTTP")
+	showError(tr.log, tr.renderClientOptions(outDir), "renderHTTP")
 	if tr.hasJsonRPC {
-		err = tr.renderClientJsonRPC(outDir)
+		showError(tr.log, tr.renderClientJsonRPC(outDir), "renderHTTP")
 	}
-
 	for _, svc := range tr.services {
-		err = svc.renderClient(outDir)
+		showError(tr.log, svc.renderClient(outDir), "renderHTTP")
 	}
 	return
 }
