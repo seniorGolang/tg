@@ -185,10 +185,9 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				}
 			}
 			ex.Add(method.httpRetHeaders())
-			if len(*ex) > 2 {
+			if len(*ex) > 1 {
 				bg.Line().If(Err().Op("==").Nil()).Block(ex)
 			}
-
 			bg.Line().If(Err().Op("!=").Nil()).Block(
 				Id("result").Op("=").Err(),
 				If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
