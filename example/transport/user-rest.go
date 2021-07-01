@@ -68,6 +68,10 @@ func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
 	response, err = http.getUser(opentracing.ContextWithSpan(ctx, span), request)
 	result = response
 
+	if err == nil {
+
+	}
+
 	if err != nil {
 		result = err
 		if errCoder, ok := err.(withErrorCode); ok {
@@ -126,6 +130,10 @@ func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
 	var response responseUserUploadFile
 	response, err = http.uploadFile(opentracing.ContextWithSpan(ctx, span), request)
 	result = response
+
+	if err == nil {
+
+	}
 
 	if err != nil {
 		result = err
@@ -232,6 +240,10 @@ func (http *httpUser) serveCustomHandler(ctx *fasthttp.RequestCtx) {
 	var response responseUserCustomHandler
 	response, err = http.customHandler(opentracing.ContextWithSpan(ctx, span), request)
 	result = response
+
+	if err == nil {
+
+	}
 
 	if err != nil {
 		result = err
