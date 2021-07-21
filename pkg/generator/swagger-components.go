@@ -294,10 +294,6 @@ func castType(originName string) (typeName, format string) {
 		format = "byte"
 		typeName = "string"
 
-	case "uuid.UUID":
-		format = "uuid"
-		typeName = "string"
-
 	case "float32", "float64":
 		format = "float"
 		typeName = "number"
@@ -305,7 +301,10 @@ func castType(originName string) (typeName, format string) {
 	case "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64":
 		typeName = "number"
 		format = originName
-
+	}
+	if strings.HasSuffix(originName, "UUID") {
+		format = "uuid"
+		typeName = "string"
 	}
 	return
 }

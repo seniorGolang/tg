@@ -274,14 +274,14 @@ func (doc *swagger) fillErrors(responses swResponses, tags tags.DocTags) {
 
 		code, _ := strconv.Atoi(key)
 
+		var content swContent
+		var pkgPath, typeName string
+
 		if text, found := statusText[code]; found {
 
 			if value == "skip" {
 				continue
 			}
-
-			var content swContent
-			var pkgPath, typeName string
 
 			if value != "" {
 				if tokens := strings.Split(value, ":"); len(tokens) == 2 {
@@ -295,6 +295,21 @@ func (doc *swagger) fillErrors(responses swResponses, tags tags.DocTags) {
 				}
 			}
 			responses[key] = swResponse{Description: text, Content: content}
+
+		} else if key == "defaultError" {
+
+			if value != "" {
+				if tokens := strings.Split(value, ":"); len(tokens) == 2 {
+
+					pkgPath = tokens[0]
+					typeName = tokens[1]
+
+					if retType := doc.searchType(pkgPath, typeName); retType != nil {
+						content = swContent{contentJSON: swMedia{Schema: doc.walkVariable(typeName, pkgPath, retType, nil)}}
+					}
+				}
+			}
+			responses["default"] = swResponse{Description: "Generic error", Content: content}
 		}
 	}
 }
