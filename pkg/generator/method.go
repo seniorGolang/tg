@@ -123,16 +123,24 @@ func (m *method) downloadVarsMap() (headers map[string]string) {
 	return m.downloadVars
 }
 
-func (m method) httpPath() string {
+func (m method) httpPath(withoutPrefix ...bool) string {
+	var elements []string
+	if len(withoutPrefix) == 0 {
+		elements = append(elements, "/")
+	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
-	return path.Join("/", prefix, urlPath)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
-func (m method) jsonrpcPath() string {
+func (m method) jsonrpcPath(withoutPrefix ...bool) string {
+	var elements []string
+	if len(withoutPrefix) == 0 {
+		elements = append(elements, "/")
+	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
-	return path.Join("/", prefix, urlPath)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m method) httpMethod() string {

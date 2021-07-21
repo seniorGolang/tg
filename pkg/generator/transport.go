@@ -97,6 +97,10 @@ func NewTransport(log logrus.FieldLogger, svcDir string, options ...Option) (tr 
 	return
 }
 
+func (tr Transport) RenderAzure(appName, routePrefix, outDir,  logLevel string, enableHealth bool) (err error) {
+	return newAzure(&tr).render(appName, routePrefix, outDir, logLevel, enableHealth)
+}
+
 func (tr Transport) RenderSwagger(outDir string) (err error) {
 	return newSwagger(&tr).render(outDir)
 }

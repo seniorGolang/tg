@@ -61,6 +61,44 @@ func main() {
 			Description: "init directory structures, basic configuration package",
 		},
 		{
+			Name:   "azure",
+			Usage:  "generate Azure manifests by interfaces in 'service' package",
+			Action: cmdAzure,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "services",
+					Value: "./pkg/someService/service",
+					Usage: "path to services package",
+				},
+				&cli.StringFlag{
+					Name:  "appName",
+					Value: "service",
+					Usage: "application name",
+				},
+				&cli.StringFlag{
+					Name:  "routePrefix",
+					Value: "api",
+					Usage: "router path prefix name",
+				},
+				&cli.StringFlag{
+					Name:  "logLevel",
+					Value: "Debug",
+					Usage: "log level name",
+				},
+				&cli.BoolFlag{
+					Name:  "enableHealth",
+					Value: false,
+					Usage: "enable health check",
+				},
+				&cli.StringFlag{
+					Name:  "outPath",
+					Usage: "path to output folder",
+				},
+			},
+			UsageText:   "tg azure",
+			Description: "generate Azure manifests layer by interfaces",
+		},
+		{
 			Name:   "transport",
 			Usage:  "generate services transport layer by interfaces in 'service' package",
 			Action: cmdTransport,
@@ -264,4 +302,25 @@ func cmdSwagger(c *cli.Context) (err error) {
 		}
 	}
 	return
+}
+
+func cmdAzure(c *cli.Context) (err error) {
+
+	defer func() {
+		if err == nil {
+			log.Info("done")
+		}
+	}()
+
+	var tr generator.Transport
+	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
+		return
+	}
+
+	outPath := path.Join(c.String("services"), "azure-fApp")
+
+	if c.String("outPath") != "" {
+		outPath = c.String("outPath")
+	}
+	return tr.RenderAzure(c.String("appName"), c.String("routePrefix"), outPath, c.String("logLevel"), c.Bool("enableHealth"))
 }
