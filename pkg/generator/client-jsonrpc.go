@@ -17,7 +17,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageJaegerLog, "log")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 
@@ -30,7 +30,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.Line().Add(tr.jsonrpcClientStructFunc())
 	srcFile.Line().Add(tr.jsonrpcBatchTypeFunc())
 
-	srcFile.Line().Func().Id("New").Params(Id("name").String(), Id("log").Qual(packageLogrus, "FieldLogger"), Id("url").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPC")).Block(
+	srcFile.Line().Func().Id("New").Params(Id("name").String(), Id("log").Qual(packageZeroLog, "Logger"), Id("url").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPC")).Block(
 
 		Id("cli").Op("=").Op("&").Id("ClientJsonRPC").Values(Dict{
 			Id("name"):         Id("name"),
@@ -91,7 +91,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 	return Type().Id("ClientJsonRPC").Struct(
 		Id("url").String(),
 		Id("name").String(),
-		Id("log").Qual(packageLogrus, "FieldLogger"),
+		Id("log").Qual(packageZeroLog, "zerolog"),
 		Id("client").Qual(packageFastHttp, "Client"),
 		Id("headers").Op("[]").String(),
 		Line().Id("errorDecoder").Id("ErrorDecoder"),
@@ -101,7 +101,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 func (tr Transport) jsonrpcClientCallFunc() Code {
 
 	return Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("jsonrpcCall").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
+		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("log").Qual(packageZeroLog, "logger"), Id("span").Qual(packageOpentracing, "Span"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).Block(
 
 		Line().Defer().Id("span").Dot("Finish").Call(),
 

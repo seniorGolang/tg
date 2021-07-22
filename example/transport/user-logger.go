@@ -3,19 +3,21 @@ package transport
 
 import (
 	"context"
+	"time"
+
+	"github.com/rs/zerolog"
 	"github.com/seniorGolang/dumper/viewer"
+
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
-	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type loggerUser struct {
 	next interfaces.User
-	log  logrus.FieldLogger
+	log  zerolog.Logger
 }
 
-func loggerMiddlewareUser(log logrus.FieldLogger) MiddlewareUser {
+func loggerMiddlewareUser(log zerolog.Logger) MiddlewareUser {
 	return func(next interfaces.User) interfaces.User {
 		return &loggerUser{
 			log:  log,
@@ -26,7 +28,7 @@ func loggerMiddlewareUser(log logrus.FieldLogger) MiddlewareUser {
 
 func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 	defer func(begin time.Time) {
-		fields := logrus.Fields{
+		fields := map[string]interface{}{
 			"method": "getUser",
 			"request": viewer.Sprintf("%+v", requestUserGetUser{
 				Cookie:    cookie,
@@ -40,17 +42,17 @@ func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string
 			fields["requestID"] = ctx.Value(headerRequestID)
 		}
 		if err != nil {
-			m.log.WithError(err).WithFields(fields).Info("call getUser")
+			m.log.Error().Err(err).Fields(fields).Msg("call getUser")
 			return
 		}
-		m.log.WithFields(fields).Info("call getUser")
+		m.log.Info().Fields(fields).Msg("call getUser")
 	}(time.Now())
 	return m.next.GetUser(ctx, cookie, userAgent)
 }
 
 func (m loggerUser) UploadFile(ctx context.Context, fileBytes []byte) (err error) {
 	defer func(begin time.Time) {
-		fields := logrus.Fields{
+		fields := map[string]interface{}{
 			"method":   "uploadFile",
 			"request":  viewer.Sprintf("%+v", requestUserUploadFile{FileBytes: fileBytes}),
 			"response": viewer.Sprintf("%+v", responseUserUploadFile{}),
@@ -61,17 +63,17 @@ func (m loggerUser) UploadFile(ctx context.Context, fileBytes []byte) (err error
 			fields["requestID"] = ctx.Value(headerRequestID)
 		}
 		if err != nil {
-			m.log.WithError(err).WithFields(fields).Info("call uploadFile")
+			m.log.Error().Err(err).Fields(fields).Msg("call uploadFile")
 			return
 		}
-		m.log.WithFields(fields).Info("call uploadFile")
+		m.log.Info().Fields(fields).Msg("call uploadFile")
 	}(time.Now())
 	return m.next.UploadFile(ctx, fileBytes)
 }
 
 func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	defer func(begin time.Time) {
-		fields := logrus.Fields{
+		fields := map[string]interface{}{
 			"method": "customResponse",
 			"request": viewer.Sprintf("%+v", requestUserCustomResponse{
 				Arg0: arg0,
@@ -86,17 +88,17 @@ func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, o
 			fields["requestID"] = ctx.Value(headerRequestID)
 		}
 		if err != nil {
-			m.log.WithError(err).WithFields(fields).Info("call customResponse")
+			m.log.Error().Err(err).Fields(fields).Msg("call customResponse")
 			return
 		}
-		m.log.WithFields(fields).Info("call customResponse")
+		m.log.Info().Fields(fields).Msg("call customResponse")
 	}(time.Now())
 	return m.next.CustomResponse(ctx, arg0, arg1, opts...)
 }
 
 func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	defer func(begin time.Time) {
-		fields := logrus.Fields{
+		fields := map[string]interface{}{
 			"method": "customHandler",
 			"request": viewer.Sprintf("%+v", requestUserCustomHandler{
 				Arg0: arg0,
@@ -111,10 +113,10 @@ func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, op
 			fields["requestID"] = ctx.Value(headerRequestID)
 		}
 		if err != nil {
-			m.log.WithError(err).WithFields(fields).Info("call customHandler")
+			m.log.Error().Err(err).Fields(fields).Msg("call customHandler")
 			return
 		}
-		m.log.WithFields(fields).Info("call customHandler")
+		m.log.Info().Fields(fields).Msg("call customHandler")
 	}(time.Now())
 	return m.next.CustomHandler(ctx, arg0, arg1, opts...)
 }

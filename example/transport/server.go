@@ -3,21 +3,22 @@ package transport
 
 import (
 	"encoding/json"
-	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
 	"io"
 	_ "net/http/pprof"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/rs/zerolog"
 )
 
 const maxRequestBodySize = 104857600
 
 type Server struct {
-	log logrus.FieldLogger
+	log zerolog.Logger
 
 	httpAfter  []Handler
 	httpBefore []Handler
 
-	maxRequestBodySize int
+	config fiber.Config
 
 	srvHTTP   *fiber.App
 	srvHealth *fiber.App
@@ -28,13 +29,19 @@ type Server struct {
 	httpUser       *httpUser
 }
 
-func New(log logrus.FieldLogger, options ...Option) (srv *Server) {
+func New(log zerolog.Logger, options ...Option) (srv *Server) {
 
 	srv = &Server{
-		log:                log,
-		maxRequestBodySize: maxRequestBodySize,
-		srvHTTP:            fiber.New(),
+		config: fiber.Config{
+			BodyLimit:             maxRequestBodySize,
+			DisableStartupMessage: true,
+		},
+		log: log,
 	}
+	for _, option := range options {
+		option(srv)
+	}
+	srv.srvHTTP = fiber.New(srv.config)
 	srv.srvHTTP.Post("/", srv.serveBatch)
 	for _, option := range options {
 		option(srv)
@@ -46,7 +53,7 @@ func (srv *Server) Fiber() *fiber.App {
 	return srv.srvHTTP
 }
 
-func (srv *Server) WithLog(log logrus.FieldLogger) *Server {
+func (srv *Server) WithLog(log zerolog.Logger) *Server {
 	if srv.httpJsonRPC != nil {
 		srv.httpJsonRPC = srv.JsonRPC().WithLog(log)
 	}
@@ -102,10 +109,10 @@ func (srv *Server) Shutdown() {
 	}
 }
 
-func sendResponse(log logrus.FieldLogger, ctx *fiber.Ctx, resp interface{}) {
+func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) {
 	ctx.Response().Header.SetContentType("application/json")
 	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
-		log.WithField("body", ctx.Body()).WithError(err).Error("response write error")
+		log.Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
 	}
 }
 

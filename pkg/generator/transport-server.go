@@ -19,9 +19,8 @@ func (tr Transport) renderServer(outDir string) (err error) {
 
 	srcFile.ImportName(packageIO, "io")
 	srcFile.ImportName(packageFiber, "fiber")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
-	//srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
 
 	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
 
@@ -31,17 +30,12 @@ func (tr Transport) renderServer(outDir string) (err error) {
 
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())
-
 	srcFile.Line().Add(tr.fiberFunc())
 	srcFile.Line().Add(tr.withLogFunc())
 	srcFile.Line().Add(tr.withTraceFunc())
 	srcFile.Line().Add(tr.withMetricsFunc())
-
-	srcFile.Line().Add(tr.serveProfileFunc())
 	srcFile.Line().Add(tr.serveHealthFunc())
-
 	srcFile.Line().Add(tr.shutdownFunc())
-
 	srcFile.Line().Add(tr.sendResponseFunc())
 
 	for serviceName := range tr.services {
@@ -61,7 +55,7 @@ func (tr Transport) fiberFunc() Code {
 
 func (tr Transport) withLogFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params(Id("log").Qual(packageLogrus, "FieldLogger")).Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
 		for serviceName := range tr.services {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
@@ -102,11 +96,11 @@ func (tr Transport) serverType() Code {
 
 	return Type().Id("Server").StructFunc(func(g *Group) {
 
-		g.Id("log").Qual(packageLogrus, "FieldLogger")
+		g.Id("log").Qual(packageZeroLog, "Logger")
 
 		g.Line().Id("httpAfter").Op("[]").Id("Handler")
 		g.Id("httpBefore").Op("[]").Id("Handler")
-		g.Line().Id("maxRequestBodySize").Int()
+		g.Line().Id("config").Qual(packageFiber, "Config")
 
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
@@ -122,13 +116,19 @@ func (tr Transport) serverType() Code {
 
 func (tr Transport) serverNewFunc() Code {
 
-	return Func().Id("New").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
+	return Func().Id("New").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
 		BlockFunc(func(bg *Group) {
 			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(Dict{
-				Id("log"):                Id("log"),
-				Id("maxRequestBodySize"): Id("maxRequestBodySize"),
-				Id("srvHTTP"):             Qual(packageFiber, "New").Call(),
+				Id("log"): Id("log"),
+				Id("config"): Qual(packageFiber, "Config").Values(Dict{
+					Id("DisableStartupMessage"): True(),
+					Id("BodyLimit"):             Id("maxRequestBodySize"),
+				}),
 			})
+			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
+				Id("option").Call(Id("srv")),
+			)
+			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
 			if tr.hasJsonRPC {
 				bg.Id("srv").Dot("srvHTTP").Dot("Post").Call(Lit("/"), Id("srv").Dot("serveBatch"))
 			}
@@ -172,31 +172,11 @@ func (tr Transport) shutdownFunc() Code {
 	)
 }
 
-func (tr Transport) serveProfileFunc() Code {
-
-	//return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServePPROF").Params(Id("address").String()).Block(
-	//
-	//	Line().Qual(packageRuntime, "SetBlockProfileRate").Call(Lit(1)),
-	//	Qual(packageRuntime, "SetMutexProfileFraction").Call(Lit(5)),
-	//
-	//	Line().Id("srv").Dot("srvPPROF").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-	//		Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
-	//		Id("Handler"):     Qual(packageFastHttpAdapt, "NewFastHTTPHandler").Call(Qual(packageHttp, "DefaultServeMux")),
-	//	}),
-	//
-	//	Line().Go().Func().Params().Block(
-	//		Err().Op(":=").Id("srv").Dot("srvPPROF").Dot("ListenAndServe").Call(Id("address")),
-	//		Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve PPROF on ").Op("+").Id("address")),
-	//	).Call(),
-	//)
-	return nil
-}
-
 func (tr Transport) sendResponseFunc() Code {
-	return Func().Id("sendResponse").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Block(
+	return Func().Id("sendResponse").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Block(
 		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Lit("application/json")),
 		If(Err().Op(":=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithField").Call(Lit("body"), Id(_ctx_).Dot("Body").Call()).Dot("WithError").Call(Err()).Dot("Error").Call(Lit("response write error")),
+			Id("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("body"), String().Call(Id(_ctx_).Dot("Body").Call())).Dot("Msg").Call(Lit("response write error")),
 		),
 	)
 }

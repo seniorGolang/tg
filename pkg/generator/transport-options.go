@@ -27,30 +27,34 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 
 	srcFile.Line().Func().Id("Service").Params(Id("svc").Id("ServiceRoute")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-			Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
+			If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
+				Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
+			),
 		)),
 	)
 	for serviceName := range tr.services {
 		srcFile.Line().Func().Id(serviceName).Params(Id("svc").Op("*").Id("http" + serviceName)).Id("Option").Block(
 			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-				Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
-				Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
+				If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
+					Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
+					Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
+				),
 			)),
 		)
 	}
-	srcFile.Line().Func().Id("AfterHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-			Id("srv").Dot("httpAfter").Op("=").Append(Id("srv").Dot("httpAfter"), Id("handler")),
-		)),
-	)
-	srcFile.Line().Func().Id("BeforeHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
-		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-			Id("srv").Dot("httpBefore").Op("=").Append(Id("srv").Dot("httpBefore"), Id("handler")),
-		)),
-	)
 	srcFile.Line().Func().Id("MaxBodySize").Params(Id("max").Int()).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-			Id("srv").Dot("maxRequestBodySize").Op("=").Id("max"),
+			Id("srv").Dot("config").Dot("BodyLimit").Op("=").Id("max"),
+		)),
+	)
+	srcFile.Line().Func().Id("ReadTimeout").Params(Id("timeout").Qual(packageTime, "Duration")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("config").Dot("ReadTimeout").Op("=").Id("timeout"),
+		)),
+	)
+	srcFile.Line().Func().Id("WriteTimeout").Params(Id("timeout").Qual(packageTime, "Duration")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("config").Dot("WriteTimeout").Op("=").Id("timeout"),
 		)),
 	)
 	return srcFile.Save(path.Join(outDir, "options.go"))

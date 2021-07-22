@@ -1,228 +1,228 @@
 openapi: 3.0.0
 info:
-    title: Example API
-    description: A service which provide Example API
-    version: 0.0.0
+  title: Example API
+  description: A service which provide Example API
+  version: 0.0.0
 servers:
-    - url: http://example.test
+  - url: http://example.test
 paths:
-    /api/v2/user/custom:
-        delete:
-            tags:
-                - User
-            summary: Метод полностью обрабатываемый кастомным хендлером
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/requestUserCustomHandler'
-            responses:
-                "200":
-                    description: Successful operation
-                "400":
-                    description: Bad Request
-    /api/v2/user/custom/response:
-        patch:
-            tags:
-                - User
-            summary: Метод со сторонним обработчиком ответа
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/requestUserCustomResponse'
-            responses:
-                "200":
-                    description: Successful operation
-                "400":
-                    description: Bad Request
-    /api/v2/user/file:
-        post:
-            tags:
-                - User
-            summary: Загрузка аватара пользователя
-            description: Загрузка файла
-            requestBody:
-                content:
-                    multipart/form-data:
-                        schema:
-                            $ref: '#/components/schemas/requestUserUploadFile'
-            responses:
-                "200":
-                    description: Successful operation
-                "400":
-                    description: Bad Request
-    /api/v2/user/info:
-        get:
-            tags:
-                - User
-            summary: Данные пользователя
-            description: Возвращает данные пользователя код успеха 204
-            parameters:
-                - in: header
-                  name: User-Agent
-                  required: true
-                  schema:
-                    type: string
-                - in: cookie
-                  name: sessionCookie
-                  required: true
-                  schema:
-                    type: string
-            responses:
-                "204":
-                    description: No Content
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/responseUserGetUser'
-                "400":
-                    description: Bad Request
-                "401":
-                    description: Unauthorized
-    /jsonRPC/test:
-        post:
-            tags:
-                - JsonRPC
-            summary: json RPC метод
-            requestBody:
-                content:
-                    application/json:
-                        schema:
+  /api/v2/user/custom:
+    delete:
+      tags:
+        - User
+      summary: Метод полностью обрабатываемый кастомным хендлером
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/requestUserCustomHandler'
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Bad Request
+  /api/v2/user/custom/response:
+    patch:
+      tags:
+        - User
+      summary: Метод со сторонним обработчиком ответа
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/requestUserCustomResponse'
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Bad Request
+  /api/v2/user/file:
+    post:
+      tags:
+        - User
+      summary: Загрузка аватара пользователя
+      description: Загрузка файла
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/requestUserUploadFile'
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Bad Request
+  /api/v2/user/info:
+    get:
+      tags:
+        - User
+      summary: Данные пользователя
+      description: Возвращает данные пользователя код успеха 204
+      parameters:
+        - in: header
+          name: User-Agent
+          required: true
+          schema:
+            type: string
+        - in: cookie
+          name: sessionCookie
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/responseUserGetUser'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+  /jsonRPC/test:
+    post:
+      tags:
+        - JsonRPC
+      summary: json RPC метод
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  example: 1
+                  oneOf:
+                    - type: number
+                    - type: string
+                      format: uuid
+                jsonrpc:
+                  type: string
+                  example: "2.0"
+                params:
+                  $ref: '#/components/schemas/requestJsonRPCTest'
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      id:
+                        example: 1
+                        oneOf:
+                          - type: number
+                          - type: string
+                            format: uuid
+                      jsonrpc:
+                        type: string
+                        example: "2.0"
+                      result:
+                        $ref: '#/components/schemas/responseJsonRPCTest'
+                  - type: object
+                    properties:
+                      error:
+                        type: object
+                        properties:
+                          code:
+                            type: number
+                            format: int32
+                            example: -32603
+                          data:
                             type: object
-                            properties:
-                                id:
-                                    example: 1
-                                    oneOf:
-                                        - type: number
-                                        - type: string
-                                          format: uuid
-                                jsonrpc:
-                                    type: string
-                                    example: "2.0"
-                                params:
-                                    $ref: '#/components/schemas/requestJsonRPCTest'
-            responses:
-                "200":
-                    description: Successful operation
-                    content:
-                        application/json:
-                            schema:
-                                oneOf:
-                                    - type: object
-                                      properties:
-                                        id:
-                                            example: 1
-                                            oneOf:
-                                                - type: number
-                                                - type: string
-                                                  format: uuid
-                                        jsonrpc:
-                                            type: string
-                                            example: "2.0"
-                                        result:
-                                            $ref: '#/components/schemas/responseJsonRPCTest'
-                                    - type: object
-                                      properties:
-                                        error:
-                                            type: object
-                                            properties:
-                                                code:
-                                                    type: number
-                                                    format: int32
-                                                    example: -32603
-                                                data:
-                                                    type: object
-                                                    nullable: true
-                                                message:
-                                                    type: string
-                                                    example: not found
-                                            nullable: true
-                                        id:
-                                            example: 1
-                                            oneOf:
-                                                - type: number
-                                                - type: string
-                                                  format: uuid
-                                        jsonrpc:
-                                            type: string
-                                            example: "2.0"
+                            nullable: true
+                          message:
+                            type: string
+                            example: not found
+                        nullable: true
+                      id:
+                        example: 1
+                        oneOf:
+                          - type: number
+                          - type: string
+                            format: uuid
+                      jsonrpc:
+                        type: string
+                        example: "2.0"
 components:
-    schemas:
-        User:
+  schemas:
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+        userID:
+          type: number
+          format: uint64
+    requestJsonRPCTest:
+      type: object
+      properties:
+        arg0:
+          type: number
+          format: int
+        arg1:
+          type: string
+          format: uuid
+        opts:
+          type: array
+          items:
             type: object
-            properties:
-                name:
-                    type: string
-                userID:
-                    type: number
-                    format: uint64
-        requestJsonRPCTest:
+            nullable: true
+    requestUserCustomHandler:
+      type: object
+      properties:
+        arg0:
+          type: number
+          format: int
+        arg1:
+          type: string
+        opts:
+          type: array
+          items:
             type: object
-            properties:
-                arg0:
-                    type: number
-                    format: int
-                arg1:
-                    type: string
-                    format: uuid
-                opts:
-                    type: array
-                    items:
-                        type: object
-                        nullable: true
-        requestUserCustomHandler:
+            nullable: true
+    requestUserCustomResponse:
+      type: object
+      properties:
+        arg0:
+          type: number
+          format: int
+        arg1:
+          type: string
+        opts:
+          type: array
+          items:
             type: object
-            properties:
-                arg0:
-                    type: number
-                    format: int
-                arg1:
-                    type: string
-                opts:
-                    type: array
-                    items:
-                        type: object
-                        nullable: true
-        requestUserCustomResponse:
-            type: object
-            properties:
-                arg0:
-                    type: number
-                    format: int
-                arg1:
-                    type: string
-                opts:
-                    type: array
-                    items:
-                        type: object
-                        nullable: true
-        requestUserGetUser:
-            type: object
-        requestUserUploadFile:
-            type: object
-            properties:
-                fileBytes:
-                    type: file
-                    format: byte
-            description: Загрузка файла
-        responseJsonRPCTest:
-            type: object
-            properties:
-                ret1:
-                    type: number
-                    format: int
-                ret2:
-                    type: string
-        responseUserCustomHandler:
-            type: object
-        responseUserCustomResponse:
-            type: object
-        responseUserGetUser:
-            type: object
-            properties:
-                user:
-                    $ref: '#/components/schemas/User'
-            description: Возвращает данные пользователя код успеха 204
-        responseUserUploadFile:
-            type: object
+            nullable: true
+    requestUserGetUser:
+      type: object
+    requestUserUploadFile:
+      type: object
+      properties:
+        fileBytes:
+          type: file
+          format: byte
+      description: Загрузка файла
+    responseJsonRPCTest:
+      type: object
+      properties:
+        ret1:
+          type: number
+          format: int
+        ret2:
+          type: string
+    responseUserCustomHandler:
+      type: object
+    responseUserCustomResponse:
+      type: object
+    responseUserGetUser:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+      description: Возвращает данные пользователя код успеха 204
+    responseUserUploadFile:
+      type: object

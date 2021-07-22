@@ -2,9 +2,10 @@
 package transport
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"io/ioutil"
 	"mime/multipart"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type cookieType interface {

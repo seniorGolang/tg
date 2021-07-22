@@ -3,7 +3,9 @@ package transport
 
 import (
 	"context"
+
 	"github.com/opentracing/opentracing-go"
+
 	"github.com/seniorGolang/tg/example/interfaces"
 )
 

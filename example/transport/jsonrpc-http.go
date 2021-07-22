@@ -3,18 +3,19 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/rs/zerolog"
+
 	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/sirupsen/logrus"
 )
 
 type httpJsonRPC struct {
-	log          logrus.FieldLogger
+	log          zerolog.Logger
 	errorHandler ErrorHandler
 	svc          *serverJsonRPC
 	base         interfaces.JsonRPC
 }
 
-func NewJsonRPC(log logrus.FieldLogger, svcJsonRPC interfaces.JsonRPC) (srv *httpJsonRPC) {
+func NewJsonRPC(log zerolog.Logger, svcJsonRPC interfaces.JsonRPC) (srv *httpJsonRPC) {
 
 	srv = &httpJsonRPC{
 		base: svcJsonRPC,
@@ -28,7 +29,7 @@ func (http httpJsonRPC) Service() MiddlewareSetJsonRPC {
 	return http.svc
 }
 
-func (http *httpJsonRPC) WithLog(log logrus.FieldLogger) *httpJsonRPC {
+func (http *httpJsonRPC) WithLog(log zerolog.Logger) *httpJsonRPC {
 	http.svc.WithLog(log)
 	return http
 }

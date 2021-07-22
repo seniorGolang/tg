@@ -23,7 +23,7 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile.ImportName(packageUUID, "uuid")
 	srcFile.ImportName(packageFiber, "fiber")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 
 	srcFile.Line().Type().Id("Client" + svc.Name).Struct(
 		Op("*").Id("ClientJsonRPC"),

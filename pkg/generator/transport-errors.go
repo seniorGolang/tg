@@ -34,11 +34,9 @@ func (tr Transport) strErrorType() Code {
 }
 
 func (tr Transport) exitOnErrorFunc() Code {
-
-	return Func().Id("ExitOnError").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Err().Error(), Id("msg").String()).Block(
+	return Func().Id("ExitOnError").Params(Id("log").Qual(packageZeroLog, "Logger"), Err().Error(), Id("msg").String()).Block(
 		If(Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Error").Call(Id("msg")),
-			Qual(packageOS, "Exit").Call(Lit(1)),
+			Id("log").Dot("Panic").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Id("msg")),
 		),
 	)
 }

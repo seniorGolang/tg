@@ -3,8 +3,10 @@ package transport
 
 import (
 	"context"
+
+	"github.com/rs/zerolog"
+
 	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/sirupsen/logrus"
 )
 
 type serverJsonRPC struct {
@@ -18,7 +20,7 @@ type MiddlewareSetJsonRPC interface {
 
 	WithTrace()
 	WithMetrics()
-	WithLog(log logrus.FieldLogger)
+	WithLog(log zerolog.Logger)
 }
 
 func newServerJsonRPC(svc interfaces.JsonRPC) *serverJsonRPC {
@@ -49,6 +51,6 @@ func (srv *serverJsonRPC) WithMetrics() {
 	srv.Wrap(metricsMiddlewareJsonRPC)
 }
 
-func (srv *serverJsonRPC) WithLog(log logrus.FieldLogger) {
+func (srv *serverJsonRPC) WithLog(log zerolog.Logger) {
 	srv.Wrap(loggerMiddlewareJsonRPC(log))
 }

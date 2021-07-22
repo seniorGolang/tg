@@ -4,17 +4,17 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
 )
 
 type UserService struct {
-	log logrus.FieldLogger
+	log zerolog.Logger
 }
 
-func NewUser(log logrus.FieldLogger) (svc *UserService) {
+func NewUser(log zerolog.Logger) (svc *UserService) {
 	return &UserService{log: log}
 }
 

@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	stdPrometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	logrus "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 var srvMetrics *fiber.App
@@ -30,7 +30,7 @@ var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
 	Subsystem: "requests",
 }, []string{"method", "service", "success"})
 
-func ServeMetrics(log logrus.FieldLogger, address string) {
+func ServeMetrics(log zerolog.Logger, address string) {
 	srvMetrics = fiber.New()
 	srvMetrics.All("/", adaptor.HTTPHandler(promhttp.Handler()))
 	go func() {

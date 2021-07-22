@@ -3,18 +3,20 @@ package transport
 
 import (
 	"context"
-	"github.com/seniorGolang/dumper/viewer"
-	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/seniorGolang/dumper/viewer"
+
+	"github.com/seniorGolang/tg/example/interfaces"
 )
 
 type loggerJsonRPC struct {
 	next interfaces.JsonRPC
-	log  logrus.FieldLogger
+	log  zerolog.Logger
 }
 
-func loggerMiddlewareJsonRPC(log logrus.FieldLogger) MiddlewareJsonRPC {
+func loggerMiddlewareJsonRPC(log zerolog.Logger) MiddlewareJsonRPC {
 	return func(next interfaces.JsonRPC) interfaces.JsonRPC {
 		return &loggerJsonRPC{
 			log:  log,
@@ -25,7 +27,7 @@ func loggerMiddlewareJsonRPC(log logrus.FieldLogger) MiddlewareJsonRPC {
 
 func (m loggerJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 	defer func(begin time.Time) {
-		fields := logrus.Fields{
+		fields := map[string]interface{}{
 			"method": "test",
 			"request": viewer.Sprintf("%+v", requestJsonRPCTest{
 				Arg0: arg0,
@@ -43,10 +45,10 @@ func (m loggerJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...
 			fields["requestID"] = ctx.Value(headerRequestID)
 		}
 		if err != nil {
-			m.log.WithError(err).WithFields(fields).Info("call test")
+			m.log.Error().Err(err).Fields(fields).Msg("call test")
 			return
 		}
-		m.log.WithFields(fields).Info("call test")
+		m.log.Info().Fields(fields).Msg("call test")
 	}(time.Now())
 	return m.next.Test(ctx, arg0, arg1, opts...)
 }

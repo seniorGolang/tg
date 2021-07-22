@@ -16,7 +16,7 @@ func (tr Transport) renderHTTP(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageMultipart, "multipart")
 
 	srcFile.Line().Type().Id("cookieType").Interface(

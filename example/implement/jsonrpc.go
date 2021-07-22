@@ -3,14 +3,14 @@ package implement
 import (
 	"context"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 type JsonRPCService struct {
-	log logrus.FieldLogger
+	log zerolog.Logger
 }
 
-func NewJsonRPC(log logrus.FieldLogger) (svc *JsonRPCService) {
+func NewJsonRPC(log zerolog.Logger) (svc *JsonRPCService) {
 	return &JsonRPCService{log: log}
 }
 

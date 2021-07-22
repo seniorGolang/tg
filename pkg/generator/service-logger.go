@@ -24,13 +24,13 @@ func (svc *service) renderLogger(outDir string) (err error) {
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 
 	srcFile.ImportName(packageViewer, "viewer")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageGoKitMetrics, "metrics")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
 	srcFile.Type().Id("logger"+svc.Name).Struct(
 		Id(_next_).Qual(svc.pkgPath, svc.Name),
-		Id("log").Qual(packageLogrus, "FieldLogger"),
+		Id("log").Qual(packageZeroLog, "Logger"),
 	)
 
 	srcFile.Line().Add(svc.loggerMiddleware())
@@ -43,7 +43,7 @@ func (svc *service) renderLogger(outDir string) (err error) {
 
 func (svc *service) loggerMiddleware() Code {
 
-	return Func().Id("loggerMiddleware" + svc.Name).Params(Id("log").Qual(packageLogrus, "FieldLogger")).Params(Id("Middleware" + svc.Name)).Block(
+	return Func().Id("loggerMiddleware" + svc.Name).Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Id("Middleware" + svc.Name)).Block(
 		Return(Func().Params(Id(_next_).Qual(svc.pkgPath, svc.Name)).Params(Qual(svc.pkgPath, svc.Name)).Block(
 			Return(Op("&").Id("logger" + svc.Name).Values(Dict{
 				Id("log"):  Id("log"),
@@ -53,17 +53,41 @@ func (svc *service) loggerMiddleware() Code {
 	)
 }
 
+// func (m loggerJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+//	defer func(begin time.Time) {
+//		fields := map[string]interface{}{
+//			"method": "test",
+//			"request": viewer.Sprintf("%+v", requestJsonRPCTest{
+//				Arg0: arg0,
+//				Arg1: arg1,
+//				Opts: opts,
+//			}),
+//			"response": viewer.Sprintf("%+v", responseJsonRPCTest{
+//				Ret1: ret1,
+//				Ret2: ret2,
+//			}),
+//			"service": "JsonRPC",
+//			"took":    time.Since(begin),
+//		}
+//		if ctx.Value(headerRequestID) != nil {
+//			fields["requestID"] = ctx.Value(headerRequestID)
+//		}
+//		if err != nil {
+//			m.log.Info().Err(err).Fields(fields).Msg("call test")
+//			return
+//		}
+//		m.log.Info().Fields(fields).Msg("call test")
+//	}(time.Now())
+//	return m.next.Test(ctx, arg0, arg1, opts...)
+//}
+
 func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 
 	return func(g *Group) {
 
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 
-			g.Id("fields").Op(":=").Qual(packageLogrus, "Fields").Values(DictFunc(func(d Dict) {
-
-				// for _, header := range method.argHeaderMap() {
-				// 	d[Lit(header)] = Id(_ctx_).Op(".").Id("Value").Call(Lit(header))
-				// }
+			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 
 				d[Lit("service")] = Lit(svc.Name)
 				d[Lit("method")] = Lit(method.lccName())
@@ -86,21 +110,16 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				if printResult {
 					d[Lit("response")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
 				}
-
 				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin"))
 			}))
-
 			g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
 				Id("fields").Op("[").Lit("requestID").Op("]").Op("=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")),
 			)
-
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
-
-				g.Id("m").Dot("log").Dot("WithError").Call(Err()).Dot("WithFields").Call(Id("fields")).Dot("Info").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+				g.Id("m").Dot("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 				g.Return()
 			})
-
-			g.Id("m").Dot("log").Dot("WithFields").Call(Id("fields")).Dot("Info").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+			g.Id("m").Dot("log").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 
 		}).Call(Qual(packageTime, "Now").Call())
 		g.Return().Id("m").Dot(_next_).Dot(method.Name).Call(paramNames(method.Args))

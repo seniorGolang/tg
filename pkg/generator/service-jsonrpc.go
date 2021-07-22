@@ -20,7 +20,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(packageOpentracing, "opentracing")

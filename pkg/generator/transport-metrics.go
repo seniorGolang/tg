@@ -37,7 +37,7 @@ func (tr Transport) renderMetrics(outDir string) (err error) {
 }
 
 func (tr Transport) serveMetricsFunc() Code {
-	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("address").String()).Block(
+	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("address").String()).Block(
 		Id("srvMetrics").Op("=").Qual(packageFiber, "New").Call(),
 		Id("srvMetrics").Dot("All").Call(Lit("/"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
 		Go().Func().Params().Block(

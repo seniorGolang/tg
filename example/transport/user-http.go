@@ -3,19 +3,20 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-	implement "github.com/seniorGolang/tg/example/implement"
+	"github.com/rs/zerolog"
+
+	"github.com/seniorGolang/tg/example/implement"
 	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/sirupsen/logrus"
 )
 
 type httpUser struct {
-	log          logrus.FieldLogger
+	log          zerolog.Logger
 	errorHandler ErrorHandler
 	svc          *serverUser
 	base         interfaces.User
 }
 
-func NewUser(log logrus.FieldLogger, svcUser interfaces.User) (srv *httpUser) {
+func NewUser(log zerolog.Logger, svcUser interfaces.User) (srv *httpUser) {
 
 	srv = &httpUser{
 		base: svcUser,
@@ -29,7 +30,7 @@ func (http httpUser) Service() MiddlewareSetUser {
 	return http.svc
 }
 
-func (http *httpUser) WithLog(log logrus.FieldLogger) *httpUser {
+func (http *httpUser) WithLog(log zerolog.Logger) *httpUser {
 	http.svc.WithLog(log)
 	return http
 }

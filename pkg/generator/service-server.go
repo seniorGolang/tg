@@ -19,7 +19,7 @@ func (svc *service) renderServer(outDir string) (err error) {
 
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
 	srcFile.Line().Add(svc.serverType())
@@ -62,7 +62,7 @@ func (svc *service) renderServer(outDir string) (err error) {
 	}
 
 	if svc.tags.Contains(tagLogger) {
-		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params(Id("log").Qual(packageLogrus, "FieldLogger")).Block(
+		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Block(
 			Id("srv").Dot("Wrap").Call(Id("loggerMiddleware" + svc.Name).Call(Id("log"))),
 		)
 	}
@@ -120,6 +120,6 @@ func (svc *service) middlewareSetType() Code {
 		ig.Line()
 		ig.Id("WithTrace").Params()
 		ig.Id("WithMetrics").Params()
-		ig.Id("WithLog").Params(Id("log").Qual(packageLogrus, "FieldLogger"))
+		ig.Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger"))
 	})
 }

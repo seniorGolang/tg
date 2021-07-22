@@ -4,11 +4,12 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"strings"
-	"sync"
 )
 
 const (

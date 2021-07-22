@@ -18,7 +18,7 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageJaegerLog, "log")
-	srcFile.ImportName(packageLogrus, "logrus")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageOpenZipkin, "zipkin")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportAlias(packageOpentracing, "otg")
@@ -44,7 +44,7 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 func (tr Transport) extractSpanFunc() Code {
 
 	return Func().Id("extractSpan").
-		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
+		Params(Id("log").Qual(packageZeroLog, "Logger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
 		Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
@@ -60,7 +60,7 @@ func (tr Transport) extractSpanFunc() Code {
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
 		If(Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("extract span from HTTP headers")),
+			Id("log").Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("extract span from HTTP headers")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
@@ -83,7 +83,7 @@ func (tr Transport) toStringFunc() Code {
 }
 
 func (tr Transport) injectSpanFunc() Code {
-	return Func().Id("injectSpan").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Block(
+	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Block(
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(
@@ -91,7 +91,7 @@ func (tr Transport) injectSpanFunc() Code {
 			Qual(packageOpentracing, "HTTPHeaders"),
 			Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers")),
 		).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("inject span to HTTP headers")),
+			Id("log").Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("inject span to HTTP headers")),
 		),
 		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),

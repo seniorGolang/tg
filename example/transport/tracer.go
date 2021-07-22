@@ -3,20 +3,21 @@ package transport
 
 import (
 	"encoding/json"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	zipkinTracer "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/openzipkin/zipkin-go"
 	httpReporter "github.com/openzipkin/zipkin-go/reporter/http"
+	"github.com/rs/zerolog"
 	gouuid "github.com/satori/go.uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	"net/http"
-	"os"
-	"strings"
 )
 
 const headerRequestID = "X-Request-Id"
@@ -64,10 +65,10 @@ func (srv *Server) TraceZipkin(serviceName string, zipkinUrl string) *Server {
 	return srv
 }
 
-func injectSpan(log logrus.FieldLogger, span otg.Span, ctx *fiber.Ctx) {
+func injectSpan(log zerolog.Logger, span otg.Span, ctx *fiber.Ctx) {
 	headers := make(http.Header)
 	if err := otg.GlobalTracer().Inject(span.Context(), otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers)); err != nil {
-		log.WithError(err).Debug("inject span to HTTP headers")
+		log.Debug().Err(err).Msg("inject span to HTTP headers")
 	}
 	for key, values := range headers {
 		ctx.Response().Header.Set(key, strings.Join(values, ";"))
@@ -75,7 +76,7 @@ func injectSpan(log logrus.FieldLogger, span otg.Span, ctx *fiber.Ctx) {
 	ctx.Response().Header.SetBytesV(headerRequestID, ctx.Request().Header.Peek(headerRequestID))
 }
 
-func extractSpan(log logrus.FieldLogger, opName string, ctx *fiber.Ctx) (span otg.Span) {
+func extractSpan(log zerolog.Logger, opName string, ctx *fiber.Ctx) (span otg.Span) {
 	headers := make(http.Header)
 	requestID := string(ctx.Request().Header.Peek(headerRequestID))
 	if requestID == "" {
@@ -87,7 +88,7 @@ func extractSpan(log logrus.FieldLogger, opName string, ctx *fiber.Ctx) (span ot
 	var opts []otg.StartSpanOption
 	wireContext, err := otg.GlobalTracer().Extract(otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers))
 	if err != nil {
-		log.WithError(err).Debug("extract span from HTTP headers")
+		log.Debug().Err(err).Msg("extract span from HTTP headers")
 	} else {
 		opts = append(opts, otg.ChildOf(wireContext))
 	}

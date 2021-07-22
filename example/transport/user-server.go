@@ -3,9 +3,11 @@ package transport
 
 import (
 	"context"
+
+	"github.com/rs/zerolog"
+
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
-	"github.com/sirupsen/logrus"
 )
 
 type serverUser struct {
@@ -25,7 +27,7 @@ type MiddlewareSetUser interface {
 
 	WithTrace()
 	WithMetrics()
-	WithLog(log logrus.FieldLogger)
+	WithLog(log zerolog.Logger)
 }
 
 func newServerUser(svc interfaces.User) *serverUser {
@@ -86,6 +88,6 @@ func (srv *serverUser) WithMetrics() {
 	srv.Wrap(metricsMiddlewareUser)
 }
 
-func (srv *serverUser) WithLog(log logrus.FieldLogger) {
+func (srv *serverUser) WithLog(log zerolog.Logger) {
 	srv.Wrap(loggerMiddlewareUser(log))
 }
