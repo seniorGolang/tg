@@ -143,7 +143,7 @@ func (tr Transport) serveHealthFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHealth").Params(Id("address").String(), Id("response").Interface()).Block(
 
-		Id("srv").Dot("srvHealth").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"):True()})),
+		Id("srv").Dot("srvHealth").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),
 		Id("srv").Dot("srvHealth").Dot("Get").Call(Lit("/"),
 			Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Error()).Block(
 				Return().Id(_ctx_).Dot("JSON").Call(Id("response")),

@@ -31,7 +31,7 @@ var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
 }, []string{"method", "service", "success"})
 
 func ServeMetrics(log zerolog.Logger, address string) {
-	srvMetrics = fiber.New()
+	srvMetrics = fiber.New(fiber.Config{DisableStartupMessage: true})
 	srvMetrics.All("/", adaptor.HTTPHandler(promhttp.Handler()))
 	go func() {
 		err := srvMetrics.Listen(address)

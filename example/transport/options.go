@@ -41,14 +41,6 @@ func User(svc *httpUser) Option {
 	}
 }
 
-func Use(args ...interface{}) Option {
-	return func(srv *Server) {
-		if srv.srvHTTP != nil {
-			srv.srvHTTP.Use(args...)
-		}
-	}
-}
-
 func MaxBodySize(max int) Option {
 	return func(srv *Server) {
 		srv.config.BodyLimit = max
@@ -64,5 +56,13 @@ func ReadTimeout(timeout time.Duration) Option {
 func WriteTimeout(timeout time.Duration) Option {
 	return func(srv *Server) {
 		srv.config.WriteTimeout = timeout
+	}
+}
+
+func Use(args ...interface{}) Option {
+	return func(srv *Server) {
+		if srv.srvHTTP != nil {
+			srv.srvHTTP.Use(args...)
+		}
 	}
 }

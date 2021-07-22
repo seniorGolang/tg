@@ -84,7 +84,7 @@ func (srv *Server) WithMetrics() *Server {
 }
 
 func (srv *Server) ServeHealth(address string, response interface{}) {
-	srv.srvHealth = fiber.New()
+	srv.srvHealth = fiber.New(fiber.Config{DisableStartupMessage: true})
 	srv.srvHealth.Get("/", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(response)
 	})
