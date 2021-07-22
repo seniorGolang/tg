@@ -57,5 +57,12 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			Id("srv").Dot("config").Dot("WriteTimeout").Op("=").Id("timeout"),
 		)),
 	)
+	srcFile.Line().Func().Id("Use").Params(Id("args").Op("...").Interface()).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
+				Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("args").Op("...")),
+			),
+		)),
+	)
 	return srcFile.Save(path.Join(outDir, "options.go"))
 }
