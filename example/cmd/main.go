@@ -38,8 +38,10 @@ func main() {
 
 	srv := transport.New(log.Logger, services...).WithLog(log.Logger).WithTrace().TraceJaeger("example")
 
-	if err := srv.Fiber().Listen(":3000"); err != nil {
-		log.Panic().Err(err).Stack().Msg("server error")
-	}
+	go func() {
+		if err := srv.Fiber().Listen(":3000"); err != nil {
+			log.Panic().Err(err).Stack().Msg("server error")
+		}
+	}()
 	<-shutdown
 }
