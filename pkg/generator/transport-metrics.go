@@ -19,34 +19,29 @@ func (tr Transport) renderMetrics(outDir string) (err error) {
 	srcFile.ImportAlias(packageKitPrometheus, "kitPrometheus")
 	srcFile.ImportAlias(packageStdPrometheus, "stdPrometheus")
 
-	srcFile.ImportName(packageFastHttp, "fasthttp")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageGoKitMetrics, "metrics")
+	srcFile.ImportName(packageFiberAdaptor, "adaptor")
 	srcFile.ImportName(packageGoKitEndpoint, "endpoint")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
-	srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
 
-	srcFile.Line().Var().Id("srvMetrics").Op("*").Qual(packageFastHttp, "Server")
+	srcFile.Var().Id("srvMetrics").Op("*").Qual(packageFiber, "App")
 
-	srcFile.Line().Add(prometheusCounterRequestCount())
-	srcFile.Line().Add(prometheusCounterRequestCountAll())
-	srcFile.Line().Add(prometheusSummaryRequestCount())
+	srcFile.Add(prometheusCounterRequestCount())
+	srcFile.Add(prometheusCounterRequestCountAll())
+	srcFile.Add(prometheusSummaryRequestCount())
 
-	srcFile.Line().Add(tr.serveMetricsFunc())
+	srcFile.Add(tr.serveMetricsFunc())
 
 	return srcFile.Save(path.Join(outDir, "metrics.go"))
 }
 
 func (tr Transport) serveMetricsFunc() Code {
-
 	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("address").String()).Block(
-
-		Line().Id("srvMetrics").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-			Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
-			Id("Handler"):     Qual(packageFastHttpAdapt, "NewFastHTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call()),
-		}),
-
-		Line().Go().Func().Params().Block(
-			Err().Op(":=").Id("srvMetrics").Dot("ListenAndServe").Call(Id("address")),
+		Id("srvMetrics").Op("=").Qual(packageFiber, "New").Call(),
+		Id("srvMetrics").Dot("All").Call(Lit("/"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
+		Go().Func().Params().Block(
+			Err().Op(":=").Id("srvMetrics").Dot("Listen").Call(Id("address")),
 			Id("ExitOnError").Call(Id("log"), Err(), Lit("serve metrics on ").Op("+").Id("address")),
 		).Call(),
 	)

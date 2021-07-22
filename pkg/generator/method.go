@@ -144,7 +144,21 @@ func (m method) jsonrpcPath(withoutPrefix ...bool) string {
 }
 
 func (m method) httpMethod() string {
-	return strings.ToUpper(m.tags.Value(tagMethodHTTP, "POST"))
+
+	switch strings.ToUpper(m.tags.Value(tagMethodHTTP)) {
+	case "GET":
+		return "Get"
+	case "PUT":
+		return "Put"
+	case "PATCH":
+		return "Patch"
+	case "DELETE":
+		return "Delete"
+	case "OPTIONS":
+		return "Options"
+	default:
+		return "Post"
+	}
 }
 
 func (m method) isHTTP() bool {
@@ -254,7 +268,7 @@ func (m method) urlParams(errStatement func(arg, header string) *Statement) (blo
 
 	return m.argFromString("urlParam", m.argParamMap(),
 		func(srcName string) Code {
-			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("QueryArgs").Call().Dot("Peek").Call(Lit(srcName)))
+			return Id(_ctx_).Dot("Query").Call(Lit(srcName))
 		},
 		errStatement,
 	)
@@ -264,7 +278,7 @@ func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement)
 
 	return m.argFromString("header", m.varHeaderMap(),
 		func(srcName string) Code {
-			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Lit(srcName)))
+			return String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Lit(srcName)))
 		},
 		errStatement,
 	)
@@ -274,7 +288,7 @@ func (m method) httpCookies(errStatement func(arg, header string) *Statement) (b
 
 	return m.argFromString("cookie", m.varCookieMap(),
 		func(srcName string) Code {
-			return Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Cookie").Call(Lit(srcName)))
+			return Id(_ctx_).Dot("Cookies").Call(Lit(srcName))
 		},
 		errStatement,
 	)

@@ -19,9 +19,8 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(packageGotils, "gotils")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(packageOpentracing, "opentracing")
@@ -31,8 +30,8 @@ func (svc *service) renderREST(outDir string) (err error) {
 		if !method.isHTTP() {
 			continue
 		}
-		srcFile.Line().Add(svc.httpMethodFunc(method))
-		srcFile.Line().Add(svc.httpServeMethodFunc(method))
+		srcFile.Add(svc.httpMethodFunc(method))
+		srcFile.Add(svc.httpServeMethodFunc(method))
 	}
 
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-rest.go"))
@@ -42,7 +41,7 @@ func (svc *service) httpMethodFunc(method *method) Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id(method.lccName()).Params(Id(_ctx_).Qual(packageContext, "Context"), Id("request").Id(method.requestStructName())).Params(Id("response").Id(method.responseStructName()), Err().Error()).Block(
 
-		Line().Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
+		Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
 
 		ListFunc(func(lg *Group) {
 
@@ -66,7 +65,7 @@ func (svc *service) httpMethodFunc(method *method) Code {
 			}
 		}),
 
-		Line().If(Err().Op("!=").Nil()).Block(
+		If(Err().Op("!=").Nil()).Block(
 			If(Id("http").Dot("errorHandler").Op("!=").Nil()).Block(
 				Err().Op("=").Id("http").Dot("errorHandler").Call(Err()),
 			),
@@ -74,7 +73,7 @@ func (svc *service) httpMethodFunc(method *method) Code {
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 			Id("span").Dot("SetTag").Call(Lit("msg"), Err().Dot("Error").Call()),
 
-			Line().If(Id("errData").Op("!=").Lit("{}")).Block(
+			If(Id("errData").Op("!=").Lit("{}")).Block(
 				Id("span").Dot("SetTag").Call(Lit("errData"), Id("errData")),
 			),
 		),
@@ -84,40 +83,37 @@ func (svc *service) httpMethodFunc(method *method) Code {
 
 func (svc *service) httpServeMethodFunc(method *method) Code {
 
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("serve" + method.Name).Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).BlockFunc(func(bg *Group) {
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("serve" + method.Name).Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
+		Params(Err().Error()).BlockFunc(func(bg *Group) {
 
-		bg.Line().Id("span").Op(":=").Id("extractSpan").Call(
+		bg.Id("span").Op(":=").Id("extractSpan").Call(
 			Id("http").Dot("log"),
-			Qual(packageFmt, "Sprintf").Call(Lit("request:%s"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("URI").Call().Dot("Path").Call())),
+			Qual(packageFmt, "Sprintf").Call(Lit("request:%s"), Id(_ctx_).Dot("Path").Call()),
 			Id(_ctx_),
 		)
 		bg.Defer().Id("injectSpan").Call(Id("http").Dot("log"), Id("span"), Id(_ctx_))
 		bg.Defer().Id("span").Dot("Finish").Call()
 
-		bg.Line().If(Id("value").Op(":=").Id(_ctx_).Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
+		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 			Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request canceled")),
 			Return(),
 		)
-
-		bg.Line().Var().Err().Error()
 		bg.Var().Id("request").Id(method.requestStructName())
 		if successCode := method.tags.ValueInt(tagHttpSuccess, 0); successCode != 0 {
-			bg.Id(_ctx_).Dot("SetStatusCode").Call(Lit(successCode))
+			bg.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Lit(successCode))
 		}
-
 		if len(method.arguments()) != 0 {
-			bg.Line().If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Request").Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(
+			bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Request").Call().Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-				Id(_ctx_).Dot("Response").Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusBadRequest")),
+				Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusBadRequest")),
 				Id(_ctx_).Dot("WriteString").Call(Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
 		}
-
 		bg.Add(method.urlArgs(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
+			return If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
@@ -126,50 +122,44 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 
 		bg.Add(method.urlParams(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
+			return If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
 		}))
-
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
+			return If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
 		}))
-
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
+			return If(Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
 		}))
-
 		for uploadVar, uploadKey := range method.uploadVarsMap() {
-
-			bg.Line().If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).Block(
+			bg.If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).Block(
 				Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 				Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call()),
-				Id(_ctx_).Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusBadRequest")),
+				Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusBadRequest")),
 				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call()),
 				Return(),
 			)
 		}
-
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
 			bg.Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("base"), Err(), callParamNames("request", method.argsWithoutContext())))
 		} else {
-
 			bg.Var().Id("result").Interface()
-			bg.Line().Var().Id("response").Id(method.responseStructName())
-			bg.List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span")), Id("request"))
+			bg.Var().Id("response").Id(method.responseStructName())
+			bg.List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("Context").Call(), Id("span")), Id("request"))
 			bg.Id("result").Op("=").Id("response")
 
 			ex := Line()
@@ -186,18 +176,19 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			}
 			ex.Add(method.httpRetHeaders())
 			if len(*ex) > 1 {
-				bg.Line().If(Err().Op("==").Nil()).Block(ex)
+				bg.If(Err().Op("==").Nil()).Block(ex)
 			}
-			bg.Line().If(Err().Op("!=").Nil()).Block(
+			bg.If(Err().Op("!=").Nil()).Block(
 				Id("result").Op("=").Err(),
 				If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
-					Id(_ctx_).Dot("SetStatusCode").Call(Id("errCoder").Dot("Code").Call()),
+					Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Id("errCoder").Dot("Code").Call()),
 				).Else().Block(
-					Id(_ctx_).Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusInternalServerError")),
+					Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusInternalServerError")),
 				),
 			)
 			bg.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("result"))
 		}
+		bg.Return()
 	})
 }
 

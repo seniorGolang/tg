@@ -3,13 +3,11 @@ package transport
 
 import (
 	"context"
-	"time"
-
 	"github.com/seniorGolang/dumper/viewer"
-	"github.com/sirupsen/logrus"
-
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type loggerUser struct {

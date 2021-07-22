@@ -4,11 +4,9 @@ package transport
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/go-kit/kit/metrics"
-
 	"github.com/seniorGolang/tg/example/interfaces"
+	"time"
 )
 
 type metricsJsonRPC struct {

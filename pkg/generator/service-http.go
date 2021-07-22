@@ -16,9 +16,8 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageCors, "cors")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
-	srcFile.ImportName(packageFastHttpRouter, "router")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
 	srcFile.Type().Id("http"+svc.Name).Struct(
@@ -29,7 +28,6 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 	)
 
 	srcFile.Line().Func().Id("New"+svc.Name).Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("svc"+svc.Name).Qual(svc.pkgPath, svc.Name)).Params(Id("srv").Op("*").Id("http"+svc.Name)).Block(
-
 		Line().Id("srv").Op("=").Op("&").Id("http"+svc.Name).Values(Dict{
 			Id("log"):  Id("log"),
 			Id("base"): Id("svc" + svc.Name),
@@ -37,44 +35,32 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 		}),
 		Return(),
 	)
-
 	srcFile.Line().Func().Params(Id("http").Id("http" + svc.Name)).Id("Service").Params().Params(Id("MiddlewareSet" + svc.Name)).Block(
 		Return(Id("http").Dot("svc")),
 	)
-
 	srcFile.Line().Add(svc.withLogFunc())
 	srcFile.Line().Add(svc.withTraceFunc())
 	srcFile.Line().Add(svc.withMetricsFunc())
 	srcFile.Line().Add(svc.withErrorHandler())
 
-	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")).BlockFunc(func(bg *Group) {
-
+	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")).BlockFunc(func(bg *Group) {
 		if svc.tags.Contains(tagServerJsonRPC) {
-
-			bg.Line().Id("route").Dot("POST").Call(Lit(svc.batchPath()), Id("http").Dot("serveBatch"))
-
+			bg.Id("route").Dot("Post").Call(Lit(svc.batchPath()), Id("http").Dot("serveBatch"))
 			for _, method := range svc.methods {
-
 				if !method.isJsonRPC() {
 					continue
 				}
-				bg.Id("route").Dot("POST").Call(Lit(method.jsonrpcPath()), Id("http").Dot("serve"+method.Name))
+				bg.Id("route").Dot("Post").Call(Lit(method.jsonrpcPath()), Id("http").Dot("serve"+method.Name))
 			}
-
 		}
-
 		if svc.tags.Contains(tagServerHTTP) {
-
-			bg.Line()
-
 			for _, method := range svc.methods {
-
 				if !method.isHTTP() {
 					continue
 				}
 				if method.tags.Contains(tagHandler) {
-					bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
-						Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("base")),
+					bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
+						Return().Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("base")),
 					))
 					continue
 				}

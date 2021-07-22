@@ -16,7 +16,7 @@ func (tr Transport) renderClientTracer(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
-	srcFile.ImportName(packageJaegerlog, "log")
+	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageLogrus, "logrus")
 	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportAlias(packageOpentracing, "otg")
@@ -46,12 +46,9 @@ func (tr Transport) extractSpanClientFunc() Code {
 }
 
 func (tr Transport) injectSpanClientFunc() Code {
-
 	return Func().Id("injectSpan").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFastHttp, "Request")).Params().Block(
-
-		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
-
-		Line().If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
+		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
+		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(
 			Id("span").Dot("Context").Call(),
 			Qual(packageOpentracing, "HTTPHeaders"),
@@ -59,7 +56,7 @@ func (tr Transport) injectSpanClientFunc() Code {
 		).Op(";").Err().Op("!=").Nil()).Block(
 			Id("log").Dot("WithError").Call(Err()).Dot("Warning").Call(Lit("inject span to HTTP headers")),
 		),
-		Line().For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
+		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id("request").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
 		),
 	)

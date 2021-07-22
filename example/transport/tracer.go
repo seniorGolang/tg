@@ -3,22 +3,20 @@ package transport
 
 import (
 	"encoding/json"
-	"net/http"
-	"os"
-	"strings"
-
+	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	zipkinTracer "github.com/openzipkin-contrib/zipkin-go-opentracing"
 	"github.com/openzipkin/zipkin-go"
 	httpReporter "github.com/openzipkin/zipkin-go/reporter/http"
 	gouuid "github.com/satori/go.uuid"
-	"github.com/savsgio/gotils"
 	"github.com/sirupsen/logrus"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
-	"github.com/valyala/fasthttp"
+	"net/http"
+	"os"
+	"strings"
 )
 
 const headerRequestID = "X-Request-Id"
@@ -66,27 +64,25 @@ func (srv *Server) TraceZipkin(serviceName string, zipkinUrl string) *Server {
 	return srv
 }
 
-func injectSpan(log logrus.FieldLogger, span otg.Span, ctx *fasthttp.RequestCtx) {
-
+func injectSpan(log logrus.FieldLogger, span otg.Span, ctx *fiber.Ctx) {
 	headers := make(http.Header)
 	if err := otg.GlobalTracer().Inject(span.Context(), otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers)); err != nil {
 		log.WithError(err).Debug("inject span to HTTP headers")
 	}
 	for key, values := range headers {
-		ctx.Response.Header.Set(key, strings.Join(values, ";"))
+		ctx.Response().Header.Set(key, strings.Join(values, ";"))
 	}
-	ctx.Response.Header.SetBytesV(headerRequestID, ctx.Request.Header.Peek(headerRequestID))
+	ctx.Response().Header.SetBytesV(headerRequestID, ctx.Request().Header.Peek(headerRequestID))
 }
 
-func extractSpan(log logrus.FieldLogger, opName string, ctx *fasthttp.RequestCtx) (span otg.Span) {
-
+func extractSpan(log logrus.FieldLogger, opName string, ctx *fiber.Ctx) (span otg.Span) {
 	headers := make(http.Header)
-	requestID := gotils.B2S(ctx.Request.Header.Peek(headerRequestID))
+	requestID := string(ctx.Request().Header.Peek(headerRequestID))
 	if requestID == "" {
 		requestID = gouuid.NewV4().String()
 	}
-	ctx.Request.Header.VisitAll(func(key, value []byte) {
-		headers.Set(gotils.B2S(key), gotils.B2S(value))
+	ctx.Request().Header.VisitAll(func(key, value []byte) {
+		headers.Set(string(key), string(value))
 	})
 	var opts []otg.StartSpanOption
 	wireContext, err := otg.GlobalTracer().Extract(otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers))
@@ -96,17 +92,15 @@ func extractSpan(log logrus.FieldLogger, opName string, ctx *fasthttp.RequestCtx
 		opts = append(opts, otg.ChildOf(wireContext))
 	}
 	span = otg.GlobalTracer().StartSpan(opName, opts...)
-
-	ext.HTTPUrl.Set(span, ctx.URI().String())
-	ext.HTTPMethod.Set(span, gotils.B2S(ctx.Method()))
+	ext.HTTPUrl.Set(span, ctx.OriginalURL())
+	ext.HTTPMethod.Set(span, ctx.Method())
 	span.SetTag("requestID", requestID)
-	ctx.Request.Header.Set(headerRequestID, requestID)
-	ctx.SetUserValue(headerRequestID, requestID)
-
+	ctx.Request().Header.Set(headerRequestID, requestID)
+	ctx.Context().SetUserValue(headerRequestID, requestID)
 	return
 }
 
 func toString(value interface{}) string {
 	data, _ := json.Marshal(value)
-	return gotils.B2S(data)
+	return string(data)
 }

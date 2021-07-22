@@ -3,22 +3,13 @@ package transport
 
 import (
 	"encoding/json"
-	"io"
-	"net/http"
-	_ "net/http/pprof"
-	"runtime"
-	"time"
-
-	"github.com/fasthttp/router"
-	"github.com/savsgio/gotils"
+	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
+	"io"
+	_ "net/http/pprof"
 )
 
 const maxRequestBodySize = 104857600
-
-type middleware func(fasthttp.RequestHandler) fasthttp.RequestHandler
 
 type Server struct {
 	log logrus.FieldLogger
@@ -28,16 +19,13 @@ type Server struct {
 
 	maxRequestBodySize int
 
-	srvHTTP   *fasthttp.Server
-	srvHealth *fasthttp.Server
-	srvPPROF  *fasthttp.Server
+	srvHTTP   *fiber.App
+	srvHealth *fiber.App
+	srvPPROF  *fiber.App
 
 	reporterCloser io.Closer
-
-	router *router.Router
-
-	httpJsonRPC *httpJsonRPC
-	httpUser    *httpUser
+	httpJsonRPC    *httpJsonRPC
+	httpUser       *httpUser
 }
 
 func New(log logrus.FieldLogger, options ...Option) (srv *Server) {
@@ -45,69 +33,17 @@ func New(log logrus.FieldLogger, options ...Option) (srv *Server) {
 	srv = &Server{
 		log:                log,
 		maxRequestBodySize: maxRequestBodySize,
-		router:             router.New(),
+		srvHTTP:            fiber.New(),
 	}
-	srv.router.POST("/", srv.serveBatch)
+	srv.srvHTTP.Post("/", srv.serveBatch)
 	for _, option := range options {
 		option(srv)
 	}
 	return
 }
 
-func (srv *Server) ServeHTTP(address string, wraps ...middleware) {
-
-	srv.log.WithField("address", address).Info("enable HTTP transport")
-	handler := srv.httpHandler()
-
-	for _, wrap := range wraps {
-		handler = wrap(handler)
-	}
-	srv.srvHTTP = &fasthttp.Server{
-		Handler:            handler,
-		MaxRequestBodySize: srv.maxRequestBodySize,
-		ReadTimeout:        time.Second * 10,
-	}
-	go func() {
-		err := srv.srvHTTP.ListenAndServe(address)
-		ExitOnError(srv.log, err, "serve http on "+address)
-	}()
-}
-
-func (srv *Server) ServeHTTPS(address, certFile, keyFile string, wraps ...middleware) {
-
-	srv.log.WithField("address", address).Info("enable HTTP transport")
-	handler := srv.httpHandler()
-
-	for _, wrap := range wraps {
-		handler = wrap(handler)
-	}
-	srv.srvHTTP = &fasthttp.Server{
-		Handler:            handler,
-		MaxRequestBodySize: srv.maxRequestBodySize,
-		ReadTimeout:        time.Second * 10,
-	}
-	go func() {
-		err := srv.srvHTTP.ListenAndServeTLS(address, certFile, keyFile)
-		ExitOnError(srv.log, err, "serve http on "+address)
-	}()
-}
-
-func (srv *Server) httpHandler() fasthttp.RequestHandler {
-	return func(ctx *fasthttp.RequestCtx) {
-
-		for _, before := range srv.httpBefore {
-			before(ctx)
-		}
-		srv.router.Handler(ctx)
-
-		for _, after := range srv.httpAfter {
-			after(ctx)
-		}
-	}
-}
-
-func (srv *Server) Router() *router.Router {
-	return srv.router
+func (srv *Server) Fiber() *fiber.App {
+	return srv.srvHTTP
 }
 
 func (srv *Server) WithLog(log logrus.FieldLogger) *Server {
@@ -140,62 +76,36 @@ func (srv *Server) WithMetrics() *Server {
 	return srv
 }
 
-func (srv *Server) ServePPROF(address string) {
-
-	runtime.SetBlockProfileRate(1)
-	runtime.SetMutexProfileFraction(5)
-
-	srv.srvPPROF = &fasthttp.Server{
-		Handler:     fasthttpadaptor.NewFastHTTPHandler(http.DefaultServeMux),
-		ReadTimeout: time.Second * 10,
-	}
-
+func (srv *Server) ServeHealth(address string, response interface{}) {
+	srv.srvHealth = fiber.New()
+	srv.srvHealth.Get("/", func(ctx *fiber.Ctx) error {
+		return ctx.JSON(response)
+	})
 	go func() {
-		err := srv.srvPPROF.ListenAndServe(address)
-		ExitOnError(srv.log, err, "serve PPROF on "+address)
-	}()
-}
-
-func (srv *Server) ServeHealth(address string) {
-
-	srv.srvHealth = &fasthttp.Server{
-		Handler: func(ctx *fasthttp.RequestCtx) {
-			ctx.SetStatusCode(fasthttp.StatusOK)
-			_, _ = ctx.WriteString("ok")
-		},
-		ReadTimeout: time.Second * 10,
-	}
-	go func() {
-		err := srv.srvHealth.ListenAndServe(address)
+		err := srv.srvHealth.Listen(address)
 		ExitOnError(srv.log, err, "serve health on "+address)
 	}()
 }
 
 func (srv *Server) Shutdown() {
-
 	if srv.srvHTTP != nil {
 		_ = srv.srvHTTP.Shutdown()
 	}
-
 	if srv.srvHealth != nil {
 		_ = srv.srvHealth.Shutdown()
 	}
-
 	if srvMetrics != nil {
 		_ = srvMetrics.Shutdown()
 	}
-
 	if srv.srvPPROF != nil {
 		_ = srv.srvPPROF.Shutdown()
 	}
 }
 
-func sendResponse(log logrus.FieldLogger, ctx *fasthttp.RequestCtx, resp interface{}) {
-
-	ctx.SetContentType("application/json")
-
+func sendResponse(log logrus.FieldLogger, ctx *fiber.Ctx, resp interface{}) {
+	ctx.Response().Header.SetContentType("application/json")
 	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
-		log.WithField("body", gotils.B2S(ctx.PostBody())).WithError(err).Error("response write error")
+		log.WithField("body", ctx.Body()).WithError(err).Error("response write error")
 	}
 }
 

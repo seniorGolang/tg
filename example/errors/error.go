@@ -1,7 +1,7 @@
 package errors
 
 import (
-	"github.com/valyala/fasthttp"
+	"github.com/gofiber/fiber/v2"
 )
 
 type ErrorType struct {
@@ -11,13 +11,13 @@ type ErrorType struct {
 
 func ErrUnauthorized() *ErrorType {
 	return &ErrorType{
-		Status: fasthttp.StatusUnauthorized,
+		Status: fiber.StatusUnauthorized,
 	}
 }
 
 func ErrBadRequest() *ErrorType {
 	return &ErrorType{
-		Status: fasthttp.StatusBadRequest,
+		Status: fiber.StatusBadRequest,
 	}
 }
 

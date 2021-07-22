@@ -6,19 +6,16 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/savsgio/gotils"
-	"github.com/valyala/fasthttp"
 
 	"github.com/seniorGolang/tg/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {
-
 	span := opentracing.SpanFromContext(ctx)
 	response.User, err = http.svc.GetUser(ctx, request.Cookie, request.UserAgent)
-
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -26,68 +23,57 @@ func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (
 		errData := toString(err)
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err.Error())
-
 		if errData != "{}" {
 			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
-
-func (http *httpUser) serveGetUser(ctx *fasthttp.RequestCtx) {
-
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
 		return
 	}
-
-	var err error
 	var request requestUserGetUser
-	ctx.SetStatusCode(204)
+	ctx.Response().SetStatusCode(204)
 
-	if _userAgent := gotils.B2S(ctx.Request.Header.Peek("User-Agent")); _userAgent != "" {
+	if _userAgent := string(ctx.Request().Header.Peek("User-Agent")); _userAgent != "" {
 		var userAgent string
 		userAgent = _userAgent
 		request.UserAgent = userAgent
 	}
 
-	if _cookie := gotils.B2S(ctx.Request.Header.Cookie("sessionCookie")); _cookie != "" {
+	if _cookie := ctx.Cookies("sessionCookie"); _cookie != "" {
 		var cookie string
 		cookie = _cookie
 		request.Cookie = cookie
 	}
 
 	var result interface{}
-
 	var response responseUserGetUser
-	response, err = http.getUser(opentracing.ContextWithSpan(ctx, span), request)
+	response, err = http.getUser(opentracing.ContextWithSpan(ctx.Context(), span), request)
 	result = response
-
 	if err == nil {
 
 	}
-
 	if err != nil {
 		result = err
 		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.SetStatusCode(errCoder.Code())
+			ctx.Response().SetStatusCode(errCoder.Code())
 		} else {
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
 		}
 	}
 	sendResponse(http.log, ctx, result)
+	return
 }
-
 func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadFile) (response responseUserUploadFile, err error) {
-
 	span := opentracing.SpanFromContext(ctx)
 	err = http.svc.UploadFile(ctx, request.FileBytes)
-
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -95,62 +81,51 @@ func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadF
 		errData := toString(err)
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err.Error())
-
 		if errData != "{}" {
 			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
-
-func (http *httpUser) serveUploadFile(ctx *fasthttp.RequestCtx) {
-
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
 		return
 	}
-
-	var err error
 	var request requestUserUploadFile
 
 	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
-		ctx.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
 		sendResponse(http.log, ctx, "upload file 'fileBytes' error: "+err.Error())
 		return
 	}
 	var result interface{}
-
 	var response responseUserUploadFile
-	response, err = http.uploadFile(opentracing.ContextWithSpan(ctx, span), request)
+	response, err = http.uploadFile(opentracing.ContextWithSpan(ctx.Context(), span), request)
 	result = response
-
 	if err == nil {
 
 	}
-
 	if err != nil {
 		result = err
 		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.SetStatusCode(errCoder.Code())
+			ctx.Response().SetStatusCode(errCoder.Code())
 		} else {
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
 		}
 	}
 	sendResponse(http.log, ctx, result)
+	return
 }
-
 func (http *httpUser) customResponse(ctx context.Context, request requestUserCustomResponse) (response responseUserCustomResponse, err error) {
-
 	span := opentracing.SpanFromContext(ctx)
 	err = http.svc.CustomResponse(ctx, request.Arg0, request.Arg1, request.Opts...)
-
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -158,45 +133,36 @@ func (http *httpUser) customResponse(ctx context.Context, request requestUserCus
 		errData := toString(err)
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err.Error())
-
 		if errData != "{}" {
 			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
-
-func (http *httpUser) serveCustomResponse(ctx *fasthttp.RequestCtx) {
-
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
 		return
 	}
-
-	var err error
 	var request requestUserCustomResponse
-
-	if err = json.Unmarshal(ctx.Request.Body(), &request); err != nil {
+	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
-		ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
 		ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
 	}
 
 	implement.CustomResponseHandler(ctx, http.base, err, request.Arg0, request.Arg1, request.Opts...)
+	return
 }
-
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
-
 	span := opentracing.SpanFromContext(ctx)
 	err = http.svc.CustomHandler(ctx, request.Arg0, request.Arg1, request.Opts...)
-
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -204,54 +170,45 @@ func (http *httpUser) customHandler(ctx context.Context, request requestUserCust
 		errData := toString(err)
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err.Error())
-
 		if errData != "{}" {
 			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
-
-func (http *httpUser) serveCustomHandler(ctx *fasthttp.RequestCtx) {
-
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
+	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
 		return
 	}
-
-	var err error
 	var request requestUserCustomHandler
-
-	if err = json.Unmarshal(ctx.Request.Body(), &request); err != nil {
+	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
-		ctx.Response.SetStatusCode(fasthttp.StatusBadRequest)
+		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
 		ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
 	}
 
 	var result interface{}
-
 	var response responseUserCustomHandler
-	response, err = http.customHandler(opentracing.ContextWithSpan(ctx, span), request)
+	response, err = http.customHandler(opentracing.ContextWithSpan(ctx.Context(), span), request)
 	result = response
-
 	if err == nil {
 
 	}
-
 	if err != nil {
 		result = err
 		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.SetStatusCode(errCoder.Code())
+			ctx.Response().SetStatusCode(errCoder.Code())
 		} else {
-			ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
 		}
 	}
 	sendResponse(http.log, ctx, result)
+	return
 }

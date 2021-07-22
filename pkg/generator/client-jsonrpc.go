@@ -16,7 +16,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
-	srcFile.ImportName(packageJaegerlog, "log")
+	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageLogrus, "logrus")
 	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportAlias(packageOpentracing, "otg")

@@ -4,23 +4,19 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-	"sync"
-
+	"github.com/gofiber/fiber/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/savsgio/gotils"
-	"github.com/valyala/fasthttp"
+	"strings"
+	"sync"
 )
 
-func (http *httpJsonRPC) serveTest(ctx *fasthttp.RequestCtx) {
-	http.serveMethod(ctx, "test", http.test)
+func (http *httpJsonRPC) serveTest(ctx *fiber.Ctx) (err error) {
+	return http.serveMethod(ctx, "test", http.test)
 }
-func (http *httpJsonRPC) test(span opentracing.Span, ctx *fasthttp.RequestCtx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
-
+func (http *httpJsonRPC) test(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
 	var err error
 	var request requestJsonRPCTest
-
 	if requestBase.Params != nil {
 		if err = json.Unmarshal(requestBase.Params, &request); err != nil {
 			ext.Error.Set(span, true)
@@ -28,19 +24,15 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fasthttp.RequestCtx, r
 			return makeErrorResponseJsonRPC(requestBase.ID, parseError, "request body could not be decoded: "+err.Error(), nil)
 		}
 	}
-
 	if requestBase.Version != Version {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "incorrect protocol version: "+requestBase.Version)
 		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "incorrect protocol version: "+requestBase.Version, nil)
 	}
-
-	methodContext := opentracing.ContextWithSpan(ctx, span)
+	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
 
 	var response responseJsonRPCTest
-
 	response.Ret1, response.Ret2, err = http.svc.Test(methodContext, request.Arg0, request.Arg1, request.Opts...)
-
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -50,12 +42,10 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fasthttp.RequestCtx, r
 		span.SetTag("errData", toString(err))
 		return makeErrorResponseJsonRPC(requestBase.ID, internalError, err.Error(), err)
 	}
-
 	responseBase = &baseJsonRPC{
 		ID:      requestBase.ID,
 		Version: Version,
 	}
-
 	if responseBase.Result, err = json.Marshal(response); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "response body could not be encoded: "+err.Error())
@@ -63,57 +53,44 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fasthttp.RequestCtx, r
 	}
 	return
 }
-
-func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
-
-	batchSpan := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpJsonRPC) serveBatch(ctx *fiber.Ctx) (err error) {
+	batchSpan := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, batchSpan, ctx)
 	defer batchSpan.Finish()
-	methodHTTP := gotils.B2S(ctx.Method())
-
-	if methodHTTP != fasthttp.MethodPost {
+	methodHTTP := ctx.Method()
+	if methodHTTP != fiber.MethodPost {
 		ext.Error.Set(batchSpan, true)
 		batchSpan.SetTag("msg", "only POST method supported")
-		ctx.Error("only POST method supported", fasthttp.StatusMethodNotAllowed)
+		ctx.Response().SetStatusCode(fiber.StatusMethodNotAllowed)
+		if _, err = ctx.WriteString("only POST method supported"); err != nil {
+			return
+		}
 		return
 	}
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		return
 	}
-
-	var err error
 	var requests []baseJsonRPC
-
-	if err = json.Unmarshal(ctx.PostBody(), &requests); err != nil {
+	if err = json.Unmarshal(ctx.Body(), &requests); err != nil {
 		ext.Error.Set(batchSpan, true)
 		batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 		return
 	}
-
 	responses := make(jsonrpcResponses, 0, len(requests))
-
 	var wg sync.WaitGroup
-
 	for _, request := range requests {
-
 		methodNameOrigin := request.Method
 		method := strings.ToLower(request.Method)
-
 		span := opentracing.StartSpan(request.Method, opentracing.ChildOf(batchSpan.Context()))
 		span.SetTag("batch", true)
-
 		switch method {
-
 		case "test":
-
 			wg.Add(1)
 			func(request baseJsonRPC) {
 				responses.append(http.test(span, ctx, request))
 				wg.Done()
 			}(request)
-
 		default:
 			ext.Error.Set(span, true)
 			span.SetTag("msg", "invalid method '"+methodNameOrigin+"'")
@@ -123,52 +100,45 @@ func (http *httpJsonRPC) serveBatch(ctx *fasthttp.RequestCtx) {
 	}
 	wg.Wait()
 	sendResponse(http.log, ctx, responses)
+	return
 }
-
-func (http *httpJsonRPC) serveMethod(ctx *fasthttp.RequestCtx, methodName string, methodHandler methodJsonRPC) {
-
-	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", gotils.B2S(ctx.URI().Path())), ctx)
+func (http *httpJsonRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {
+	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()
-
-	methodHTTP := gotils.B2S(ctx.Method())
-
-	if methodHTTP != fasthttp.MethodPost {
+	methodHTTP := ctx.Method()
+	if methodHTTP != fiber.MethodPost {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "only POST method supported")
-		ctx.Error("only POST method supported", fasthttp.StatusMethodNotAllowed)
+		ctx.Response().SetStatusCode(fiber.StatusMethodNotAllowed)
+		if _, err = ctx.WriteString("only POST method supported"); err != nil {
+			return
+		}
 	}
-
-	if value := ctx.Value(CtxCancelRequest); value != nil {
+	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request canceled")
 		return
 	}
-
-	var err error
 	var request baseJsonRPC
 	var response *baseJsonRPC
-
-	if err = json.Unmarshal(ctx.PostBody(), &request); err != nil {
+	if err = json.Unmarshal(ctx.Body(), &request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 		return
 	}
-
 	methodNameOrigin := request.Method
 	method := strings.ToLower(request.Method)
-
 	if method != "" && method != methodName {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "invalid method "+methodNameOrigin)
 		sendResponse(http.log, ctx, makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method "+methodNameOrigin, nil))
 		return
 	}
-
 	response = methodHandler(span, ctx, request)
-
 	if response != nil {
 		sendResponse(http.log, ctx, response)
 	}
+	return
 }

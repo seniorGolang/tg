@@ -3,8 +3,8 @@ package implement
 import (
 	"context"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
@@ -34,10 +34,10 @@ func (svc *UserService) CustomHandler(ctx context.Context, arg0 int, arg1 string
 	panic("implement me")
 }
 
-func CustomResponseHandler(ctx *fasthttp.RequestCtx, svc interfaces.User, err error, arg0 int, arg1 string, opts ...interface{}) {
+func CustomResponseHandler(ctx *fiber.Ctx, svc interfaces.User, err error, arg0 int, arg1 string, opts ...interface{}) {
 	panic("implement me")
 }
 
-func CustomHandler(ctx *fasthttp.RequestCtx, svc interfaces.User) {
+func CustomHandler(ctx *fiber.Ctx, svc interfaces.User) error {
 	panic("implement me")
 }

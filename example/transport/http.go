@@ -2,23 +2,20 @@
 package transport
 
 import (
+	"github.com/gofiber/fiber/v2"
 	"io/ioutil"
 	"mime/multipart"
-
-	"github.com/valyala/fasthttp"
 )
 
 type cookieType interface {
-	Cookie() *fasthttp.Cookie
+	Cookie() *fiber.Cookie
 }
 
-func uploadFile(ctx *fasthttp.RequestCtx, key string) (data []byte, err error) {
-
+func uploadFile(ctx *fiber.Ctx, key string) (data []byte, err error) {
 	var fileHeader *multipart.FileHeader
 	if fileHeader, err = ctx.FormFile(key); err != nil {
 		return
 	}
-
 	var file multipart.File
 	if file, err = fileHeader.Open(); err != nil {
 		return

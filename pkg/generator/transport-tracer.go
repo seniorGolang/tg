@@ -16,11 +16,10 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
-	srcFile.ImportName(packageJaegerlog, "log")
+	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageGotils, "gotils")
 	srcFile.ImportName(packageOpenZipkin, "zipkin")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageJaegerConfig, "config")
@@ -45,16 +44,16 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 func (tr Transport) extractSpanFunc() Code {
 
 	return Func().Id("extractSpan").
-		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).
+		Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
 		Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 
-		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
-		Id("requestID").Op(":=").Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
+		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
+		Id("requestID").Op(":=").String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
 		If(Id("requestID").Op("==").Lit("")).Block(
 			Id("requestID").Op("=").Qual(packageUUID, "NewV4").Call().Dot("String").Call(),
 		),
-		Id(_ctx_).Dot("Request").Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
-			Id("headers").Dot("Set").Call(Qual(packageGotils, "B2S").Call(Id("key")), Qual(packageGotils, "B2S").Call(Id("value"))),
+		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
+			Id("headers").Dot("Set").Call(String().Call(Id("key")), String().Call(Id("value"))),
 		)),
 
 		Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
@@ -66,12 +65,12 @@ func (tr Transport) extractSpanFunc() Code {
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
 		Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
-		Line().Qual(packageOpentracingExt, "HTTPUrl").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("URI").Call().Dot("String").Call()),
-		Qual(packageOpentracingExt, "HTTPMethod").Dot("Set").Call(Id("span"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("Method").Call())),
+		Qual(packageOpentracingExt, "HTTPUrl").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("OriginalURL").Call()),
+		Qual(packageOpentracingExt, "HTTPMethod").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("Method").Call()),
 		Id("span").Dot("SetTag").Call(Lit("requestID"), Id("requestID")),
-		Id(_ctx_).Dot("Request").Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
-		Id(_ctx_).Dot("SetUserValue").Call(Id("headerRequestID"), Id("requestID")),
-		Line().Return(),
+		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
+		Id(_ctx_).Dot("Context").Call().Dot("SetUserValue").Call(Id("headerRequestID"), Id("requestID")),
+		Return(),
 	)
 }
 
@@ -79,15 +78,13 @@ func (tr Transport) toStringFunc() Code {
 
 	return Func().Id("toString").Params(Id("value").Interface()).String().Block(
 		List(Id("data"), Id("_")).Op(":=").Qual(packageJson, "Marshal").Call(Id("value")),
-		Return(Qual(packageGotils, "B2S").Call(Id("data"))),
+		Return(String().Call(Id("data"))),
 	)
 }
 
 func (tr Transport) injectSpanFunc() Code {
-
-	return Func().Id("injectSpan").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
-
-		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
+	return Func().Id("injectSpan").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Block(
+		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(
 			Id("span").Dot("Context").Call(),
@@ -97,9 +94,9 @@ func (tr Transport) injectSpanFunc() Code {
 			Id("log").Dot("WithError").Call(Err()).Dot("Debug").Call(Lit("inject span to HTTP headers")),
 		),
 		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
-			Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
+			Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
 		),
-		Id(_ctx_).Dot("Response").Dot("Header").Dot("SetBytesV").Call(Id("headerRequestID"), Id(_ctx_).Dot("Request").Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
+		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetBytesV").Call(Id("headerRequestID"), Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
 	)
 }
 
@@ -118,7 +115,7 @@ func (tr Transport) traceJaegerFunc() Code {
 
 		g.Line().Var().Id("trace").Qual(packageOpentracing, "Tracer")
 		g.List(Id("trace"), Id("srv").Dot("reporterCloser"), Err()).Op("=").Id("cfg").Dot("NewTracer").Call(
-			Qual(packageJaegerConfig, "Logger").Call(Qual(packageJaegerlog, "NullLogger")),
+			Qual(packageJaegerConfig, "Logger").Call(Qual(packageJaegerLog, "NullLogger")),
 			Qual(packageJaegerConfig, "Metrics").Call(Qual(packageJaegerMetrics, "NullFactory")),
 		)
 

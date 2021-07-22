@@ -18,15 +18,12 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.Anon(packagePPROF)
 
 	srcFile.ImportName(packageIO, "io")
-	srcFile.ImportName(packageGotils, "gotils")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
-	srcFile.ImportName(packageFastHttpRouter, "router")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
-	srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
+	//srcFile.ImportName(packageFastHttpAdapt, "fasthttpadaptor")
 
 	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
-	srcFile.Line().Type().Id("middleware").Func().Params(Qual(packageFastHttp, "RequestHandler")).Params(Qual(packageFastHttp, "RequestHandler"))
 
 	for _, service := range tr.services {
 		srcFile.ImportName(service.pkgPath, filepath.Base(service.pkgPath))
@@ -35,11 +32,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())
 
-	srcFile.Line().Add(tr.serveHTTP())
-	srcFile.Line().Add(tr.serveHTTPS())
-	srcFile.Line().Add(tr.httpHandler())
-
-	srcFile.Line().Add(tr.routerFunc())
+	srcFile.Line().Add(tr.fiberFunc())
 	srcFile.Line().Add(tr.withLogFunc())
 	srcFile.Line().Add(tr.withTraceFunc())
 	srcFile.Line().Add(tr.withMetricsFunc())
@@ -60,9 +53,9 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "server.go"))
 }
 
-func (tr Transport) routerFunc() Code {
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Router").Params().Params(Op("*").Qual(packageFastHttpRouter, "Router")).Block(
-		Return(Id("srv").Dot("router")),
+func (tr Transport) fiberFunc() Code {
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Fiber").Params().Params(Op("*").Qual(packageFiber, "App")).Block(
+		Return(Id("srv").Dot("srvHTTP")),
 	)
 }
 
@@ -115,13 +108,11 @@ func (tr Transport) serverType() Code {
 		g.Id("httpBefore").Op("[]").Id("Handler")
 		g.Line().Id("maxRequestBodySize").Int()
 
-		g.Line().Id("srvHTTP").Op("*").Qual(packageFastHttp, "Server")
-		g.Id("srvHealth").Op("*").Qual(packageFastHttp, "Server")
-		g.Id("srvPPROF").Op("*").Qual(packageFastHttp, "Server")
+		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
+		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
+		g.Id("srvPPROF").Op("*").Qual(packageFiber, "App")
 
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
-
-		g.Line().Id("router").Op("*").Qual(packageFastHttpRouter, "Router").Line()
 
 		for serviceName := range tr.services {
 			g.Id("http" + serviceName).Op("*").Id("http" + serviceName)
@@ -135,11 +126,11 @@ func (tr Transport) serverNewFunc() Code {
 		BlockFunc(func(bg *Group) {
 			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(Dict{
 				Id("log"):                Id("log"),
-				Id("router"):             Qual(packageFastHttpRouter, "New").Call(),
 				Id("maxRequestBodySize"): Id("maxRequestBodySize"),
+				Id("srvHTTP"):             Qual(packageFiber, "New").Call(),
 			})
 			if tr.hasJsonRPC {
-				bg.Id("srv").Dot("router").Dot("POST").Call(Lit("/"), Id("srv").Dot("serveBatch"))
+				bg.Id("srv").Dot("srvHTTP").Dot("Post").Call(Lit("/"), Id("srv").Dot("serveBatch"))
 			}
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
@@ -148,109 +139,34 @@ func (tr Transport) serverNewFunc() Code {
 		})
 }
 
-func (tr Transport) serveHTTP() Code {
-
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTP").Params(Id("address").String(), Id("wraps").Op("...").Id("middleware")).BlockFunc(
-
-		func(bg *Group) {
-
-			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport"))
-
-			bg.Id("handler").Op(":=").Id("srv").Dot("httpHandler").Call()
-
-			bg.Line().For(List(Id("_"), Id("wrap")).Op(":=").Range().Id("wraps")).Block(
-				Id("handler").Op("=").Id("wrap").Call(Id("handler")),
-			)
-			bg.Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-				Id("ReadTimeout"):        Qual(packageTime, "Second").Op("*").Lit(10),
-				Id("Handler"):            Id("handler"),
-				Id("MaxRequestBodySize"): Id("srv").Dot("maxRequestBodySize"),
-			})
-			bg.Go().Func().Params().Block(
-				Err().Op(":=").Id("srv").Dot("srvHTTP").Dot("ListenAndServe").Call(Id("address")),
-				Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve http on ").Op("+").Id("address")),
-			).Call()
-		},
-	)
-}
-
-func (tr Transport) serveHTTPS() Code {
-
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHTTPS").Params(Id("address"), Id("certFile"), Id("keyFile").String(), Id("wraps").Op("...").Id("middleware")).BlockFunc(
-
-		func(bg *Group) {
-
-			bg.Line().Id("srv").Dot("log").Dot("WithField").Call(Lit("address"), Id("address")).Dot("Info").Call(Lit("enable HTTP transport"))
-
-			bg.Id("handler").Op(":=").Id("srv").Dot("httpHandler").Call()
-
-			bg.Line().For(List(Id("_"), Id("wrap")).Op(":=").Range().Id("wraps")).Block(
-				Id("handler").Op("=").Id("wrap").Call(Id("handler")),
-			)
-			bg.Id("srv").Dot("srvHTTP").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-				Id("ReadTimeout"):        Qual(packageTime, "Second").Op("*").Lit(10),
-				Id("Handler"):            Id("handler"),
-				Id("MaxRequestBodySize"): Id("srv").Dot("maxRequestBodySize"),
-			})
-			bg.Go().Func().Params().Block(
-				Err().Op(":=").Id("srv").Dot("srvHTTP").Dot("ListenAndServeTLS").Call(Id("address"), Id("certFile"), Id("keyFile")),
-				Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve http on ").Op("+").Id("address")),
-			).Call()
-		},
-	)
-}
-
-func (tr Transport) httpHandler() Code {
-
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("httpHandler").Params().Params(Qual(packageFastHttp, "RequestHandler")).Block(
-
-		Return().Func().Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
-			Line().For(List(Id("_"), Id("before")).Op(":=").Range().Id("srv").Dot("httpBefore")).Block(
-				Id("before").Call(Id("ctx")),
-			),
-			Id("srv").Dot("router").Dot("Handler").Call(Id(_ctx_)),
-			Line().For(List(Id("_"), Id("after")).Op(":=").Range().Id("srv").Dot("httpAfter")).Block(
-				Id("after").Call(Id("ctx")),
-			),
-		),
-	)
-}
-
 func (tr Transport) serveHealthFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHealth").Params(Id("address").String()).Block(
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHealth").Params(Id("address").String(), Id("response").Interface()).Block(
 
-		Line().Id("srv").Dot("srvHealth").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-			Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
-			Id("Handler"): Func().Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx")).Block(
-				Id(_ctx_).Dot("SetStatusCode").Call(Qual(packageFastHttp, "StatusOK")),
-				List(Id("_"), Id("_")).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("ok")),
-			),
-		}),
+		Id("srv").Dot("srvHealth").Op("=").Qual(packageFiber, "New").Call(),
+		Id("srv").Dot("srvHealth").Dot("Get").Call(Lit("/"),
+			Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Error()).Block(
+				Return().Id(_ctx_).Dot("JSON").Call(Id("response")),
+			)),
 		Go().Func().Params().Block(
-			Err().Op(":=").Id("srv").Dot("srvHealth").Dot("ListenAndServe").Call(Id("address")),
+			Err().Op(":=").Id("srv").Dot("srvHealth").Dot("Listen").Call(Id("address")),
 			Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve health on ").Op("+").Id("address")),
 		).Call(),
 	)
 }
 
 func (tr Transport) shutdownFunc() Code {
-
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().Block(
-
-		Line().If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
+		If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHTTP").Dot("Shutdown").Call(),
 		),
-
-		Line().If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
+		If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHealth").Dot("Shutdown").Call(),
 		),
-
-		Line().If(Id("srvMetrics").Op("!=").Id("nil")).Block(
+		If(Id("srvMetrics").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srvMetrics").Dot("Shutdown").Call(),
 		),
-
-		Line().If(Id("srv").Dot("srvPPROF").Op("!=").Id("nil")).Block(
+		If(Id("srv").Dot("srvPPROF").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvPPROF").Dot("Shutdown").Call(),
 		),
 	)
@@ -258,31 +174,29 @@ func (tr Transport) shutdownFunc() Code {
 
 func (tr Transport) serveProfileFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServePPROF").Params(Id("address").String()).Block(
-
-		Line().Qual(packageRuntime, "SetBlockProfileRate").Call(Lit(1)),
-		Qual(packageRuntime, "SetMutexProfileFraction").Call(Lit(5)),
-
-		Line().Id("srv").Dot("srvPPROF").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
-			Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
-			Id("Handler"):     Qual(packageFastHttpAdapt, "NewFastHTTPHandler").Call(Qual(packageHttp, "DefaultServeMux")),
-		}),
-
-		Line().Go().Func().Params().Block(
-			Err().Op(":=").Id("srv").Dot("srvPPROF").Dot("ListenAndServe").Call(Id("address")),
-			Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve PPROF on ").Op("+").Id("address")),
-		).Call(),
-	)
+	//return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServePPROF").Params(Id("address").String()).Block(
+	//
+	//	Line().Qual(packageRuntime, "SetBlockProfileRate").Call(Lit(1)),
+	//	Qual(packageRuntime, "SetMutexProfileFraction").Call(Lit(5)),
+	//
+	//	Line().Id("srv").Dot("srvPPROF").Op("=").Op("&").Qual(packageFastHttp, "Server").Values(Dict{
+	//		Id("ReadTimeout"): Qual(packageTime, "Second").Op("*").Lit(10),
+	//		Id("Handler"):     Qual(packageFastHttpAdapt, "NewFastHTTPHandler").Call(Qual(packageHttp, "DefaultServeMux")),
+	//	}),
+	//
+	//	Line().Go().Func().Params().Block(
+	//		Err().Op(":=").Id("srv").Dot("srvPPROF").Dot("ListenAndServe").Call(Id("address")),
+	//		Id("ExitOnError").Call(Id("srv").Dot("log"), Err(), Lit("serve PPROF on ").Op("+").Id("address")),
+	//	).Call(),
+	//)
+	return nil
 }
 
 func (tr Transport) sendResponseFunc() Code {
-
-	return Func().Id("sendResponse").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx"), Id("resp").Interface()).Block(
-
-		Line().Id(_ctx_).Dot("SetContentType").Call(Lit("application/json")),
-
-		Line().If(Err().Op(":=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithField").Call(Lit("body"), Qual(packageGotils, "B2S").Call(Id(_ctx_).Dot("PostBody").Call())).Dot("WithError").Call(Err()).Dot("Error").Call(Lit("response write error")),
+	return Func().Id("sendResponse").Params(Id("log").Qual(packageLogrus, "FieldLogger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Block(
+		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Lit("application/json")),
+		If(Err().Op(":=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
+			Id("log").Dot("WithField").Call(Lit("body"), Id(_ctx_).Dot("Body").Call()).Dot("WithError").Call(Err()).Dot("Error").Call(Lit("response write error")),
 		),
 	)
 }

@@ -2,10 +2,9 @@
 package transport
 
 import (
-	"github.com/fasthttp/router"
-	"github.com/sirupsen/logrus"
-
+	"github.com/gofiber/fiber/v2"
 	"github.com/seniorGolang/tg/example/interfaces"
+	"github.com/sirupsen/logrus"
 )
 
 type httpJsonRPC struct {
@@ -49,8 +48,7 @@ func (http *httpJsonRPC) WithErrorHandler(handler ErrorHandler) *httpJsonRPC {
 	return http
 }
 
-func (http *httpJsonRPC) SetRoutes(route *router.Router) {
-
-	route.POST("/jsonrpc", http.serveBatch)
-	route.POST("/jsonRPC/test", http.serveTest)
+func (http *httpJsonRPC) SetRoutes(route *fiber.App) {
+	route.Post("/jsonrpc", http.serveBatch)
+	route.Post("/jsonRPC/test", http.serveTest)
 }

@@ -15,22 +15,20 @@ func (tr Transport) renderHTTP(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportName(packageMultipart, "multipart")
 
 	srcFile.Line().Type().Id("cookieType").Interface(
-		Id("Cookie").Params().Params(Op("*").Qual(packageFastHttp, "Cookie")),
+		Id("Cookie").Params().Params(Op("*").Qual(packageFiber, "Cookie")),
 	)
 
-	srcFile.Line().Func().Id("uploadFile").Params(Id(_ctx_).Op("*").Qual(packageFastHttp, "RequestCtx"), Id("key").String()).Params(Id("data").Op("[]").Byte(), Err().Error()).Block(
-
-		Line().Var().Id("fileHeader").Op("*").Qual(packageMultipart, "FileHeader"),
+	srcFile.Line().Func().Id("uploadFile").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("key").String()).Params(Id("data").Op("[]").Byte(), Err().Error()).Block(
+		Var().Id("fileHeader").Op("*").Qual(packageMultipart, "FileHeader"),
 		If(List(Id("fileHeader"), Err()).Op("=").Id(_ctx_).Dot("FormFile").Call(Id("key")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		),
-
-		Line().Var().Id("file").Qual(packageMultipart, "File"),
+		Var().Id("file").Qual(packageMultipart, "File"),
 		If(List(Id("file"), Err()).Op("=").Id("fileHeader").Dot("Open").Call().Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		),

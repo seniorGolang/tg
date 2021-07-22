@@ -22,8 +22,8 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 
 	srcFile.ImportName(packageUUID, "uuid")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageLogrus, "logrus")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 
 	srcFile.Line().Type().Id("Client" + svc.Name).Struct(
 		Op("*").Id("ClientJsonRPC"),

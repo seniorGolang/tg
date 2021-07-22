@@ -3,10 +3,8 @@ package transport
 
 import (
 	"context"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/seniorGolang/tg/example/interfaces"
+	"github.com/sirupsen/logrus"
 )
 
 type serverJsonRPC struct {

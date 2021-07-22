@@ -30,7 +30,7 @@ func main() {
 
 	srv := transport.New(log, services...).WithLog(log).WithTrace().TraceJaeger("example")
 
-	srv.ServeHTTP(":9000")
+	_ = srv.Fiber().Listen(":9000")
 
 	<-shutdown
 

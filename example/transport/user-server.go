@@ -3,11 +3,9 @@ package transport
 
 import (
 	"context"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/seniorGolang/tg/example/interfaces"
 	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/sirupsen/logrus"
 )
 
 type serverUser struct {

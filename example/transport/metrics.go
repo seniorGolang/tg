@@ -2,32 +2,27 @@
 package transport
 
 import (
-	"time"
-
 	kitPrometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/gofiber/adaptor/v2"
+	"github.com/gofiber/fiber/v2"
 	stdPrometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
+	logrus "github.com/sirupsen/logrus"
 )
 
-var srvMetrics *fasthttp.Server
-
+var srvMetrics *fiber.App
 var RequestCount = kitPrometheus.NewCounterFrom(stdPrometheus.CounterOpts{
 	Help:      "Number of requests received",
 	Name:      "count",
 	Namespace: "service",
 	Subsystem: "requests",
 }, []string{"method", "service", "success"})
-
 var RequestCountAll = kitPrometheus.NewCounterFrom(stdPrometheus.CounterOpts{
 	Help:      "Number of all requests received",
 	Name:      "all_count",
 	Namespace: "service",
 	Subsystem: "requests",
 }, []string{"method", "service"})
-
 var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
 	Help:      "Total duration of requests in microseconds",
 	Name:      "latency_microseconds",
@@ -36,14 +31,10 @@ var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
 }, []string{"method", "service", "success"})
 
 func ServeMetrics(log logrus.FieldLogger, address string) {
-
-	srvMetrics = &fasthttp.Server{
-		Handler:     fasthttpadaptor.NewFastHTTPHandler(promhttp.Handler()),
-		ReadTimeout: time.Second * 10,
-	}
-
+	srvMetrics = fiber.New()
+	srvMetrics.All("/", adaptor.HTTPHandler(promhttp.Handler()))
 	go func() {
-		err := srvMetrics.ListenAndServe(address)
+		err := srvMetrics.Listen(address)
 		ExitOnError(log, err, "serve metrics on "+address)
 	}()
 }

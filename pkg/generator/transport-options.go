@@ -15,43 +15,39 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(packageFastHttp, "fasthttp")
+	srcFile.ImportName(packageFiber, "fiber")
 
 	srcFile.Line().Type().Id("ServiceRoute").Interface(
-		Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFastHttpRouter, "Router")),
+		Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")),
 	)
 
 	srcFile.Line().Type().Id("Option").Func().Params(Id("srv").Op("*").Id("Server"))
-	srcFile.Type().Id("Handler").Op("=").Qual(packageFastHttp, "RequestHandler")
+	srcFile.Type().Id("Handler").Op("=").Qual(packageFiber, "Handler")
 	srcFile.Type().Id("ErrorHandler").Func().Params(Err().Error()).Params(Error())
 
 	srcFile.Line().Func().Id("Service").Params(Id("svc").Id("ServiceRoute")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
-			Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Router").Call()),
+			Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
 		)),
 	)
-
 	for serviceName := range tr.services {
 		srcFile.Line().Func().Id(serviceName).Params(Id("svc").Op("*").Id("http" + serviceName)).Id("Option").Block(
 			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 				Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
-				Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Router").Call()),
+				Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
 			)),
 		)
 	}
-
 	srcFile.Line().Func().Id("AfterHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("httpAfter").Op("=").Append(Id("srv").Dot("httpAfter"), Id("handler")),
 		)),
 	)
-
 	srcFile.Line().Func().Id("BeforeHTTP").Params(Id("handler").Id("Handler")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("httpBefore").Op("=").Append(Id("srv").Dot("httpBefore"), Id("handler")),
 		)),
 	)
-
 	srcFile.Line().Func().Id("MaxBodySize").Params(Id("max").Int()).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("maxRequestBodySize").Op("=").Id("max"),

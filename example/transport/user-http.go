@@ -2,12 +2,10 @@
 package transport
 
 import (
-	"github.com/fasthttp/router"
-	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
-
-	"github.com/seniorGolang/tg/example/implement"
+	"github.com/gofiber/fiber/v2"
+	implement "github.com/seniorGolang/tg/example/implement"
 	"github.com/seniorGolang/tg/example/interfaces"
+	"github.com/sirupsen/logrus"
 )
 
 type httpUser struct {
@@ -51,12 +49,11 @@ func (http *httpUser) WithErrorHandler(handler ErrorHandler) *httpUser {
 	return http
 }
 
-func (http *httpUser) SetRoutes(route *router.Router) {
-
-	route.GET("/api/v2/user/info", http.serveGetUser)
-	route.POST("/api/v2/user/file", http.serveUploadFile)
-	route.PATCH("/api/v2/user/custom/response", http.serveCustomResponse)
-	route.DELETE("/api/v2/user/custom", func(ctx *fasthttp.RequestCtx) {
-		implement.CustomHandler(ctx, http.base)
+func (http *httpUser) SetRoutes(route *fiber.App) {
+	route.Get("/api/v2/user/info", http.serveGetUser)
+	route.Post("/api/v2/user/file", http.serveUploadFile)
+	route.Patch("/api/v2/user/custom/response", http.serveCustomResponse)
+	route.Delete("/api/v2/user/custom", func(ctx *fiber.Ctx) (err error) {
+		return implement.CustomHandler(ctx, http.base)
 	})
 }

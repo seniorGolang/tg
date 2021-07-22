@@ -3,12 +3,10 @@ package transport
 
 import (
 	"context"
-	"time"
-
 	"github.com/seniorGolang/dumper/viewer"
-	"github.com/sirupsen/logrus"
-
 	"github.com/seniorGolang/tg/example/interfaces"
+	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type loggerJsonRPC struct {

@@ -2,9 +2,8 @@
 package transport
 
 import (
+	logrus "github.com/sirupsen/logrus"
 	"os"
-
-	"github.com/sirupsen/logrus"
 )
 
 type withErrorCode interface {
