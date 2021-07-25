@@ -16,9 +16,9 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportAlias(packageUUID, "goUUID")
 
@@ -125,7 +125,10 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 
 		bg.Line().Id("req").Dot("SetRequestURI").Call(Id("cli").Dot("url"))
 		bg.Id("agent").Dot("ContentType").Call(Id("contentTypeJson"))
-		bg.Id("req").Dot("Header").Dot("SetMethod").Call(Qual(packageFastHttp, "MethodPost"))
+		bg.Id("req").Dot("Header").Dot("SetMethod").Call(Qual(packageFiber, "MethodPost"))
+		bg.If(Err().Op("=").Id("agent").Dot("Parse").Call().Op(";").Err().Op("!=").Nil()).Block(
+			Return(),
+		)
 
 		bg.Line().List(Id("requestID"), Id("_")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op(".(").String().Op(")")
 		bg.If(Id("requestID").Op("==").Lit("")).Block(

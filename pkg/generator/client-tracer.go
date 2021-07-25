@@ -16,9 +16,9 @@ func (tr Transport) renderClientTracer(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
+	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(packageFastHttp, "fasthttp")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 
 	srcFile.Line().Add(tr.extractSpanClientFunc())
@@ -46,7 +46,7 @@ func (tr Transport) extractSpanClientFunc() Code {
 }
 
 func (tr Transport) injectSpanClientFunc() Code {
-	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFastHttp, "Request")).Params().Block(
+	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFiber, "Request")).Params().Block(
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(

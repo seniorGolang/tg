@@ -24,7 +24,6 @@ const (
 	packageUUID                  = "github.com/google/uuid"
 	packageFiber                 = "github.com/gofiber/fiber/v2"
 	packageZeroLog               = "github.com/rs/zerolog"
-	packageFastHttp              = "github.com/valyala/fasthttp"
 	packageGoKitMetrics          = "github.com/go-kit/kit/metrics"
 	packageGoKitEndpoint         = "github.com/go-kit/kit/endpoint"
 	packageOpenZipkin            = "github.com/openzipkin/zipkin-go"

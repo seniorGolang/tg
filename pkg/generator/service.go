@@ -60,10 +60,8 @@ func (svc service) lccName() string {
 }
 
 func (svc *service) renderClient(outDir string) (err error) {
-
-	err = svc.renderExchange(outDir)
-
 	if svc.tags.Contains(tagServerJsonRPC) {
+		err = svc.renderExchange(outDir)
 		err = svc.renderClientJsonRPC(outDir)
 	}
 	return
