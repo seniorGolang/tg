@@ -55,7 +55,8 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 
 	var result interface{}
 	var response responseUserGetUser
-	response, err = http.getUser(opentracing.ContextWithSpan(ctx.Context(), span), request)
+	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
+	response, err = http.getUser(methodContext, request)
 	result = response
 	if err == nil {
 
@@ -107,7 +108,8 @@ func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
 	}
 	var result interface{}
 	var response responseUserUploadFile
-	response, err = http.uploadFile(opentracing.ContextWithSpan(ctx.Context(), span), request)
+	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
+	response, err = http.uploadFile(methodContext, request)
 	result = response
 	if err == nil {
 
@@ -196,7 +198,8 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 
 	var result interface{}
 	var response responseUserCustomHandler
-	response, err = http.customHandler(opentracing.ContextWithSpan(ctx.Context(), span), request)
+	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
+	response, err = http.customHandler(methodContext, request)
 	result = response
 	if err == nil {
 

@@ -4,13 +4,13 @@ package transport
 import (
 	"encoding/json"
 	"io"
-	_ "net/http/pprof"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 )
 
 const maxRequestBodySize = 104857600
+const headerRequestID = "X-Request-Id"
 
 type Server struct {
 	log zerolog.Logger
@@ -22,10 +22,9 @@ type Server struct {
 
 	srvHTTP   *fiber.App
 	srvHealth *fiber.App
-	srvPPROF  *fiber.App
 
 	reporterCloser io.Closer
-	httpJsonRPC    *httpJsonRPC
+	httpExampleRPC *httpExampleRPC
 	httpUser       *httpUser
 }
 
@@ -54,31 +53,11 @@ func (srv *Server) Fiber() *fiber.App {
 }
 
 func (srv *Server) WithLog(log zerolog.Logger) *Server {
-	if srv.httpJsonRPC != nil {
-		srv.httpJsonRPC = srv.JsonRPC().WithLog(log)
+	if srv.httpExampleRPC != nil {
+		srv.httpExampleRPC = srv.ExampleRPC().WithLog(log)
 	}
 	if srv.httpUser != nil {
 		srv.httpUser = srv.User().WithLog(log)
-	}
-	return srv
-}
-
-func (srv *Server) WithTrace() *Server {
-	if srv.httpJsonRPC != nil {
-		srv.httpJsonRPC = srv.JsonRPC().WithTrace()
-	}
-	if srv.httpUser != nil {
-		srv.httpUser = srv.User().WithTrace()
-	}
-	return srv
-}
-
-func (srv *Server) WithMetrics() *Server {
-	if srv.httpJsonRPC != nil {
-		srv.httpJsonRPC = srv.JsonRPC().WithMetrics()
-	}
-	if srv.httpUser != nil {
-		srv.httpUser = srv.User().WithMetrics()
 	}
 	return srv
 }
@@ -94,6 +73,13 @@ func (srv *Server) ServeHealth(address string, response interface{}) {
 	}()
 }
 
+func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) {
+	ctx.Response().Header.SetContentType("application/json")
+	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
+		log.Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
+	}
+}
+
 func (srv *Server) Shutdown() {
 	if srv.srvHTTP != nil {
 		_ = srv.srvHTTP.Shutdown()
@@ -104,20 +90,30 @@ func (srv *Server) Shutdown() {
 	if srvMetrics != nil {
 		_ = srvMetrics.Shutdown()
 	}
-	if srv.srvPPROF != nil {
-		_ = srv.srvPPROF.Shutdown()
-	}
 }
 
-func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) {
-	ctx.Response().Header.SetContentType("application/json")
-	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
-		log.Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
+func (srv *Server) WithTrace() *Server {
+	if srv.httpExampleRPC != nil {
+		srv.httpExampleRPC = srv.ExampleRPC().WithTrace()
 	}
+	if srv.httpUser != nil {
+		srv.httpUser = srv.User().WithTrace()
+	}
+	return srv
 }
 
-func (srv Server) JsonRPC() *httpJsonRPC {
-	return srv.httpJsonRPC
+func (srv *Server) WithMetrics() *Server {
+	if srv.httpExampleRPC != nil {
+		srv.httpExampleRPC = srv.ExampleRPC().WithMetrics()
+	}
+	if srv.httpUser != nil {
+		srv.httpUser = srv.User().WithMetrics()
+	}
+	return srv
+}
+
+func (srv Server) ExampleRPC() *httpExampleRPC {
+	return srv.httpExampleRPC
 }
 
 func (srv Server) User() *httpUser {

@@ -118,8 +118,12 @@ func (svc *service) middlewareSetType() Code {
 			ig.Id("Wrap" + method.Name).Params(Id("m").Id("Middleware" + svc.Name + method.Name))
 		}
 		ig.Line()
-		ig.Id("WithTrace").Params()
-		ig.Id("WithMetrics").Params()
+		if svc.tags.IsSet(tagTrace) {
+			ig.Id("WithTrace").Params()
+		}
+		if svc.tags.IsSet(tagMetrics) {
+			ig.Id("WithMetrics").Params()
+		}
 		ig.Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger"))
 	})
 }

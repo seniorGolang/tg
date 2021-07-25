@@ -2,6 +2,7 @@
 // @tg title=`Example API`
 // @tg description=`A service which provide Example API`
 // @tg servers=`http://example.test`
+//go:generate tg client --services . --outPath ../clients/example
 //go:generate tg transport --services . --out ../transport --outSwagger ../swagger.yaml
 package interfaces
 
@@ -12,7 +13,7 @@ import (
 )
 
 // @tg http-prefix=api/v2
-// @tg http-server log trace metrics
+// @tg http-server log metrics trace
 // общий код 400 для всех методов, кроме UploadFile
 // @tg 400=github.com/seniorGolang/tg/example/error:ErrorType
 type User interface {

@@ -21,7 +21,7 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 
-	srcFile.ImportName(packageUUID, "uuid")
+	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 
@@ -86,7 +86,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 					cg.Err()
 				}),
 			),
-			Id("request").Dot("ID").Op("=").Op("[]").Byte().Call(Lit(`"`).Op("+").Qual(packageUUID, "NewV4").Call().Dot("String").Call().Op("+").Lit(`"`)),
+			Id("request").Dot("ID").Op("=").Op("[]").Byte().Call(Lit(`"`).Op("+").Qual(packageUUID, "New").Call().Dot("String").Call().Op("+").Lit(`"`)),
 		),
 		Return(),
 	)

@@ -12,12 +12,12 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 )
 
-func (http *httpJsonRPC) serveTest(ctx *fiber.Ctx) (err error) {
+func (http *httpExampleRPC) serveTest(ctx *fiber.Ctx) (err error) {
 	return http.serveMethod(ctx, "test", http.test)
 }
-func (http *httpJsonRPC) test(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
+func (http *httpExampleRPC) test(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
 	var err error
-	var request requestJsonRPCTest
+	var request requestExampleRPCTest
 	if requestBase.Params != nil {
 		if err = json.Unmarshal(requestBase.Params, &request); err != nil {
 			ext.Error.Set(span, true)
@@ -32,7 +32,7 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fiber.Ctx, requestBase
 	}
 	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
 
-	var response responseJsonRPCTest
+	var response responseExampleRPCTest
 	response.Ret1, response.Ret2, err = http.svc.Test(methodContext, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
@@ -54,7 +54,7 @@ func (http *httpJsonRPC) test(span opentracing.Span, ctx *fiber.Ctx, requestBase
 	}
 	return
 }
-func (http *httpJsonRPC) serveBatch(ctx *fiber.Ctx) (err error) {
+func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 	batchSpan := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, batchSpan, ctx)
 	defer batchSpan.Finish()
@@ -103,7 +103,7 @@ func (http *httpJsonRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 	sendResponse(http.log, ctx, responses)
 	return
 }
-func (http *httpJsonRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {
+func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodTraceJsonRPC) (err error) {
 	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
 	defer injectSpan(http.log, span, ctx)
 	defer span.Finish()

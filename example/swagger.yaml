@@ -80,10 +80,10 @@ paths:
                     description: Bad Request
                 "401":
                     description: Unauthorized
-    /jsonRPC/test:
+    /exampleRPC/test:
         post:
             tags:
-                - JsonRPC
+                - ExampleRPC
             summary: json RPC метод
             requestBody:
                 content:
@@ -101,7 +101,7 @@ paths:
                                     type: string
                                     example: "2.0"
                                 params:
-                                    $ref: '#/components/schemas/requestJsonRPCTest'
+                                    $ref: '#/components/schemas/requestExampleRPCTest'
             responses:
                 "200":
                     description: Successful operation
@@ -121,7 +121,7 @@ paths:
                                             type: string
                                             example: "2.0"
                                         result:
-                                            $ref: '#/components/schemas/responseJsonRPCTest'
+                                            $ref: '#/components/schemas/responseExampleRPCTest'
                                     - type: object
                                       properties:
                                         error:
@@ -157,7 +157,7 @@ components:
                 userID:
                     type: number
                     format: uint64
-        requestJsonRPCTest:
+        requestExampleRPCTest:
             type: object
             properties:
                 arg0:
@@ -206,7 +206,7 @@ components:
                     type: file
                     format: byte
             description: Загрузка файла
-        responseJsonRPCTest:
+        responseExampleRPCTest:
             type: object
             properties:
                 ret1:

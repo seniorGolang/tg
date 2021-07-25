@@ -19,19 +19,13 @@ func (tr Transport) cleanup(outDir string) {
 		tr.log.WithError(err).Warn("cleanup")
 		return
 	}
-
 	for _, file := range files {
-
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".go") {
 			continue
 		}
-
 		filePath := path.Join(outDir, file.Name())
-
 		if goFile, err := os.Open(filePath); err == nil {
-
 			if firstLine, err := bufio.NewReader(goFile).ReadString('\n'); err == nil {
-
 				if strings.TrimSpace(strings.TrimPrefix(firstLine, "//")) == doNotEdit {
 					if err = os.Remove(filePath); err != nil {
 						tr.log.WithError(err).Warn("cleanup")

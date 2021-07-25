@@ -27,93 +27,114 @@ func (tr Transport) renderJsonRPC(outDir string) (err error) {
 	srcFile.Add(tr.errorJsonRPC()).Line()
 	srcFile.Add(tr.jsonrpcResponsesTypeFunc())
 
-	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
-
-	srcFile.Add(tr.serveBatchFunc())
-
+	hasTrace := tr.hasTrace()
+	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
+	if hasTrace {
+		srcFile.Type().Id("methodTraceJsonRPC").Func().Params(Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
+	}
+	srcFile.Add(tr.serveBatchFunc(hasTrace))
 	srcFile.Line().Add(tr.makeErrorResponseJsonRPCFunc())
-
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
 
-func (tr Transport) serveBatchFunc() Code {
+func (tr Transport) serveBatchFunc(hasTrace bool) Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("serveBatch").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("serveBatch").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).BlockFunc(func(bg *Group) {
 
-		Id("batchSpan").Op(":=").Id("extractSpan").Call(Id("srv").Dot("log"), Qual(packageFmt, "Sprintf").Call(Lit("jsonRPC:%s"), Id(_ctx_).Dot("Path").Call()), Id(_ctx_)),
-		Defer().Id("injectSpan").Call(Id("srv").Dot("log"), Id("batchSpan"), Id(_ctx_)),
-		Defer().Id("batchSpan").Dot("Finish").Call(),
+		if hasTrace {
+			bg.Id("batchSpan").Op(":=").Id("extractSpan").Call(Id("srv").Dot("log"), Qual(packageFmt, "Sprintf").Call(Lit("jsonRPC:%s"), Id(_ctx_).Dot("Path").Call()), Id(_ctx_))
+			bg.Defer().Id("injectSpan").Call(Id("srv").Dot("log"), Id("batchSpan"), Id(_ctx_))
+			bg.Defer().Id("batchSpan").Dot("Finish").Call()
+		}
 
-		Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call(),
+		bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
 
-		If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).Block(
-			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True()),
-			Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported")),
-			Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusMethodNotAllowed")),
-			If(List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("only POST method supported")).Op(";").Err().Op("!=").Nil()).Block(
+		bg.If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).BlockFunc(func(ig *Group) {
+			if hasTrace {
+				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
+				ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported"))
+			}
+			ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusMethodNotAllowed"))
+			ig.If(List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("only POST method supported")).Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
-			),
+			)
+			ig.Return()
+		})
+		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 			Return(),
-		),
-		If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
-			Return(),
-		),
-		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Id("contentTypeJson")),
-		Var().Id("requests").Op("[]").Id("baseJsonRPC"),
-		If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
-			Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True()),
-			Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call()),
-			Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil())),
-			Return(),
-		),
-		Id("responses").Op(":=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests"))),
-		Var().Id("n").Int(),
-		Var().Id("wg").Qual(packageSync, "WaitGroup"),
-		For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
+		)
+		bg.Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Id("contentTypeJson"))
+		bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
+		bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			if hasTrace {
+				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
+				ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+			}
+			ig.Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
+			ig.Return()
+		})
+		bg.Id("responses").Op(":=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
+		bg.Var().Id("n").Int()
+		bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
+		bg.For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
 			Id("methodNameOrigin").Op(":=").Id("request").Dot("Method"),
 			Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method")),
 			Switch(Id("method")).BlockFunc(func(bg *Group) {
-				for serviceName, service := range tr.services {
-					for _, method := range service.methods {
+				for serviceName, svc := range tr.services {
+					for _, method := range svc.methods {
 						if !method.isJsonRPC() {
 							continue
 						}
-						bg.Line().Case(Lit(service.lcName()+"."+method.lcName())).Block(
+						bg.Line().Case(Lit(svc.lcName()+"."+method.lcName())).Block(
 							Id("wg").Dot("Add").Call(Lit(1)),
-							Go().Func().Params(Id("request").Id("baseJsonRPC")).Block(
-								Line().Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call())),
-								Id("span").Dot("SetTag").Call(Lit("batch"), True()),
-								Defer().Id("span").Dot("Finish").Call(),
-								If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-									Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request"))),
-									Id("wg").Dot("Done").Call(),
-									Return(),
-								),
-								Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request")),
-								Id("wg").Dot("Done").Call(),
-							).Call(Id("request")),
+							Go().Func().Params(Id("request").Id("baseJsonRPC")).BlockFunc(func(gg *Group) {
+								if svc.tags.IsSet(tagTrace) {
+									gg.Line().Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
+									gg.Id("span").Dot("SetTag").Call(Lit("batch"), True())
+									gg.Defer().Id("span").Dot("Finish").Call()
+								}
+								gg.If(Id("request").Dot("ID").Op("!=").Nil()).BlockFunc(func(ig *Group) {
+									if svc.tags.IsSet(tagTrace) {
+										ig.Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request")))
+									} else {
+										ig.Id("responses").Dot("append").Call(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request")))
+									}
+									ig.Id("wg").Dot("Done").Call()
+									ig.Return()
+								})
+								if svc.tags.IsSet(tagTrace) {
+									gg.Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("span"), Id(_ctx_), Id("request"))
+								} else {
+									gg.Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request"))
+								}
+								gg.Id("wg").Dot("Done").Call()
+							}).Call(Id("request")),
 						)
 					}
 				}
-				bg.Default().Block(
-					Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call())),
-					Id("span").Dot("SetTag").Call(Lit("batch"), True()),
-					Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-					Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'")),
-					Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil())),
-					Id("span").Dot("Finish").Call(),
-				)
+				bg.Default().BlockFunc(func(dg *Group) {
+					if hasTrace {
+						dg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
+						dg.Id("span").Dot("SetTag").Call(Lit("batch"), True())
+						dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+						dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
+					}
+					dg.Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
+					if hasTrace {
+						dg.Id("span").Dot("Finish").Call()
+					}
+				})
 			}),
 			If(Id("n").Op(">").Id("maxParallelBatch")).Block(
 				Id("n").Op("=").Lit(0),
 				Id("wg").Dot("Wait").Call(),
 			),
 			Id("n").Op("++"),
-		),
-		Id("wg").Dot("Wait").Call(),
-		Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("responses")),
-		Return(),
-	)
+		)
+		bg.Id("wg").Dot("Wait").Call()
+		bg.Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("responses"))
+		bg.Return()
+	})
 }
 
 func (tr Transport) makeErrorResponseJsonRPCFunc() Code {

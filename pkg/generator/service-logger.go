@@ -79,7 +79,7 @@ func (svc *service) loggerMiddleware() Code {
 //		m.log.Info().Fields(fields).Msg("call test")
 //	}(time.Now())
 //	return m.next.Test(ctx, arg0, arg1, opts...)
-//}
+// }
 
 func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 
@@ -110,7 +110,7 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				if printResult {
 					d[Lit("response")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
 				}
-				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin"))
+				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call()
 			}))
 			g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
 				Id("fields").Op("[").Lit("requestID").Op("]").Op("=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")),

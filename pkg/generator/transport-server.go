@@ -15,8 +15,6 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.Anon(packagePPROF)
-
 	srcFile.ImportName(packageIO, "io")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
@@ -24,19 +22,32 @@ func (tr Transport) renderServer(outDir string) (err error) {
 
 	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
 
-	for _, service := range tr.services {
-		srcFile.ImportName(service.pkgPath, filepath.Base(service.pkgPath))
+	var hasTrace, hasMetrics bool
+	for _, svc := range tr.services {
+		if svc.tags.IsSet(tagTrace) {
+			hasTrace = true
+		}
+		if svc.tags.IsSet(tagMetrics) {
+			hasMetrics = true
+		}
+		srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	}
+
+	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
 
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())
 	srcFile.Line().Add(tr.fiberFunc())
 	srcFile.Line().Add(tr.withLogFunc())
-	srcFile.Line().Add(tr.withTraceFunc())
-	srcFile.Line().Add(tr.withMetricsFunc())
 	srcFile.Line().Add(tr.serveHealthFunc())
-	srcFile.Line().Add(tr.shutdownFunc())
 	srcFile.Line().Add(tr.sendResponseFunc())
+	srcFile.Line().Add(tr.shutdownFunc(hasMetrics))
+	if hasTrace {
+		srcFile.Line().Add(tr.withTraceFunc())
+	}
+	if hasMetrics {
+		srcFile.Line().Add(tr.withMetricsFunc())
+	}
 
 	for serviceName := range tr.services {
 		srcFile.Line().Add(Func().Params(Id("srv").Id("Server")).Id(serviceName).Params().Params(Op("*").Id("http" + serviceName)).Block(
@@ -70,10 +81,12 @@ func (tr Transport) withTraceFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithTrace").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		for serviceName := range tr.services {
-			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
-			)
+		for serviceName, svc := range tr.services {
+			if svc.tags.IsSet(tagTrace) {
+				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
+				)
+			}
 		}
 		bg.Return(Id("srv"))
 	})
@@ -83,10 +96,12 @@ func (tr Transport) withMetricsFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		for serviceName := range tr.services {
-			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
-			)
+		for serviceName, svc := range tr.services {
+			if svc.tags.IsSet(tagMetrics) {
+				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
+				)
+			}
 		}
 		bg.Return(Id("srv"))
 	})
@@ -95,19 +110,13 @@ func (tr Transport) withMetricsFunc() Code {
 func (tr Transport) serverType() Code {
 
 	return Type().Id("Server").StructFunc(func(g *Group) {
-
 		g.Id("log").Qual(packageZeroLog, "Logger")
-
 		g.Line().Id("httpAfter").Op("[]").Id("Handler")
 		g.Id("httpBefore").Op("[]").Id("Handler")
 		g.Line().Id("config").Qual(packageFiber, "Config")
-
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
-		g.Id("srvPPROF").Op("*").Qual(packageFiber, "App")
-
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
-
 		for serviceName := range tr.services {
 			g.Id("http" + serviceName).Op("*").Id("http" + serviceName)
 		}
@@ -155,21 +164,20 @@ func (tr Transport) serveHealthFunc() Code {
 	)
 }
 
-func (tr Transport) shutdownFunc() Code {
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().Block(
-		If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
+func (tr Transport) shutdownFunc(hasMetrics bool) Code {
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().BlockFunc(func(bg *Group) {
+		bg.If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHTTP").Dot("Shutdown").Call(),
-		),
-		If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
+		)
+		bg.If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHealth").Dot("Shutdown").Call(),
-		),
-		If(Id("srvMetrics").Op("!=").Id("nil")).Block(
-			Id("_").Op("=").Id("srvMetrics").Dot("Shutdown").Call(),
-		),
-		If(Id("srv").Dot("srvPPROF").Op("!=").Id("nil")).Block(
-			Id("_").Op("=").Id("srv").Dot("srvPPROF").Dot("Shutdown").Call(),
-		),
-	)
+		)
+		if hasMetrics {
+			bg.If(Id("srvMetrics").Op("!=").Id("nil")).Block(
+				Id("_").Op("=").Id("srvMetrics").Dot("Shutdown").Call(),
+			)
+		}
+	})
 }
 
 func (tr Transport) sendResponseFunc() Code {

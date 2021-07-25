@@ -120,7 +120,10 @@ func (tr Transport) RenderClient(outDir string) (err error) {
 	if err = os.MkdirAll(outDir, 0777); err != nil {
 		return
 	}
-	showError(tr.log, tr.renderClientTracer(outDir), "renderHTTP")
+
+	if tr.hasTrace() {
+		showError(tr.log, tr.renderClientTracer(outDir), "renderHTTP")
+	}
 	showError(tr.log, tr.renderClientOptions(outDir), "renderHTTP")
 	if tr.hasJsonRPC {
 		showError(tr.log, tr.renderClientJsonRPC(outDir), "renderHTTP")
@@ -139,20 +142,44 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 		return
 	}
 
+	hasTrace := tr.hasTrace()
+	hasMetric := tr.hasMetrics()
+
 	showError(tr.log, tr.renderHTTP(outDir), "renderHTTP")
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
-	showError(tr.log, tr.renderTracer(outDir), "renderTracer")
 	showError(tr.log, tr.renderContext(outDir), "renderContext")
-	showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
-
+	if hasMetric {
+		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
+	}
+	if hasTrace {
+		showError(tr.log, tr.renderTracer(outDir), "renderTracer")
+	}
 	if tr.hasJsonRPC {
 		showError(tr.log, tr.renderJsonRPC(outDir), "renderJsonRPC")
 	}
 
 	for _, svc := range tr.services {
 		err = svc.render(outDir)
+	}
+	return
+}
+
+func (tr Transport) hasTrace() (hasTrace bool) {
+	for _, svc := range tr.services {
+		if svc.tags.IsSet(tagTrace) {
+			return true
+		}
+	}
+	return
+}
+
+func (tr Transport) hasMetrics() (hasMetric bool) {
+	for _, svc := range tr.services {
+		if svc.tags.IsSet(tagMetrics) {
+			return true
+		}
 	}
 	return
 }

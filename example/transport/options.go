@@ -23,10 +23,10 @@ func Service(svc ServiceRoute) Option {
 	}
 }
 
-func JsonRPC(svc *httpJsonRPC) Option {
+func ExampleRPC(svc *httpExampleRPC) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
-			srv.httpJsonRPC = svc
+			srv.httpExampleRPC = svc
 			svc.SetRoutes(srv.Fiber())
 		}
 	}

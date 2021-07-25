@@ -40,10 +40,8 @@ func renderServiceConfig(configPath string) (err error) {
 		g.Id("LogLevel").String().Tag(map[string]string{"envconfig": "LOG_LEVEL", "default": "debug"})
 		g.Id("ReportCaller").Bool().Tag(map[string]string{"envconfig": "LOG_REPORT_CALLER", "default": "false"})
 		g.Id("ServiceBind").String().Tag(map[string]string{"envconfig": "BIND_ADDR", "default": ":9000"})
-		g.Id("PprofBind").String().Tag(map[string]string{"envconfig": "BIND_PPROF", "default": ":8080"})
 		g.Id("HealthBind").String().Tag(map[string]string{"envconfig": "BIND_HEALTH", "default": ":9091"})
 		g.Id("MetricsBind").String().Tag(map[string]string{"envconfig": "BIND_METRICS", "default": ":9090"})
-		g.Id("EnablePPROF").Bool().Tag(map[string]string{"envconfig": "ENABLE_PPROF", "default": "false"})
 	})
 
 	srcFile.Line().Var().Id("service").Op("*").Id("ServiceConfig")

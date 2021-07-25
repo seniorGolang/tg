@@ -11,23 +11,23 @@ import (
 	"github.com/seniorGolang/tg/example/interfaces"
 )
 
-type metricsJsonRPC struct {
-	next            interfaces.JsonRPC
+type metricsExampleRPC struct {
+	next            interfaces.ExampleRPC
 	requestCount    metrics.Counter
 	requestCountAll metrics.Counter
 	requestLatency  metrics.Histogram
 }
 
-func metricsMiddlewareJsonRPC(next interfaces.JsonRPC) interfaces.JsonRPC {
-	return &metricsJsonRPC{
+func metricsMiddlewareExampleRPC(next interfaces.ExampleRPC) interfaces.ExampleRPC {
+	return &metricsExampleRPC{
 		next:            next,
-		requestCount:    RequestCount.With("service", "JsonRPC"),
-		requestCountAll: RequestCountAll.With("service", "JsonRPC"),
-		requestLatency:  RequestLatency.With("service", "JsonRPC"),
+		requestCount:    RequestCount.With("service", "ExampleRPC"),
+		requestCountAll: RequestCountAll.With("service", "ExampleRPC"),
+		requestLatency:  RequestLatency.With("service", "ExampleRPC"),
 	}
 }
 
-func (m metricsJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
 	defer func(begin time.Time) {
 		m.requestLatency.With("method", "test", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())

@@ -39,8 +39,12 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 		Return(Id("http").Dot("svc")),
 	)
 	srcFile.Line().Add(svc.withLogFunc())
-	srcFile.Line().Add(svc.withTraceFunc())
-	srcFile.Line().Add(svc.withMetricsFunc())
+	if svc.tags.IsSet(tagTrace) {
+		srcFile.Line().Add(svc.withTraceFunc())
+	}
+	if svc.tags.IsSet(tagMetrics) {
+		srcFile.Line().Add(svc.withMetricsFunc())
+	}
 	srcFile.Line().Add(svc.withErrorHandler())
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")).BlockFunc(func(bg *Group) {

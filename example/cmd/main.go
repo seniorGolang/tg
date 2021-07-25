@@ -33,7 +33,7 @@ func main() {
 	services := []transport.Option{
 		transport.Use(recover.New()),
 		transport.User(transport.NewUser(log.Logger, svcUser)),
-		transport.JsonRPC(transport.NewJsonRPC(log.Logger, svcJsonRPC)),
+		transport.ExampleRPC(transport.NewExampleRPC(log.Logger, svcJsonRPC)),
 	}
 
 	srv := transport.New(log.Logger, services...).WithLog(log.Logger).WithTrace().TraceJaeger("example")

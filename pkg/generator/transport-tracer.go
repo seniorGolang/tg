@@ -17,6 +17,7 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageOpenZipkin, "zipkin")
@@ -27,8 +28,6 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile.ImportName(packageJaegerMetrics, "metrics")
 	srcFile.ImportAlias(packageZipkinHttp, "httpReporter")
 	srcFile.ImportAlias(packageOpenZipkinOpenTracing, "zipkinTracer")
-
-	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
 
 	srcFile.Line().Add(tr.traceJaegerFunc())
 	srcFile.Line().Add(tr.traceZipkinFunc())
@@ -50,7 +49,7 @@ func (tr Transport) extractSpanFunc() Code {
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		Id("requestID").Op(":=").String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
 		If(Id("requestID").Op("==").Lit("")).Block(
-			Id("requestID").Op("=").Qual(packageUUID, "NewV4").Call().Dot("String").Call(),
+			Id("requestID").Op("=").Qual(packageUUID, "New").Call().Dot("String").Call(),
 		),
 		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
 			Id("headers").Dot("Set").Call(String().Call(Id("key")), String().Call(Id("value"))),

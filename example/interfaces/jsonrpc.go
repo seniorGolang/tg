@@ -4,8 +4,8 @@ import (
 	"context"
 )
 
-// @tg jsonRPC-server log trace metrics
-type JsonRPC interface {
+// @tg jsonRPC-server log metrics trace
+type ExampleRPC interface {
 
 	// @tg summary=`json RPC метод`
 	// @tg arg1.type=string

@@ -11,35 +11,35 @@ import (
 	"github.com/seniorGolang/tg/example/interfaces"
 )
 
-type loggerJsonRPC struct {
-	next interfaces.JsonRPC
+type loggerExampleRPC struct {
+	next interfaces.ExampleRPC
 	log  zerolog.Logger
 }
 
-func loggerMiddlewareJsonRPC(log zerolog.Logger) MiddlewareJsonRPC {
-	return func(next interfaces.JsonRPC) interfaces.JsonRPC {
-		return &loggerJsonRPC{
+func loggerMiddlewareExampleRPC(log zerolog.Logger) MiddlewareExampleRPC {
+	return func(next interfaces.ExampleRPC) interfaces.ExampleRPC {
+		return &loggerExampleRPC{
 			log:  log,
 			next: next,
 		}
 	}
 }
 
-func (m loggerJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
 			"method": "test",
-			"request": viewer.Sprintf("%+v", requestJsonRPCTest{
+			"request": viewer.Sprintf("%+v", requestExampleRPCTest{
 				Arg0: arg0,
 				Arg1: arg1,
 				Opts: opts,
 			}),
-			"response": viewer.Sprintf("%+v", responseJsonRPCTest{
+			"response": viewer.Sprintf("%+v", responseExampleRPCTest{
 				Ret1: ret1,
 				Ret2: ret2,
 			}),
-			"service": "JsonRPC",
-			"took":    time.Since(begin),
+			"service": "ExampleRPC",
+			"took":    time.Since(begin).String(),
 		}
 		if ctx.Value(headerRequestID) != nil {
 			fields["requestID"] = ctx.Value(headerRequestID)

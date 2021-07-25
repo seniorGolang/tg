@@ -106,75 +106,50 @@ func renderMain(meta metaInfo, basePkg, mainPath string, services []types.Interf
 }
 
 func renderMainFunc(meta metaInfo, basePkg string, services []types.Interface) Code {
-
 	return Func().Id("main").Params().BlockFunc(func(g *Group) {
-
 		pkgConfig := path.Join(basePkg, "pkg", meta.projectName, "config")
-
 		g.Line().If(Qual(pkgConfig, "Service").Call().Dot("ReportCaller")).Block(
 			Id("log").Dot("SetReportCaller").Call(Lit(true)),
 		)
 		g.If(List(Id("level"), Err()).Op(":=").Qual(pkgLog, "ParseLevel").Call(Qual(pkgConfig, "Service").Call().Dot("LogLevel")).Op(";").Err().Op("==").Nil()).Block(
 			Id("log").Dot("SetLevel").Call(Id("level")),
 		)
-
 		g.Line().Id("shutdown").Op(":=").Make(Chan().Qual(pkgOS, "Signal"), Lit(1))
 		g.Qual(pkgSignal, "Notify").Call(Id("shutdown"), Qual(pkgSyscall, "SIGINT"))
-
 		g.Line().Defer().Id("log").Dot("Info").Call(Lit("msg"), Lit("goodbye"))
-
 		pkgService := path.Join(basePkg, "pkg", meta.projectName, "service")
-
 		appArgs := []Code{Id("log")}
-
 		pkgTransport := path.Join(basePkg, "pkg", meta.projectName, "transport")
-
 		g.Line().Comment("TODO implement me!")
-
 		for _, service := range services {
 			svcName := service.Name
 			g.Var().Id(svcName).Qual(pkgService, service.Name)
 			appArgs = append(appArgs, Qual(pkgTransport, "Service").Call(Qual(pkgTransport, "New"+svcName).Call(Id("log"), Id(svcName))))
 		}
-
 		g.Line()
-
 		if meta.withTracer {
 			g.Id("srv").Op(":=").Qual(pkgTransport, "New").Call(appArgs...).Dot("WithTrace").Call()
 		} else {
 			g.Id("srv").Op(":=").Qual(pkgTransport, "New").Call(appArgs...)
 		}
-
 		g.Line()
-
 		serve := make(map[string]struct{})
-
 		for _, service := range services {
-
 			if tags.ParseTags(service.Docs).IsSet("http-server") {
 				serve["http-server"] = struct{}{}
 			}
-
 			if tags.ParseTags(service.Docs).IsSet("jsonRPC-server") {
 				serve["http-server"] = struct{}{}
 			}
-
 			if tags.ParseTags(service.Docs).IsSet("test") {
 				serve["test"] = struct{}{}
 			}
 		}
-
 		if _, found := serve["http-server"]; found {
 			g.Id("srv").Dot("ServeHTTP").Call(Qual(pkgConfig, "Service").Call().Dot("ServiceBind"))
 		}
-
 		g.Line().Qual(pkgTransport, "ServeMetrics").Call(Id("log"), Qual(pkgConfig, "Service").Call().Dot("MetricsBind"))
-		g.If(Qual(pkgConfig, "Service").Call().Dot("EnablePPROF")).Block(
-			Id("srv").Dot("ServePPROF").Call(Qual(pkgConfig, "Service").Call().Dot("PprofBind")),
-		)
-
 		g.Line().Op("<-").Id("shutdown")
-
 		g.Line().Id("log").Dot("Info").Call(Lit("shutdown application"))
 		g.Id("srv").Dot("Shutdown").Call()
 	})

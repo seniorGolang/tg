@@ -36,7 +36,7 @@ func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string
 			}),
 			"response": viewer.Sprintf("%+v", responseUserGetUser{User: user}),
 			"service":  "User",
-			"took":     time.Since(begin),
+			"took":     time.Since(begin).String(),
 		}
 		if ctx.Value(headerRequestID) != nil {
 			fields["requestID"] = ctx.Value(headerRequestID)
@@ -57,7 +57,7 @@ func (m loggerUser) UploadFile(ctx context.Context, fileBytes []byte) (err error
 			"request":  viewer.Sprintf("%+v", requestUserUploadFile{FileBytes: fileBytes}),
 			"response": viewer.Sprintf("%+v", responseUserUploadFile{}),
 			"service":  "User",
-			"took":     time.Since(begin),
+			"took":     time.Since(begin).String(),
 		}
 		if ctx.Value(headerRequestID) != nil {
 			fields["requestID"] = ctx.Value(headerRequestID)
@@ -82,7 +82,7 @@ func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, o
 			}),
 			"response": viewer.Sprintf("%+v", responseUserCustomResponse{}),
 			"service":  "User",
-			"took":     time.Since(begin),
+			"took":     time.Since(begin).String(),
 		}
 		if ctx.Value(headerRequestID) != nil {
 			fields["requestID"] = ctx.Value(headerRequestID)
@@ -107,7 +107,7 @@ func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, op
 			}),
 			"response": viewer.Sprintf("%+v", responseUserCustomHandler{}),
 			"service":  "User",
-			"took":     time.Since(begin),
+			"took":     time.Since(begin).String(),
 		}
 		if ctx.Value(headerRequestID) != nil {
 			fields["requestID"] = ctx.Value(headerRequestID)

@@ -63,7 +63,8 @@ func (responses *jsonrpcResponses) append(response *baseJsonRPC) {
 	}
 }
 
-type methodJsonRPC func(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
+type methodJsonRPC func(ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
+type methodTraceJsonRPC func(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
 
 func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 	batchSpan := extractSpan(srv.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
@@ -98,7 +99,7 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 		method := strings.ToLower(request.Method)
 		switch method {
 
-		case "jsonrpc.test":
+		case "examplerpc.test":
 			wg.Add(1)
 			go func(request baseJsonRPC) {
 
@@ -106,11 +107,11 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 				span.SetTag("batch", true)
 				defer span.Finish()
 				if request.ID != nil {
-					responses.append(srv.httpJsonRPC.test(span, ctx, request))
+					responses.append(srv.httpExampleRPC.test(span, ctx, request))
 					wg.Done()
 					return
 				}
-				srv.httpJsonRPC.test(span, ctx, request)
+				srv.httpExampleRPC.test(span, ctx, request)
 				wg.Done()
 			}(request)
 		default:
