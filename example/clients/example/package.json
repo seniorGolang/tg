@@ -1,0 +1,11 @@
+{
+  "name":        "@test/example-service-client",
+  "version":     "1.0.0",
+  "description": "JavaScript example-service Client",
+  "main":        "jsonrpc-client.js",
+  "files":       [
+    "jsonrpc-client.js"
+  ],
+  "private":     true,
+  "scripts":     { }
+}
