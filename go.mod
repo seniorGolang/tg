@@ -1,4 +1,4 @@
-module github.com/seniorGolang/tg/v2
+module github.com/seniorGolang/tg
 
 go 1.16
 
