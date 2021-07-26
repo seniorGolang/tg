@@ -4,8 +4,8 @@ package transport
 import (
 	"context"
 
-	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type UserGetUser func(ctx context.Context, cookie string, userAgent string) (user *types.User, err error)

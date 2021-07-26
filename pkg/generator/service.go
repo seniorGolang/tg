@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vetcher/go-astra/types"
 
-	"github.com/seniorGolang/tg/pkg/tags"
-	"github.com/seniorGolang/tg/pkg/utils"
+	"github.com/seniorGolang/tg/v2/pkg/tags"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 type service struct {

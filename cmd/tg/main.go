@@ -11,9 +11,9 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/seniorGolang/tg/pkg/generator"
-	"github.com/seniorGolang/tg/pkg/logger"
-	"github.com/seniorGolang/tg/pkg/skeleton"
+	"github.com/seniorGolang/tg/v2/pkg/generator"
+	"github.com/seniorGolang/tg/v2/pkg/logger"
+	"github.com/seniorGolang/tg/v2/pkg/skeleton"
 )
 
 var (

@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 
-	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type metricsUser struct {

@@ -9,13 +9,13 @@ package interfaces
 import (
 	"context"
 
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 // @tg http-prefix=api/v2
 // @tg http-server log metrics trace
 // общий код 400 для всех методов, кроме UploadFile
-// @tg 400=github.com/seniorGolang/tg/example/error:ErrorType
+// @tg 400=github.com/seniorGolang/tg/v2/example/error:ErrorType
 type User interface {
 
 	// @tg summary=`Данные пользователя`
@@ -25,7 +25,7 @@ type User interface {
 	// @tg http-path=/user/info
 	// @tg http-cookies=cookie|sessionCookie
 	// @tg http-headers=userAgent|User-Agent
-	// @tg 401=github.com/seniorGolang/tg/example/error:ErrorType
+	// @tg 401=github.com/seniorGolang/tg/v2/example/error:ErrorType
 	GetUser(ctx context.Context, cookie, userAgent string) (user *types.User, err error)
 
 	// @tg summary=`Загрузка аватара пользователя`
@@ -40,12 +40,12 @@ type User interface {
 	// @tg summary=`Метод со сторонним обработчиком ответа`
 	// @tg http-method=PATCH
 	// @tg http-path=/user/custom/response
-	// @tg http-response=github.com/seniorGolang/tg/example/implement:CustomResponseHandler
+	// @tg http-response=github.com/seniorGolang/tg/v2/example/implement:CustomResponseHandler
 	CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error)
 
 	// @tg summary=`Метод полностью обрабатываемый кастомным хендлером`
 	// @tg http-method=DELETE
 	// @tg http-path=/user/custom
-	// @tg handler=github.com/seniorGolang/tg/example/implement:CustomHandler
+	// @tg handler=github.com/seniorGolang/tg/v2/example/implement:CustomHandler
 	CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error)
 }

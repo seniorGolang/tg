@@ -17,8 +17,8 @@ import (
 	"github.com/vetcher/go-astra"
 	"github.com/vetcher/go-astra/types"
 
-	"github.com/seniorGolang/tg/pkg/mod"
-	"github.com/seniorGolang/tg/pkg/utils"
+	"github.com/seniorGolang/tg/v2/pkg/mod"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 func removeSkippedFields(fields []types.Variable, skipFields []string) []types.Variable {

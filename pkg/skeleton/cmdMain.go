@@ -18,9 +18,9 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/pkg/logger"
-	"github.com/seniorGolang/tg/pkg/tags"
-	"github.com/seniorGolang/tg/pkg/utils"
+	"github.com/seniorGolang/tg/v2/pkg/logger"
+	"github.com/seniorGolang/tg/v2/pkg/tags"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 var log = logger.Log.WithField("module", "skeleton")

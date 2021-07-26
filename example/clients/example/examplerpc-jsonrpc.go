@@ -7,7 +7,7 @@ import (
 
 	goUUID "github.com/google/uuid"
 
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type ClientExampleRPC struct {

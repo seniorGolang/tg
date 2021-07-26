@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/seniorGolang/tg/pkg/utils"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 const (

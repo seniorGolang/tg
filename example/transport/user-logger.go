@@ -8,8 +8,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/seniorGolang/dumper/viewer"
 
-	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type loggerUser struct {

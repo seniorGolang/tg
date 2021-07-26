@@ -11,7 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/seniorGolang/tg/pkg/generator"
+	"github.com/seniorGolang/tg/v2/pkg/generator"
 )
 
 func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir string, trace, mongo bool) (err error) {

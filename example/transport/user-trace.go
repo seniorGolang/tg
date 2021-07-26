@@ -6,8 +6,8 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/seniorGolang/tg/example/interfaces"
-	"github.com/seniorGolang/tg/example/interfaces/types"
+	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type traceUser struct {

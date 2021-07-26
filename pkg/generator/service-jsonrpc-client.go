@@ -11,7 +11,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/vetcher/go-astra/types"
 
-	"github.com/seniorGolang/tg/pkg/utils"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 func (svc *service) renderClientJsonRPC(outDir string) (err error) {

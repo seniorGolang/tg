@@ -8,7 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/seniorGolang/tg/pkg/logger/format"
+	"github.com/seniorGolang/tg/v2/pkg/logger/format"
 )
 
 var Log Logger
