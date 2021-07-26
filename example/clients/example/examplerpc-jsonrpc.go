@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 
 	goUUID "github.com/google/uuid"
+
+	"github.com/seniorGolang/tg/example/interfaces/types"
 )
 
 type ClientExampleRPC struct {
@@ -14,14 +16,14 @@ type ClientExampleRPC struct {
 
 type retExampleRPCTest func(ret1 int, ret2 string, err error)
 
-func (cli *ClientExampleRPC) ReqTest(ret retExampleRPCTest, arg0 int, arg1 string, opts ...interface{}) (request baseJsonRPC) {
+func (cli *ClientExampleRPC) ReqTest(ret retExampleRPCTest, arg0 int, user types.User, opts map[string]interface{}) (request baseJsonRPC) {
 
 	request = baseJsonRPC{
 		Method: "examplerpc.test",
 		Params: requestExampleRPCTest{
 			Arg0: arg0,
-			Arg1: arg1,
 			Opts: opts,
+			User: user,
 		},
 		Version: Version,
 	}
@@ -43,14 +45,14 @@ func (cli *ClientExampleRPC) ReqTest(ret retExampleRPCTest, arg0 int, arg1 strin
 	return
 }
 
-func (cli *ClientExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+func (cli *ClientExampleRPC) Test(ctx context.Context, arg0 int, user types.User, opts map[string]interface{}) (ret1 int, ret2 string, err error) {
 
 	retHandler := func(_ret1 int, _ret2 string, _err error) {
 		ret1 = _ret1
 		ret2 = _ret2
 		err = _err
 	}
-	if blockErr := cli.Batch(ctx, cli.ReqTest(retHandler, arg0, arg1, opts...)); blockErr != nil {
+	if blockErr := cli.Batch(ctx, cli.ReqTest(retHandler, arg0, user, opts)); blockErr != nil {
 		err = blockErr
 		return
 	}

@@ -158,15 +158,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 func (doc *swagger) searchType(pkg, name string) (retType types.Type) {
 
 	if retType = doc.parseType(pkg, name); retType == nil {
-
 		pkgPath := mod.PkgModPath(pkg)
-
 		if retType = doc.parseType(pkgPath, name); retType == nil {
-
 			pkgPath = path.Join("./vendor", pkg)
-
 			if retType = doc.parseType(pkgPath, name); retType == nil {
-
 				pkgPath = doc.trimLocalPkg(pkg)
 				retType = doc.parseType(pkgPath, name)
 			}
@@ -176,46 +171,35 @@ func (doc *swagger) searchType(pkg, name string) (retType types.Type) {
 }
 
 func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
-
 	pkgPath, _ := filepath.Abs(relPath)
-
 	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
-
 		if err != nil {
 			return err
 		}
-
 		if info.IsDir() {
 			return nil
 		}
-
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
-
 		var srcFile *types.File
 		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
 			retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name))
 			doc.log.WithError(err).Errorf("parse file %s", filePath)
 			return err
 		}
-
 		for _, typeInfo := range srcFile.Interfaces {
-
 			if typeInfo.Name == name {
 				retType = types.TInterface{Interface: &typeInfo}
 				return
 			}
 		}
-
 		for _, typeInfo := range srcFile.Types {
-
 			if typeInfo.Name == name {
 				retType = typeInfo.Type
 				return
 			}
 		}
-
 		for _, structInfo := range srcFile.Structures {
 
 			if structInfo.Name == name {
@@ -231,39 +215,30 @@ func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
 func (doc *swagger) trimLocalPkg(pkg string) (pgkPath string) {
 
 	module := doc.getModName()
-
 	if module == "" {
 		return pkg
 	}
-
 	moduleTokens := strings.Split(module, "/")
 	pkgTokens := strings.Split(pkg, "/")
-
 	if len(pkgTokens) < len(moduleTokens) {
 		return pkg
 	}
-
 	pgkPath = path.Join(strings.Join(pkgTokens[len(moduleTokens):], "/"))
 	return
 }
 
 func (doc *swagger) getModName() (module string) {
-
 	modFile, err := os.OpenFile("go.mod", os.O_RDONLY, os.ModePerm)
-
 	if err != nil {
 		return
 	}
 	defer modFile.Close()
-
 	rd := bufio.NewReader(modFile)
 	if module, err = rd.ReadString('\n'); err != nil {
 		return ""
 	}
 	module = strings.Trim(module, "\n")
-
 	moduleTokens := strings.Split(module, " ")
-
 	if len(moduleTokens) == 2 {
 		module = strings.TrimSpace(moduleTokens[1])
 	}
@@ -271,33 +246,24 @@ func (doc *swagger) getModName() (module string) {
 }
 
 func castType(originName string) (typeName, format string) {
-
 	typeName = originName
-
 	switch originName {
-
 	case "bool":
 		typeName = "boolean"
-
 	case "Interface":
 		typeName = "object"
-
 	case "time.Time":
 		format = "date-time"
 		typeName = "string"
-
 	case "byte":
 		format = "uint8"
 		typeName = "number"
-
 	case "[]byte":
 		format = "byte"
 		typeName = "string"
-
 	case "float32", "float64":
 		format = "float"
 		typeName = "number"
-
 	case "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64":
 		typeName = "number"
 		format = originName

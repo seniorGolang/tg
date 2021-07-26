@@ -23,19 +23,19 @@ func Service(svc ServiceRoute) Option {
 	}
 }
 
-func ExampleRPC(svc *httpExampleRPC) Option {
+func User(svc *httpUser) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
-			srv.httpExampleRPC = svc
+			srv.httpUser = svc
 			svc.SetRoutes(srv.Fiber())
 		}
 	}
 }
 
-func User(svc *httpUser) Option {
+func ExampleRPC(svc *httpExampleRPC) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
-			srv.httpUser = svc
+			srv.httpExampleRPC = svc
 			svc.SetRoutes(srv.Fiber())
 		}
 	}

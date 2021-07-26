@@ -160,6 +160,16 @@ func main() {
 					Value: "./pkg/clients",
 					Usage: "path to output clients",
 				},
+				&cli.BoolFlag{
+					Name:  "go",
+					Value: false,
+					Usage: "enable go client with package manifest",
+				},
+				&cli.BoolFlag{
+					Name:  "js",
+					Value: false,
+					Usage: "enable js client with package manifest",
+				},
 			},
 
 			UsageText:   "tg client --services ./pkg/someService/service",
@@ -193,7 +203,6 @@ func main() {
 			Description: "generate swagger documentation by interfaces",
 		},
 	}
-
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
@@ -223,13 +232,21 @@ func cmdClient(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-
 	var tr generator.Transport
 	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
 		return
 	}
-
-	return tr.RenderClient(c.String("outPath"))
+	if c.Bool("go") {
+		if err = tr.RenderClient(c.String("outPath")); err != nil {
+			return
+		}
+	}
+	if c.Bool("js") {
+		if err = tr.RenderClientJS(c.String("outPath")); err != nil {
+			return
+		}
+	}
+	return
 }
 
 func cmdTransport(c *cli.Context) (err error) {
@@ -239,28 +256,22 @@ func cmdTransport(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-
 	opts := []generator.Option{
 		generator.WithTests(c.String("tests")),
 		generator.WithImplements(c.String("implements")),
 	}
-
 	var tr generator.Transport
 	if tr, err = generator.NewTransport(log, c.String("services"), opts...); err != nil {
 		return
 	}
-
 	outPath, _ := path.Split(c.String("services"))
 	outPath = path.Join(outPath, "transport")
-
 	if c.String("out") != "" {
 		outPath = c.String("out")
 	}
-
 	if err = tr.RenderServer(outPath); err != nil {
 		return
 	}
-
 	if c.String("outSwagger") != "" {
 		err = tr.RenderSwagger(c.String("outSwagger"))
 	}
@@ -311,14 +322,11 @@ func cmdAzure(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-
 	var tr generator.Transport
 	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
 		return
 	}
-
 	outPath := path.Join(c.String("services"), "azure-fApp")
-
 	if c.String("outPath") != "" {
 		outPath = c.String("outPath")
 	}

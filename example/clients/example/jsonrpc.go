@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 
-	v2 "github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2"
 	goUUID "github.com/google/uuid"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog"
-	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -59,7 +58,7 @@ type ClientJsonRPC struct {
 	url     string
 	name    string
 	log     zerolog.Logger
-	agent   *v2.Agent
+	agent   *fiber.Agent
 	headers []string
 
 	errorDecoder ErrorDecoder
@@ -73,7 +72,7 @@ func (batch *Batch) Append(request baseJsonRPC) {
 
 func New(name string, log zerolog.Logger, url string, opts ...Option) (cli *ClientJsonRPC) {
 	cli = &ClientJsonRPC{
-		agent:        v2.AcquireAgent(),
+		agent:        fiber.AcquireAgent(),
 		errorDecoder: defaultErrorDecoder,
 		log:          log,
 		name:         name,
@@ -115,13 +114,16 @@ func (cli *ClientJsonRPC) jsonrpcCall(ctx context.Context, log zerolog.Logger, s
 	defer span.Finish()
 	agent := cli.agent.Reuse()
 	req := agent.Request()
-	resp := v2.AcquireResponse()
+	resp := fiber.AcquireResponse()
 	agent.SetResponse(resp)
-	defer v2.ReleaseResponse(resp)
+	defer fiber.ReleaseResponse(resp)
 
 	req.SetRequestURI(cli.url)
 	agent.ContentType(contentTypeJson)
-	req.Header.SetMethod(fasthttp.MethodPost)
+	req.Header.SetMethod(fiber.MethodPost)
+	if err = agent.Parse(); err != nil {
+		return
+	}
 
 	requestID, _ := ctx.Value(headerRequestID).(string)
 	if requestID == "" {

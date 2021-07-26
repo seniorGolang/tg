@@ -51,6 +51,10 @@ func newService(log logrus.FieldLogger, filePath string, iface types.Interface, 
 	return
 }
 
+func (svc service) isJsonRPC() bool {
+	return svc.tags.IsSet(tagServerJsonRPC)
+}
+
 func (svc service) lcName() string {
 	return strings.ToLower(svc.Name)
 }
