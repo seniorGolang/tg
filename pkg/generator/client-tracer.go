@@ -35,7 +35,7 @@ func (tr Transport) extractSpanClientFunc() Code {
 		Id("span").Op("=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
 
 		Line().If(Id("span").Op("==").Nil()).Block(
-			Id("log").Dot("Debug").Call(Lit("context does not contain span")),
+			Id("log").Dot("Debug").Call().Dot("Msg").Call(Lit("context does not contain span")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("span").Dot("Context").Call())),
 		),
@@ -54,7 +54,7 @@ func (tr Transport) injectSpanClientFunc() Code {
 			Qual(packageOpentracing, "HTTPHeaders"),
 			Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers")),
 		).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("WithError").Call(Err()).Dot("Warning").Call(Lit("inject span to HTTP headers")),
+			Id("log").Dot("Warn").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("inject span to HTTP headers")),
 		),
 		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id("request").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),

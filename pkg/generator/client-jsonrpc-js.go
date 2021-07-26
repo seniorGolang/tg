@@ -144,7 +144,7 @@ func (def typeDef) def() (prop string) {
 		item := def.properties["item"]
 		return fmt.Sprintf("Array<%s>", item.typeLink())
 	case "scalar":
-		return castTypeJs(def.typeName)
+		return def.typeName
 	default:
 		return castTypeJs(def.kind)
 	}
@@ -155,9 +155,9 @@ func (def typeDef) js() (js string) {
 	js += "/**\n"
 	switch def.kind {
 	case "map":
-		js += "* @typedef " + def.def()
+		js += fmt.Sprintf("* @typedef %s %s \n", def.def(), def.name)
 	case "array":
-		js += "* @typedef " + def.def()
+		js += fmt.Sprintf("* @typedef %s %s \n", def.def(), def.name)
 	case "struct":
 		js += fmt.Sprintf("* @typedef {Object} %s\n", def.name)
 		for name, property := range def.properties {
@@ -177,7 +177,7 @@ func (def typeDef) typeLink() (link string) {
 	case "array":
 		return fmt.Sprintf("Array<%s>", castTypeJs(def.properties["item"].typeLink()))
 	case "scalar":
-		return castTypeJs(def.typeName)
+		return def.typeName
 	default:
 		return castTypeJs(def.name)
 	}
@@ -188,10 +188,11 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 	schema.name = typeName
 	schema.typeName = varType.String()
 	schema.properties = make(map[string]typeDef)
-	// if newType, _ := castType(varType.String()); newType != varType.String() {
-	// 	schema.kind = newType
-	// 	return
-	// }
+	if newType := castTypeJs(varType.String()); newType != varType.String() {
+		schema.kind = "scalar"
+		schema.typeName = newType
+		return
+	}
 	switch vType := varType.(type) {
 	case types.TName:
 		schema.kind = vType.TypeName
