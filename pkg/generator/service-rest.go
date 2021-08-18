@@ -114,7 +114,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			})
 		}
 		bg.Add(method.urlArgs(func(arg, header string) *Statement {
-			return If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -125,7 +125,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 
 		bg.Add(method.urlParams(func(arg, header string) *Statement {
-			return If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -135,7 +135,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			})
 		}))
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
-			return If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -145,7 +145,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			})
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
-			return If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())

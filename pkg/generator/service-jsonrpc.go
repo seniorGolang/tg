@@ -156,32 +156,32 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		}
 		bf.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
-				return Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
-					Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
-					If(Err().Op("!=").Nil()).Block(
-					Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-					Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
-					Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+				return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+					Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+					Line().If(Err().Op("!=").Nil()).Block(
+					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
+					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
-				If(Err().Op("!=").Nil()).Block(
-				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+				Line().If(Err().Op("!=").Nil()).Block(
+				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
 		bf.Add(method.httpCookies(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
-				return Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
-					Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
-					If(Err().Op("!=").Nil()).Block(
-					Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-					Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
-					Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+				return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+					Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+					Line().If(Err().Op("!=").Nil()).Block(
+					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
+					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
-				If(Err().Op("!=").Nil()).Block(
-				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+				Line().If(Err().Op("!=").Nil()).Block(
+				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
 		bf.Var().Id("response").Id(method.responseStructName())

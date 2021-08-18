@@ -258,7 +258,7 @@ func (m method) urlArgs(errStatement func(arg, header string) *Statement) (g *St
 
 	return m.argFromString("urlParam", m.argPathMap(),
 		func(srcName string) Code {
-			return Id(_ctx_).Dot("UserValue").Call(Lit(srcName)).Op(".").Call(String())
+			return Id(_ctx_).Dot("Params").Call(Lit(srcName))
 		},
 		errStatement,
 	)
@@ -395,8 +395,8 @@ func (m *method) argPathMap() (paths map[string]string) {
 		urlTokens := strings.Split(urlPath, "/")
 
 		for _, token := range urlTokens {
-			if strings.HasPrefix(token, "{") {
-				arg := strings.TrimSpace(strings.Replace(strings.TrimPrefix(token, "{"), "}", "", -1))
+			if strings.HasPrefix(token, ":") {
+				arg := strings.TrimSpace(strings.TrimPrefix(token, ":"))
 				m.pathToArg[arg] = arg
 			}
 		}
