@@ -27,15 +27,12 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 		doc.schemas[name] = swSchema{Type: "object"}
 		return
 	}
-
 	if doc.schemas == nil {
 		doc.schemas = make(swSchemas)
 	}
-
 	structType := types.Struct{
 		Base: types.Base{Name: name, Docs: mTags.ToDocs()},
 	}
-
 	for _, field := range fields {
 		field.Base.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
@@ -70,84 +67,60 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			return
 		}
 	}
-
 	if newType, format := castType(varType.String()); newType != varType.String() {
-
 		schema.Type = newType
 		schema.Format = format
 		return
 	}
-
 	switch vType := varType.(type) {
-
 	case types.TName:
-
 		if types.IsBuiltin(varType) {
 			schema.Type = vType.TypeName
 			return
 		}
-
 		schema.Example = nil
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
-
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
 			if doc.knownCount(vType.TypeName) < 2 {
 				doc.knownInc(vType.TypeName)
 				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
 		}
-
 	case types.TMap:
-
 		schema.Type = "object"
 		schema.AdditionalProperties = doc.walkVariable(typeName, pkgPath, vType.Value, nil)
-
 	case types.TArray:
-
 		schema.Type = "array"
 		schema.Maximum = vType.ArrayLen
 		schema.Nullable = vType.IsSlice
 		itemSchema := doc.walkVariable(typeName, pkgPath, vType.Next, nil)
 		schema.Items = &itemSchema
-
 	case types.Struct:
-
 		schema.Type = "object"
 		schema.Properties = make(swProperties)
-
 		for _, field := range vType.Fields {
 			if fieldName := jsonName(field); fieldName != "-" {
 				schema.Properties[fieldName] = doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
 			}
 		}
-
 	case types.TImport:
-
 		schema.Example = nil
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.Next)
-
 		if nextType := doc.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
 			if doc.knownCount(vType.Next.String()) < 2 {
 				doc.knownInc(vType.Next.String())
 				doc.schemas[vType.Next.String()] = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 			}
 		}
-
 	case types.TEllipsis:
-
 		schema.Type = "array"
 		itemSchema := doc.walkVariable(typeName, pkgPath, vType.Next, varTags)
 		schema.Items = &itemSchema
-
 	case types.TPointer:
-
 		return doc.walkVariable(typeName, pkgPath, vType.Next, nil)
-
 	case types.TInterface:
-
 		schema.Type = "object"
 		schema.Nullable = true
-
 	default:
 		doc.log.WithField("type", vType).Error("unknown type")
 		return
@@ -171,6 +144,7 @@ func (doc *swagger) searchType(pkg, name string) (retType types.Type) {
 }
 
 func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
+
 	pkgPath, _ := filepath.Abs(relPath)
 	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
 		if err != nil {

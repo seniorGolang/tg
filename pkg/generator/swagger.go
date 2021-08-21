@@ -49,17 +49,13 @@ func (doc *swagger) render(outFilePath string) (err error) {
 	}
 
 	var swaggerDoc swObject
-
 	swaggerDoc.OpenAPI = "3.0.0"
 	swaggerDoc.Info.Title = doc.tags.Value("title")
 	swaggerDoc.Info.Version = doc.tags.Value("version")
 	swaggerDoc.Info.Description = doc.tags.Value("description")
 	swaggerDoc.Paths = make(map[string]swPath)
-
 	tagServers := strings.Split(doc.tags.Value("servers"), "|")
-
 	for _, tagServer := range tagServers {
-
 		var serverDesc string
 		serverValues := strings.Split(tagServer, ";")
 
@@ -68,22 +64,15 @@ func (doc *swagger) render(outFilePath string) (err error) {
 		}
 		swaggerDoc.Servers = append(swaggerDoc.Servers, swServer{URL: serverValues[0], Description: serverDesc})
 	}
-
 	for _, serviceName := range doc.serviceKeys() {
-
 		service := doc.services[serviceName]
-
 		serviceTags := []string{service.Name}
 		serviceTags = strings.Split(service.tags.Value(tagSwaggerTags, service.Name), ",")
-
 		doc.log.WithField("module", "swagger").Infof("service %s append jsonRPC methods", serviceTags)
-
 		for _, method := range service.methods {
-
 			if method.tags.Contains(tagSwaggerTags) {
 				serviceTags = strings.Split(method.tags.Value(tagSwaggerTags), ",")
 			}
-
 			successCode := method.tags.ValueInt(tagHttpSuccess, fasthttp.StatusOK)
 
 			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.argumentsWithUploads())
@@ -91,11 +80,8 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 			var parameters []swParameter
 			var retHeaders map[string]swHeader
-
 			for argName, headerKey := range method.varHeaderMap() {
-
 				if arg := method.argByName(argName); arg != nil {
-
 					parameters = append(parameters, swParameter{
 						In:       "header",
 						Name:     headerKey,
@@ -103,9 +89,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 						Schema:   doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
 					})
 				}
-
 				if ret := method.resultByName(argName); ret != nil {
-
 					if retHeaders == nil {
 						retHeaders = make(map[string]swHeader)
 					}
@@ -114,11 +98,8 @@ func (doc *swagger) render(outFilePath string) (err error) {
 					}
 				}
 			}
-
 			for argName, headerKey := range method.argPathMap() {
-
 				if arg := method.argByName(argName); arg != nil {
-
 					parameters = append(parameters, swParameter{
 						In:       "path",
 						Name:     headerKey,
@@ -126,9 +107,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 						Schema:   doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
 					})
 				}
-
 				if ret := method.resultByName(argName); ret != nil {
-
 					if retHeaders == nil {
 						retHeaders = make(map[string]swHeader)
 					}
@@ -137,11 +116,8 @@ func (doc *swagger) render(outFilePath string) (err error) {
 					}
 				}
 			}
-
 			for argName, cookieName := range method.varCookieMap() {
-
 				if arg := method.argByName(argName); arg != nil {
-
 					parameters = append(parameters, swParameter{
 						In:       "cookie",
 						Name:     cookieName,
@@ -149,7 +125,6 @@ func (doc *swagger) render(outFilePath string) (err error) {
 						Schema:   doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
 					})
 				}
-
 				if ret := method.resultByName(argName); ret != nil {
 
 					if retHeaders == nil {
@@ -161,9 +136,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 					}
 				}
 			}
-
 			if service.tags.Contains(tagServerJsonRPC) && !method.tags.Contains(tagMethodHTTP) {
-
 				postMethod := &swOperation{
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),
@@ -191,26 +164,18 @@ func (doc *swagger) render(outFilePath string) (err error) {
 						},
 					},
 				}
-
 				swaggerDoc.Paths[method.jsonrpcPath()] = swPath{Post: postMethod}
-
 			} else if service.tags.Contains(tagServerHTTP) && method.tags.Contains(tagMethodHTTP) {
-
 				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceTags, method.Name)
-
 				httpValue, found := swaggerDoc.Paths[method.jsonrpcPath()]
-
 				if !found {
 					swaggerDoc.Paths[method.httpPath()] = swPath{}
 				}
-
 				requestContentType := contentJSON
 				responseContentType := contentJSON
-
 				if method.tags.Contains(tagUploadVars) {
 					requestContentType = contentMultipart
 				}
-
 				httpMethod := &swOperation{
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),
@@ -232,24 +197,19 @@ func (doc *swagger) render(outFilePath string) (err error) {
 						},
 					},
 				}
-
 				var methodTags tags.DocTags
 				doc.fillErrors(httpMethod.Responses, methodTags.Merge(service.tags).Merge(method.tags))
 
 				if httpMethod.RequestBody.Content == nil {
 					httpMethod.RequestBody = nil
 				}
-
 				reflect.ValueOf(&httpValue).Elem().FieldByName(utils.ToCamel(strings.ToLower(method.httpMethod()))).Set(reflect.ValueOf(httpMethod))
 				swaggerDoc.Paths[method.httpPath()] = httpValue
 			}
 		}
 	}
-
-	swaggerDoc.Components.Schemas = doc.schemas
-
 	var docData []byte
-
+	swaggerDoc.Components.Schemas = doc.schemas
 	if strings.ToLower(filepath.Ext(outFilePath)) == ".json" {
 		if docData, err = json.MarshalIndent(swaggerDoc, " ", "    "); err != nil {
 			return
@@ -259,9 +219,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 			return
 		}
 	}
-
 	doc.log.Info("write to ", outFilePath)
-
 	return ioutil.WriteFile(outFilePath, docData, 0600)
 }
 
