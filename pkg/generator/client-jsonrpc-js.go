@@ -143,6 +143,8 @@ func (def typeDef) def() (prop string) {
 	case "array":
 		item := def.properties["item"]
 		return fmt.Sprintf("Array<%s>", item.typeLink())
+	case "struct":
+		return fmt.Sprintf("Object<%s>", def.name)
 	case "scalar":
 		return def.typeName
 	default:
@@ -298,6 +300,9 @@ func castTypeJs(originName string) (typeName string) {
 	}
 	if strings.HasSuffix(originName, "UUID") {
 		typeName = "string"
+	}
+	if strings.HasSuffix(originName, "Decimal") {
+		typeName = "number"
 	}
 	return
 }
