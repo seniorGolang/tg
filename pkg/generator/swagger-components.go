@@ -81,7 +81,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Example = nil
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
-			if doc.knownCount(vType.TypeName) < 2 {
+			if doc.knownCount(vType.TypeName) == 0 {
 				doc.knownInc(vType.TypeName)
 				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
@@ -105,11 +105,22 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 	case types.TImport:
 		schema.Example = nil
-		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.Next)
+		refName := vType.Next.String()
+		schema.Ref = fmt.Sprintf("#/components/schemas/%s", refName)
 		if nextType := doc.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			if doc.knownCount(vType.Next.String()) < 2 {
+			def := doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+			if typeName == vType.Next.String() {
+				depth := 5
+				for def.Ref != "" {
+					if depth --; depth == 0 {
+						break
+					}
+					def = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+				}
+			}
+			if doc.knownCount(vType.Next.String()) == 0 {
 				doc.knownInc(vType.Next.String())
-				doc.schemas[vType.Next.String()] = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+				doc.schemas[vType.Next.String()] = def
 			}
 		}
 	case types.TEllipsis:
@@ -273,6 +284,20 @@ func (doc *swagger) knownCount(typeName string) int {
 
 func (doc *swagger) knownInc(typeName string) {
 	if _, found := doc.knownTypes[typeName]; !found {
+		doc.knownTypes[typeName] = 0
+	}
+	doc.knownTypes[typeName]++
+}
+
+func (doc *swagger) aliasCount(typeName string) int {
+	if _, found := doc.aliasTypes[typeName]; !found {
+		return 0
+	}
+	return doc.knownTypes[typeName]
+}
+
+func (doc *swagger) aliasInc(typeName string) {
+	if _, found := doc.aliasTypes[typeName]; !found {
 		doc.knownTypes[typeName] = 0
 	}
 	doc.knownTypes[typeName]++

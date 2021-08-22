@@ -37,7 +37,6 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 			Id("name"):         Id("name"),
 			Id("log"):          Id("log"),
 			Id("url"):          Id("url"),
-			Id("agent"):        Qual(packageFiber, "AcquireAgent").Call(),
 			Id("errorDecoder"): Id("defaultErrorDecoder"),
 		}),
 
@@ -97,7 +96,6 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 		Id("url").String(),
 		Id("name").String(),
 		Id("log").Qual(packageZeroLog, "Logger"),
-		Id("agent").Op("*").Qual(packageFiber, "Agent"),
 		Id("headers").Op("[]").String(),
 		Line().Id("errorDecoder").Id("ErrorDecoder"),
 	)
@@ -117,7 +115,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 		if hasTrace {
 			bg.Defer().Id("span").Dot("Finish").Call()
 		}
-		bg.Id("agent").Op(":=").Id("cli").Dot("agent").Dot("Reuse").Call()
+		bg.Id("agent").Op(":=").Qual(packageFiber, "AcquireAgent").Call()
 		bg.Id("req").Op(":=").Id("agent").Dot("Request").Call()
 		bg.Id("resp").Op(":=").Qual(packageFiber, "AcquireResponse").Call()
 		bg.Id("agent").Dot("SetResponse").Call(Id("resp"))
@@ -146,7 +144,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 		if hasTrace {
 			bg.Id("injectSpan").Call(Id("log"), Id("span"), Id("req"))
 		}
-		bg.If(Err().Op("=").Id("cli").Dot("agent").Dot("Do").Call(Id("req"), Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
+		bg.If(Err().Op("=").Id("agent").Dot("Do").Call(Id("req"), Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		)
 		bg.Id("responseMap").Op(":=").Make(Map(String()).Func().Params(Id("baseJsonRPC")))
