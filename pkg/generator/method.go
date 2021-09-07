@@ -139,7 +139,7 @@ func (m method) jsonrpcPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
+	urlPath := formatPathURL(m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName())))
 	return path.Join(append(elements, prefix, urlPath)...)
 }
 
@@ -147,18 +147,22 @@ func (m method) httpMethod() string {
 
 	switch strings.ToUpper(m.tags.Value(tagMethodHTTP)) {
 	case "GET":
-		return "Get"
+		return "get"
 	case "PUT":
-		return "Put"
+		return "put"
 	case "PATCH":
-		return "Patch"
+		return "patch"
 	case "DELETE":
-		return "Delete"
+		return "delete"
 	case "OPTIONS":
-		return "Options"
+		return "options"
 	default:
-		return "Post"
+		return "post"
 	}
+}
+
+func formatPathURL(url string) string {
+	return strings.Split(url, ":")[0]
 }
 
 func (m method) isHTTP() bool {

@@ -153,7 +153,7 @@ func (tr Transport) serveHealthFunc() Code {
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHealth").Params(Id("address").String(), Id("response").Interface()).Block(
 
 		Id("srv").Dot("srvHealth").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),
-		Id("srv").Dot("srvHealth").Dot("Get").Call(Lit("/"),
+		Id("srv").Dot("srvHealth").Dot("Get").Call(Lit("/health"),
 			Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Error()).Block(
 				Return().Id(_ctx_).Dot("JSON").Call(Id("response")),
 			)),
@@ -181,10 +181,11 @@ func (tr Transport) shutdownFunc(hasMetrics bool) Code {
 }
 
 func (tr Transport) sendResponseFunc() Code {
-	return Func().Id("sendResponse").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Block(
+	return Func().Id("sendResponse").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Params(Err().Error()).Block(
 		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Lit("application/json")),
-		If(Err().Op(":=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
+		If(Err().Op("=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
 			Id("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("body"), String().Call(Id(_ctx_).Dot("Body").Call())).Dot("Msg").Call(Lit("response write error")),
 		),
+		Return(),
 	)
 }

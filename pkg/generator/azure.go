@@ -42,7 +42,7 @@ func (app *azure) render(appName, routePrefix, outFilePath, logLevel string, ena
 					},
 					{
 						Name:      "res",
-						AuthLevel: "http",
+						Type:      "http",
 						Direction: "out",
 					},
 				},

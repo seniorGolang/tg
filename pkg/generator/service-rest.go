@@ -109,7 +109,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
 				ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusBadRequest"))
-				ig.Id(_ctx_).Dot("WriteString").Call(Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				ig.List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				ig.Return()
 			})
 		}
@@ -119,19 +119,16 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
-
 		bg.Add(method.urlParams(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
@@ -140,8 +137,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
@@ -150,8 +146,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		for uploadVar, uploadKey := range method.uploadVarsMap() {
@@ -160,51 +155,45 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusBadRequest"))
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
-				ig.Return()
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
 			})
 		}
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
 			bg.Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("base"), Err(), callParamNames("request", method.argsWithoutContext())))
 		} else {
-			bg.Var().Id("result").Interface()
 			bg.Var().Id("response").Id(method.responseStructName())
 			if svc.tags.IsSet(tagTrace) {
 				bg.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("Context").Call(), Id("span"))
 			} else {
 				bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("Context").Call()
 			}
-			bg.List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id("methodContext"), Id("request"))
-			bg.Id("result").Op("=").Id("response")
-
-			ex := Line()
-			if len(method.retCookieMap()) > 0 {
-				for retName := range method.retCookieMap() {
-					if ret := method.resultByName(retName); ret != nil {
-						ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
-							Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
-							Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
-							Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("rCookie").Dot("Cookie").Call()),
-						)
+			bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id("methodContext"), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
+				ex := Line()
+				if len(method.retCookieMap()) > 0 {
+					for retName := range method.retCookieMap() {
+						if ret := method.resultByName(retName); ret != nil {
+							ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
+								Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
+								Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
+								Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("rCookie").Dot("Cookie").Call()),
+							)
+						}
 					}
 				}
-			}
-			ex.Add(method.httpRetHeaders())
-			if len(*ex) > 1 {
-				bg.If(Err().Op("==").Nil()).Block(ex)
-			}
-			bg.If(Err().Op("!=").Nil()).Block(
-				Id("result").Op("=").Err(),
-				If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
-					Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Id("errCoder").Dot("Code").Call()),
-				).Else().Block(
-					Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusInternalServerError")),
-				),
+				ex.Add(method.httpRetHeaders())
+				if len(*ex) > 2 {
+					bf.If(Err().Op("==").Nil()).Block(ex)
+				}
+				bf.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("response"))
+			})
+			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
+				Id(_ctx_).Dot("Status").Call(Id("errCoder").Dot("Code").Call()),
+			).Else().Block(
+				Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusInternalServerError")),
 			)
-			bg.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("result"))
+			bg.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Err())
 		}
-		bg.Return()
 	})
 }
 

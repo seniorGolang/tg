@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	. "github.com/dave/jennifer/jen"
+
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 func (svc *service) renderHTTP(outDir string) (err error) {
@@ -63,12 +65,12 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 					continue
 				}
 				if method.tags.Contains(tagHandler) {
-					bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
+					bg.Id("route").Dot(utils.ToCamel(method.httpMethod())).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
 						Return().Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("base")),
 					))
 					continue
 				}
-				bg.Id("route").Dot(method.httpMethod()).Call(Lit(method.httpPath()), Id("http").Dot("serve"+method.Name))
+				bg.Id("route").Dot(utils.ToCamel(method.httpMethod())).Call(Lit(method.httpPath()), Id("http").Dot("serve"+method.Name))
 			}
 		}
 	})

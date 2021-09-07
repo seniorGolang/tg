@@ -70,8 +70,7 @@ func (svc *service) serveServiceBatchFunc() Code {
 				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
 				ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			}
-			ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
-			ig.Return()
+			ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 		})
 
 		bg.Id("responses").Op(":=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
@@ -113,8 +112,7 @@ func (svc *service) serveServiceBatchFunc() Code {
 			}
 		})
 		bg.Id("wg").Dot("Wait").Call()
-		bg.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("responses"))
-		bg.Return()
+		bg.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("responses"))
 	})
 }
 
@@ -277,8 +275,7 @@ func (svc *service) serveMethodFunc() Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 			})
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
@@ -288,8 +285,7 @@ func (svc *service) serveMethodFunc() Code {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method ").Op("+").Id("methodNameOrigin"))
 				}
-				ig.Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil()))
-				ig.Return()
+				ig.Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil()))
 			})
 			if svc.tags.IsSet(tagTrace) {
 				bg.Id("response").Op("=").Id("methodHandler").Call(Id("span"), Id(_ctx_), Id("request"))
@@ -297,7 +293,7 @@ func (svc *service) serveMethodFunc() Code {
 				bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_), Id("request"))
 			}
 			bg.If(Id("response").Op("!=").Nil()).Block(
-				Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("response")),
+				Return().Id("sendResponse").Call(Id("http").Dot("log"), Id(_ctx_), Id("response")),
 			)
 			bg.Return()
 		})
