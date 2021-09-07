@@ -75,8 +75,7 @@ func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 	if err = json.Unmarshal(ctx.Body(), &requests); err != nil {
 		ext.Error.Set(batchSpan, true)
 		batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
-		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
-		return
+		return sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 	}
 	responses := make(jsonrpcResponses, 0, len(requests))
 	var wg sync.WaitGroup
@@ -100,8 +99,7 @@ func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 		span.Finish()
 	}
 	wg.Wait()
-	sendResponse(http.log, ctx, responses)
-	return
+	return sendResponse(http.log, ctx, responses)
 }
 func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodTraceJsonRPC) (err error) {
 	span := extractSpan(http.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
@@ -126,20 +124,18 @@ func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, metho
 	if err = json.Unmarshal(ctx.Body(), &request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
-		sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
-		return
+		return sendResponse(http.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 	}
 	methodNameOrigin := request.Method
 	method := strings.ToLower(request.Method)
 	if method != "" && method != methodName {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "invalid method "+methodNameOrigin)
-		sendResponse(http.log, ctx, makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method "+methodNameOrigin, nil))
-		return
+		return sendResponse(http.log, ctx, makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method "+methodNameOrigin, nil))
 	}
 	response = methodHandler(span, ctx, request)
 	if response != nil {
-		sendResponse(http.log, ctx, response)
+		return sendResponse(http.log, ctx, response)
 	}
 	return
 }

@@ -34,7 +34,7 @@ func (svc *UserService) CustomHandler(ctx context.Context, arg0 int, arg1 string
 	panic("implement me")
 }
 
-func CustomResponseHandler(ctx *fiber.Ctx, svc interfaces.User, err error, arg0 int, arg1 string, opts ...interface{}) {
+func CustomResponseHandler(ctx *fiber.Ctx, svc interfaces.User, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	panic("implement me")
 }
 

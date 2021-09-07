@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v2"
-	goUUID "github.com/google/uuid"
 	otg "github.com/opentracing/opentracing-go"
-	"github.com/rs/zerolog"
+	gouuid "github.com/satori/go.uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -57,8 +57,8 @@ func (err errorJsonRPC) Error() string {
 type ClientJsonRPC struct {
 	url     string
 	name    string
-	log     zerolog.Logger
-	agent   *fiber.Agent
+	log     logrus.FieldLogger
+	client  fasthttp.Client
 	headers []string
 
 	errorDecoder ErrorDecoder
@@ -70,9 +70,9 @@ func (batch *Batch) Append(request baseJsonRPC) {
 	*batch = append(*batch, request)
 }
 
-func New(name string, log zerolog.Logger, url string, opts ...Option) (cli *ClientJsonRPC) {
+func New(name string, log logrus.FieldLogger, url string, opts ...Option) (cli *ClientJsonRPC) {
 	cli = &ClientJsonRPC{
-		agent:        fiber.AcquireAgent(),
+		client:       fasthttp.Client{},
 		errorDecoder: defaultErrorDecoder,
 		log:          log,
 		name:         name,
@@ -99,35 +99,35 @@ func defaultErrorDecoder(errData json.RawMessage) (err error) {
 }
 
 func (cli *ClientJsonRPC) Batch(ctx context.Context, requests ...baseJsonRPC) (err error) {
+
 	span := extractSpan(cli.log, ctx, cli.name)
 	return cli.jsonrpcCall(ctx, cli.log, span, requests...)
 }
 
 func (cli *ClientJsonRPC) BatchFunc(ctx context.Context, batchFunc func(requests *Batch)) (err error) {
+
 	var requests Batch
+
 	batchFunc(&requests)
 	span := extractSpan(cli.log, ctx, cli.name)
+
 	return cli.jsonrpcCall(ctx, cli.log, span, requests...)
 }
 
-func (cli *ClientJsonRPC) jsonrpcCall(ctx context.Context, log zerolog.Logger, span otg.Span, requests ...baseJsonRPC) (err error) {
+func (cli *ClientJsonRPC) jsonrpcCall(ctx context.Context, log logrus.FieldLogger, span otg.Span, requests ...baseJsonRPC) (err error) {
+
 	defer span.Finish()
-	agent := cli.agent.Reuse()
-	req := agent.Request()
-	resp := fiber.AcquireResponse()
-	agent.SetResponse(resp)
-	defer fiber.ReleaseResponse(resp)
+
+	req := fasthttp.AcquireRequest()
+	resp := fasthttp.AcquireResponse()
 
 	req.SetRequestURI(cli.url)
-	agent.ContentType(contentTypeJson)
-	req.Header.SetMethod(fiber.MethodPost)
-	if err = agent.Parse(); err != nil {
-		return
-	}
+
+	req.Header.SetMethod(fasthttp.MethodPost)
 
 	requestID, _ := ctx.Value(headerRequestID).(string)
 	if requestID == "" {
-		requestID = goUUID.New().String()
+		requestID = gouuid.NewV4().String()
 	}
 	req.Header.Set(headerRequestID, requestID)
 	for _, header := range cli.headers {
@@ -135,24 +135,30 @@ func (cli *ClientJsonRPC) jsonrpcCall(ctx context.Context, log zerolog.Logger, s
 			req.Header.Set(header, value)
 		}
 	}
+
 	if err = json.NewEncoder(req.BodyWriter()).Encode(requests); err != nil {
 		return
 	}
+
 	injectSpan(log, span, req)
-	if err = cli.agent.Do(req, resp); err != nil {
+	if err = cli.client.Do(req, resp); err != nil {
 		return
 	}
 	responseMap := make(map[string]func(baseJsonRPC))
+
 	for _, request := range requests {
 		if request.ID != nil {
 			responseMap[string(request.ID)] = request.retHandler
 		}
 	}
+
 	var responses []baseJsonRPC
+
 	if err = json.Unmarshal(resp.Body(), &responses); err != nil {
-		cli.log.Error().Err(err).Str("response", string(resp.Body())).Msg("unmarshal response error")
+		cli.log.WithError(err).WithField("response", string(resp.Body())).Error("unmarshal response error")
 		return
 	}
+
 	for _, response := range responses {
 		if handler, found := responseMap[string(response.ID)]; found {
 			handler(response)

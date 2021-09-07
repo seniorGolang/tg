@@ -12,11 +12,14 @@ import (
 
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/seniorGolang/tg/v2/example/config"
 	"github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/transport"
 )
 
 func main() {
+
+	log.Logger = config.Service().Logger()
 
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})

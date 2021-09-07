@@ -160,7 +160,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			})
 		}
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
-			bg.Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("base"), Err(), callParamNames("request", method.argsWithoutContext())))
+			bg.Return().Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("base"), callParamNames("request", method.argsWithoutContext())))
 		} else {
 			bg.Var().Id("response").Id(method.responseStructName())
 			if svc.tags.IsSet(tagTrace) {

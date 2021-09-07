@@ -53,24 +53,17 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 		request.Cookie = cookie
 	}
 
-	var result interface{}
 	var response responseUserGetUser
 	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	response, err = http.getUser(methodContext, request)
-	result = response
-	if err == nil {
-
+	if response, err = http.getUser(methodContext, request); err == nil {
+		return sendResponse(http.log, ctx, response)
 	}
-	if err != nil {
-		result = err
-		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.Response().SetStatusCode(errCoder.Code())
-		} else {
-			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
-		}
+	if errCoder, ok := err.(withErrorCode); ok {
+		ctx.Status(errCoder.Code())
+	} else {
+		ctx.Status(fiber.StatusInternalServerError)
 	}
-	sendResponse(http.log, ctx, result)
-	return
+	return sendResponse(http.log, ctx, err)
 }
 func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadFile) (response responseUserUploadFile, err error) {
 	span := opentracing.SpanFromContext(ctx)
@@ -102,28 +95,20 @@ func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
 	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
-		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
-		sendResponse(http.log, ctx, "upload file 'fileBytes' error: "+err.Error())
-		return
+		ctx.Status(fiber.StatusBadRequest)
+		return sendResponse(http.log, ctx, "upload file 'fileBytes' error: "+err.Error())
 	}
-	var result interface{}
 	var response responseUserUploadFile
 	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	response, err = http.uploadFile(methodContext, request)
-	result = response
-	if err == nil {
-
+	if response, err = http.uploadFile(methodContext, request); err == nil {
+		return sendResponse(http.log, ctx, response)
 	}
-	if err != nil {
-		result = err
-		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.Response().SetStatusCode(errCoder.Code())
-		} else {
-			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
-		}
+	if errCoder, ok := err.(withErrorCode); ok {
+		ctx.Status(errCoder.Code())
+	} else {
+		ctx.Status(fiber.StatusInternalServerError)
 	}
-	sendResponse(http.log, ctx, result)
-	return
+	return sendResponse(http.log, ctx, err)
 }
 func (http *httpUser) customResponse(ctx context.Context, request requestUserCustomResponse) (response responseUserCustomResponse, err error) {
 	span := opentracing.SpanFromContext(ctx)
@@ -155,12 +140,10 @@ func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
-		ctx.WriteString("request body could not be decoded: " + err.Error())
+		_, err = ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
 	}
-
-	implement.CustomResponseHandler(ctx, http.base, err, request.Arg0, request.Arg1, request.Opts...)
-	return
+	return implement.CustomResponseHandler(ctx, http.base, request.Arg0, request.Arg1, request.Opts...)
 }
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
 	span := opentracing.SpanFromContext(ctx)
@@ -192,26 +175,19 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
-		ctx.WriteString("request body could not be decoded: " + err.Error())
+		_, err = ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
 	}
 
-	var result interface{}
 	var response responseUserCustomHandler
 	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	response, err = http.customHandler(methodContext, request)
-	result = response
-	if err == nil {
-
+	if response, err = http.customHandler(methodContext, request); err == nil {
+		return sendResponse(http.log, ctx, response)
 	}
-	if err != nil {
-		result = err
-		if errCoder, ok := err.(withErrorCode); ok {
-			ctx.Response().SetStatusCode(errCoder.Code())
-		} else {
-			ctx.Response().SetStatusCode(fiber.StatusInternalServerError)
-		}
+	if errCoder, ok := err.(withErrorCode); ok {
+		ctx.Status(errCoder.Code())
+	} else {
+		ctx.Status(fiber.StatusInternalServerError)
 	}
-	sendResponse(http.log, ctx, result)
-	return
+	return sendResponse(http.log, ctx, err)
 }

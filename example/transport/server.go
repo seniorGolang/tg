@@ -53,18 +53,18 @@ func (srv *Server) Fiber() *fiber.App {
 }
 
 func (srv *Server) WithLog(log zerolog.Logger) *Server {
-	if srv.httpExampleRPC != nil {
-		srv.httpExampleRPC = srv.ExampleRPC().WithLog(log)
-	}
 	if srv.httpUser != nil {
 		srv.httpUser = srv.User().WithLog(log)
+	}
+	if srv.httpExampleRPC != nil {
+		srv.httpExampleRPC = srv.ExampleRPC().WithLog(log)
 	}
 	return srv
 }
 
 func (srv *Server) ServeHealth(address string, response interface{}) {
 	srv.srvHealth = fiber.New(fiber.Config{DisableStartupMessage: true})
-	srv.srvHealth.Get("/", func(ctx *fiber.Ctx) error {
+	srv.srvHealth.Get("/health", func(ctx *fiber.Ctx) error {
 		return ctx.JSON(response)
 	})
 	go func() {
@@ -73,11 +73,12 @@ func (srv *Server) ServeHealth(address string, response interface{}) {
 	}()
 }
 
-func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) {
+func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) (err error) {
 	ctx.Response().Header.SetContentType("application/json")
-	if err := json.NewEncoder(ctx).Encode(resp); err != nil {
+	if err = json.NewEncoder(ctx).Encode(resp); err != nil {
 		log.Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
 	}
+	return
 }
 
 func (srv *Server) Shutdown() {

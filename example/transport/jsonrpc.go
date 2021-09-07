@@ -88,8 +88,7 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 	if err = json.Unmarshal(ctx.Body(), &requests); err != nil {
 		ext.Error.Set(batchSpan, true)
 		batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
-		sendResponse(srv.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
-		return
+		return sendResponse(srv.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 	}
 	responses := make(jsonrpcResponses, 0, len(requests))
 	var n int
@@ -129,8 +128,7 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 		n++
 	}
 	wg.Wait()
-	sendResponse(srv.log, ctx, responses)
-	return
+	return sendResponse(srv.log, ctx, responses)
 }
 
 func makeErrorResponseJsonRPC(id idJsonRPC, code int, msg string, data interface{}) *baseJsonRPC {
