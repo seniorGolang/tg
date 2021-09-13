@@ -115,6 +115,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}
 		bg.Add(method.urlArgs(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -124,6 +125,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 		bg.Add(method.urlParams(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -133,6 +135,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -142,6 +145,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -151,6 +155,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		}))
 		for uploadVar, uploadKey := range method.uploadVarsMap() {
 			bg.If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())

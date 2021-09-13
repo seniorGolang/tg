@@ -112,7 +112,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			if typeName == vType.Next.String() {
 				depth := 5
 				for def.Ref != "" {
-					if depth --; depth == 0 {
+					if depth--; depth == 0 {
 						break
 					}
 					def = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
