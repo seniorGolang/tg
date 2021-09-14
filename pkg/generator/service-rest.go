@@ -181,7 +181,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 							ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
 								Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
 								Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
-								Id(_ctx_).Dot("Response").Dot("Header").Dot("SetCookie").Call(Id("rCookie").Dot("Cookie").Call()),
+								Id(_ctx_).Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
 							)
 						}
 					}
