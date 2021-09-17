@@ -63,14 +63,19 @@ func (tr Transport) serveBatchFunc(hasTrace bool) Code {
 		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
 			Return(),
 		)
-		bg.Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Id("contentTypeJson"))
+		bg.Var().Id("single").Bool()
 		bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
 		bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-			if hasTrace {
-				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
-				ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
-			}
-			ig.Return().Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
+			ig.Var().Id("request").Id("baseJsonRPC")
+			ig.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+				if hasTrace {
+					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
+					ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				}
+				ig.Return().Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
+			})
+			ig.Id("single").Op("=").True()
+			ig.Id("requests").Op("=").Append(Id("requests"), Id("request"))
 		})
 		bg.Id("responses").Op(":=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
 		bg.Var().Id("n").Int()
@@ -131,6 +136,9 @@ func (tr Transport) serveBatchFunc(hasTrace bool) Code {
 			Id("n").Op("++"),
 		)
 		bg.Id("wg").Dot("Wait").Call()
+		bg.If(Id("single")).Block(
+			Return().Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("responses").Op("[").Lit(0).Op("]")),
+		)
 		bg.Return().Id("sendResponse").Call(Id("srv").Dot("log"), Id(_ctx_), Id("responses"))
 	})
 }

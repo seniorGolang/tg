@@ -85,7 +85,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			}
 			jsFile.add(strings.Join(fields, ","))
 			jsFile.add(") {\n")
-			jsFile.add("return this.scheduler.__scheduleRequest(\"%s\", {", svc.lccName()+method.Name)
+			jsFile.add("return this.scheduler.__scheduleRequest(\"%s\", {", svc.lccName()+"."+method.lccName())
 			fields = []string{}
 			for _, arg := range method.arguments() {
 				fields = append(fields, fmt.Sprintf("%[1]s:%[1]s", utils.ToLowerCamel(arg.Name)))
@@ -114,7 +114,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			continue
 		}
 		for _, method := range svc.methods {
-			jsFile.add("function %s%sConvertError(e) {\n", svc.lccName(), method.Name)
+			jsFile.add("function %s%sConvertError(e) {\n", svc.lccName(), method.lccName())
 			jsFile.add("switch(e.code) {\n")
 			jsFile.add("default:\n")
 			jsFile.add("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
