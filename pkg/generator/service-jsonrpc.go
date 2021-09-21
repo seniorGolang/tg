@@ -158,7 +158,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		if svc.tags.IsSet(tagTrace) {
 			bf.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("Context").Call(), Id("span"))
 		} else {
-			bf.Id("methodContext").Op(":=").Id(_ctx_).Dot("Context").Call()
+			bf.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 		}
 		bf.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
