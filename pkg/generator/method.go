@@ -553,7 +553,7 @@ func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statem
 	case "uint32":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(32)).Add(errStatement)
 	case "UUID":
-		return id.Op(op).Qual(uuidPackage, "FromStringOrNil").Call(from)
+		return List(id,Id("_")).Op(op).Qual(uuidPackage, "Parse").Call(from)
 
 	case "Time":
 		return List(id, Err()).Op(op).Qual(packageTime, "Parse").Call(Qual(packageTime, "RFC3339Nano"), from).Add(errStatement)
