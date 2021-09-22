@@ -51,6 +51,10 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 	return
 }
 
+func (m method) fullName() string {
+	return m.svc.Name+m.Name
+}
+
 func (m method) lcName() string {
 	return strings.ToLower(m.Name)
 }

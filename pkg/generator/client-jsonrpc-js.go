@@ -92,7 +92,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			}
 			jsFile.add(strings.Join(fields, ","))
 			jsFile.add("}).catch(e => { throw ")
-			jsFile.add("%s%sConvertError(e)", svc.lccName(), method.Name)
+			jsFile.add("%sConvertError(e)", utils.ToLowerCamel(method.fullName()))
 			jsFile.add("; })\n")
 			jsFile.add("}\n")
 		}
@@ -114,7 +114,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			continue
 		}
 		for _, method := range svc.methods {
-			jsFile.add("function %s%sConvertError(e) {\n", svc.lccName(), method.lccName())
+			jsFile.add("function %sConvertError(e) {\n", utils.ToLowerCamel(method.fullName()))
 			jsFile.add("switch(e.code) {\n")
 			jsFile.add("default:\n")
 			jsFile.add("return new JSONRPCError(e.message, \"UnknownError\", e.code, e.data);\n")
@@ -206,9 +206,9 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
 			if js.knownCount(vType.TypeName) < 2 {
-				js.knownInc(vType.TypeName)
 				js.typeDef[vType.TypeName] = js.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
+			js.knownInc(vType.TypeName)
 			return js.typeDef[vType.TypeName]
 		}
 	case types.TMap:
@@ -244,9 +244,9 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
 			if js.knownCount(vType.Next.String()) < 2 {
-				js.knownInc(vType.Next.String())
 				js.typeDef[vType.Next.String()] = js.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 			}
+			js.knownInc(vType.Next.String())
 			return js.typeDef[vType.Next.String()]
 		}
 	case types.TEllipsis:
