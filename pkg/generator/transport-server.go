@@ -139,7 +139,7 @@ func (tr Transport) serverNewFunc() Code {
 			)
 			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
 			if tr.hasJsonRPC {
-				bg.Id("srv").Dot("srvHTTP").Dot("Post").Call(Lit("/"), Id("srv").Dot("serveBatch"))
+				bg.Id("srv").Dot("srvHTTP").Dot("Post").Call(Lit("/"+tr.tags.Value(tagHttpPrefix, "")), Id("srv").Dot("serveBatch"))
 			}
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
