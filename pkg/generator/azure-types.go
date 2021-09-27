@@ -48,7 +48,7 @@ type azureExtensions struct {
 }
 
 type azureHTTP struct {
-	RoutePrefix             string     `json:"routePrefix,omitempty"`
+	RoutePrefix             string     `json:"routePrefix"`
 	MaxOutstandingRequests  int64      `json:"maxOutstandingRequests,omitempty"`
 	MaxConcurrentRequests   int64      `json:"maxConcurrentRequests,omitempty"`
 	DynamicThrottlesEnabled bool       `json:"dynamicThrottlesEnabled,omitempty"`

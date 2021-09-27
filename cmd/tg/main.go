@@ -77,7 +77,7 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "routePrefix",
-					Value: "api",
+					Value: "",
 					Usage: "router path prefix name",
 				},
 				&cli.StringFlag{
