@@ -22,15 +22,17 @@ type service struct {
 
 	pkgPath string
 	methods []*method
+	tr      *Transport
 	tags    tags.DocTags
 
 	testsPath      string
 	implementsPath string
 }
 
-func newService(log logrus.FieldLogger, filePath string, iface types.Interface, options ...Option) (svc *service) {
+func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface types.Interface, options ...Option) (svc *service) {
 
 	svc = &service{
+		tr:        tr,
 		log:       log,
 		Interface: iface,
 		tags:      tags.ParseTags(iface.Docs),

@@ -85,7 +85,7 @@ func NewTransport(log logrus.FieldLogger, svcDir string, options ...Option) (tr 
 
 			if len(tags.ParseTags(iface.Docs)) != 0 {
 
-				service := newService(log, filePath, iface, options...)
+				service := newService(log, &tr, filePath, iface, options...)
 				tr.services[iface.Name] = service
 
 				if service.tags.Contains(tagServerJsonRPC) {

@@ -52,7 +52,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 }
 
 func (m method) fullName() string {
-	return m.svc.Name+m.Name
+	return m.svc.Name + m.Name
 }
 
 func (m method) lcName() string {
@@ -133,8 +133,9 @@ func (m method) httpPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
+	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
-	return path.Join(append(elements, prefix, urlPath)...)
+	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
 }
 
 func (m method) jsonrpcPath(withoutPrefix ...bool) string {
@@ -143,8 +144,9 @@ func (m method) jsonrpcPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
+	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := formatPathURL(m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName())))
-	return path.Join(append(elements, prefix, urlPath)...)
+	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
 }
 
 func (m method) httpMethod() string {
@@ -557,7 +559,7 @@ func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statem
 	case "uint32":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(32)).Add(errStatement)
 	case "UUID":
-		return List(id,Id("_")).Op(op).Qual(uuidPackage, "Parse").Call(from)
+		return List(id, Id("_")).Op(op).Qual(uuidPackage, "Parse").Call(from)
 
 	case "Time":
 		return List(id, Err()).Op(op).Qual(packageTime, "Parse").Call(Qual(packageTime, "RFC3339Nano"), from).Add(errStatement)

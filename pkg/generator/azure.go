@@ -24,12 +24,11 @@ func (app *azure) render(appName, routePrefix, outFilePath, logLevel string, ena
 
 	outFilePath, _ = filepath.Abs(outFilePath)
 
-	globalPrefix := app.tags.Value(tagHttpPrefix, "")
 	for svcName, svc := range app.services {
 		for _, svcMethod := range svc.methods {
-			route := path.Join(globalPrefix, svcMethod.httpPath(false))
+			route := svcMethod.httpPath(false)
 			if svcMethod.isJsonRPC() {
-				route = path.Join(globalPrefix, svcMethod.jsonrpcPath(false))
+				route = svcMethod.jsonrpcPath(false)
 			}
 			fn := azureFunc{
 				Bindings: []azureBindings{
