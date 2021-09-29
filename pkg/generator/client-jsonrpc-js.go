@@ -41,7 +41,8 @@ func (js *clientJS) render(outDir string) (err error) {
 	}
 	var jsFile bytesWriter
 	jsFile.add(jsonRPCClientBase)
-	for _, svc := range js.services {
+	for _, name := range js.serviceKeys() {
+		svc := js.services[name]
 		if !svc.isJsonRPC() {
 			continue
 		}
@@ -100,7 +101,8 @@ func (js *clientJS) render(outDir string) (err error) {
 	}
 	jsFile.add("class JSONRPCClient {\n")
 	jsFile.add("constructor(transport) {\n")
-	for _, svc := range js.services {
+	for _, name := range js.serviceKeys() {
+		svc := js.services[name]
 		if !svc.isJsonRPC() {
 			continue
 		}
@@ -109,7 +111,8 @@ func (js *clientJS) render(outDir string) (err error) {
 	jsFile.add("}\n")
 	jsFile.add("}\n")
 	jsFile.add("export default JSONRPCClient\n\n")
-	for _, svc := range js.services {
+	for _, name := range js.serviceKeys() {
+		svc := js.services[name]
 		if !svc.isJsonRPC() {
 			continue
 		}

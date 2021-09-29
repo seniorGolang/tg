@@ -32,7 +32,7 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			),
 		)),
 	)
-	for serviceName := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
 		srcFile.Line().Func().Id(serviceName).Params(Id("svc").Op("*").Id("http" + serviceName)).Id("Option").Block(
 			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 				If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(

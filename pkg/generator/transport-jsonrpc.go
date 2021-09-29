@@ -84,7 +84,8 @@ func (tr Transport) serveBatchFunc(hasTrace bool) Code {
 			Id("methodNameOrigin").Op(":=").Id("request").Dot("Method"),
 			Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method")),
 			Switch(Id("method")).BlockFunc(func(bg *Group) {
-				for serviceName, svc := range tr.services {
+				for _, serviceName := range tr.serviceKeys() {
+					svc := tr.services[serviceName]
 					for _, method := range svc.methods {
 						if !method.isJsonRPC() {
 							continue

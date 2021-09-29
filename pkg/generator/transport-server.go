@@ -23,7 +23,8 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
 
 	var hasTrace, hasMetrics bool
-	for _, svc := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
+		svc := tr.services[serviceName]
 		if svc.tags.IsSet(tagTrace) {
 			hasTrace = true
 		}
@@ -49,7 +50,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 		srcFile.Line().Add(tr.withMetricsFunc())
 	}
 
-	for serviceName := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
 		srcFile.Line().Add(Func().Params(Id("srv").Id("Server")).Id(serviceName).Params().Params(Op("*").Id("http" + serviceName)).Block(
 			Return(Id("srv").Dot("http" + serviceName)),
 		))
@@ -68,7 +69,7 @@ func (tr Transport) withLogFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		for serviceName := range tr.services {
+		for _, serviceName := range tr.serviceKeys() {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
 				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(Id("log")),
 			)
@@ -81,7 +82,8 @@ func (tr Transport) withTraceFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithTrace").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		for serviceName, svc := range tr.services {
+		for _, serviceName := range tr.serviceKeys() {
+			svc := tr.services[serviceName]
 			if svc.tags.IsSet(tagTrace) {
 				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
 					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
@@ -96,7 +98,8 @@ func (tr Transport) withMetricsFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		for serviceName, svc := range tr.services {
+		for _, serviceName := range tr.serviceKeys() {
+			svc := tr.services[serviceName]
 			if svc.tags.IsSet(tagMetrics) {
 				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
 					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
@@ -117,7 +120,7 @@ func (tr Transport) serverType() Code {
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
-		for serviceName := range tr.services {
+		for _, serviceName := range tr.serviceKeys() {
 			g.Id("http" + serviceName).Op("*").Id("http" + serviceName)
 		}
 	})

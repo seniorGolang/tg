@@ -47,7 +47,8 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	)
 
 	var hasTrace bool
-	for _, svc := range tr.services {
+	for _, name := range tr.serviceKeys() {
+		svc := tr.services[name]
 		if svc.tags.IsSet(tagTrace) {
 			hasTrace = true
 		}

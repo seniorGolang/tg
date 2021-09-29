@@ -4,6 +4,7 @@
 package generator
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -111,6 +112,7 @@ func (tr Transport) serviceKeys() (keys []string) {
 		keys = append(keys, serviceName)
 	}
 	sort.Strings(keys)
+	fmt.Println(keys)
 	return
 }
 
@@ -128,7 +130,8 @@ func (tr Transport) RenderClient(outDir string) (err error) {
 	if tr.hasJsonRPC {
 		showError(tr.log, tr.renderClientJsonRPC(outDir), "renderHTTP")
 	}
-	for _, svc := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
+		svc := tr.services[serviceName]
 		showError(tr.log, svc.renderClient(outDir), "renderHTTP")
 	}
 	return
@@ -160,14 +163,16 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 		showError(tr.log, tr.renderJsonRPC(outDir), "renderJsonRPC")
 	}
 
-	for _, svc := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
+		svc := tr.services[serviceName]
 		err = svc.render(outDir)
 	}
 	return
 }
 
 func (tr Transport) hasTrace() (hasTrace bool) {
-	for _, svc := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
+		svc := tr.services[serviceName]
 		if svc.tags.IsSet(tagTrace) {
 			return true
 		}
@@ -176,7 +181,8 @@ func (tr Transport) hasTrace() (hasTrace bool) {
 }
 
 func (tr Transport) hasMetrics() (hasMetric bool) {
-	for _, svc := range tr.services {
+	for _, serviceName := range tr.serviceKeys() {
+		svc := tr.services[serviceName]
 		if svc.tags.IsSet(tagMetrics) {
 			return true
 		}
