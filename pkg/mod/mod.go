@@ -20,21 +20,17 @@ import (
 func PkgModPath(pkgName string) string {
 
 	modPath, _ := goModPath(".")
-
 	modInfo := parseMod(modPath)
-
 	pkgTokens := strings.Split(pkgName, "/")
-
 	for i := 0; i < len(pkgTokens); i++ {
-
 		pathTry := strings.Join(pkgTokens[:len(pkgTokens)-i], "/")
-
 		for modPkg, modPath := range modInfo {
 			if pathTry == modPkg {
-
 				esc, _ := module.EscapePath(modPkg)
 				modPath = strings.Replace(modPath, modPkg, esc, 1)
-
+				if len(strings.Split(modPkg, "/")) == 1 {
+					return path.Join(modPath, strings.Join(pkgTokens, "/"))
+				}
 				return path.Join(modPath, strings.Join(pkgTokens[len(pkgTokens)-i:], "/"))
 			}
 		}

@@ -17,6 +17,7 @@ func (tr Transport) renderJsonRPC(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
+	srcFile.ImportName(packageJson, "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(packageOpentracing, "opentracing")

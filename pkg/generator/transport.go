@@ -4,7 +4,6 @@
 package generator
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -112,7 +111,6 @@ func (tr Transport) serviceKeys() (keys []string) {
 		keys = append(keys, serviceName)
 	}
 	sort.Strings(keys)
-	fmt.Println(keys)
 	return
 }
 
