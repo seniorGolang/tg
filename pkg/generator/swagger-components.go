@@ -253,6 +253,9 @@ func castType(originName string) (typeName, format string) {
 		typeName = "number"
 		format = originName
 	}
+	if strings.HasSuffix(originName, "Decimal") {
+		typeName = "number"
+	}
 	if strings.HasSuffix(originName, "UUID") {
 		format = "uuid"
 		typeName = "string"
