@@ -99,8 +99,16 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Type = "object"
 		schema.Properties = make(swProperties)
 		for _, field := range vType.Fields {
-			if fieldName := jsonName(field); fieldName != "-" {
-				schema.Properties[fieldName] = doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+			if fieldName, inline := jsonName(field); fieldName != "-" {
+				embed := doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+				if !inline {
+					schema.Properties[fieldName] = embed
+					continue
+				}
+				fmt.Println(fieldName, inline, embed)
+				for eField, def := range doc.schemas[field.Type.String()].Properties {
+					schema.Properties[eField] = def
+				}
 			}
 		}
 	case types.TImport:
@@ -253,27 +261,30 @@ func castType(originName string) (typeName, format string) {
 		typeName = "number"
 		format = originName
 	}
-	if strings.HasSuffix(originName, "Decimal") {
+	if !strings.Contains(originName, "[") && strings.HasSuffix(originName, "Decimal") {
 		typeName = "number"
 	}
-	if strings.HasSuffix(originName, "UUID") {
+	if !strings.Contains(originName, "[") && strings.HasSuffix(originName, "UUID") {
 		format = "uuid"
 		typeName = "string"
 	}
 	return
 }
 
-func jsonName(fieldInfo types.StructField) (value string) {
+func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 
 	if fieldInfo.Variable.Name == "" {
 		fieldInfo.Variable.Name = fieldInfo.Type.String()
 	}
 	if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
-		return "-"
+		return "-", false
 	}
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 {
 		value = tagValues[0]
+		if len(tagValues) == 2 {
+			inline = tagValues[1] == "inline"
+		}
 	}
 	return
 }

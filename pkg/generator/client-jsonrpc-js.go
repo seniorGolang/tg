@@ -240,8 +240,15 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.kind = "struct"
 		schema.typeName = "struct"
 		for _, field := range vType.Fields {
-			if fieldName := jsonName(field); fieldName != "-" {
-				schema.properties[fieldName] = js.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+			if fieldName, inline := jsonName(field); fieldName != "-" {
+				embed := js.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+				if !inline {
+					schema.properties[fieldName] = embed
+					continue
+				}
+				for eField, def := range js.typeDef[field.Type.String()].properties {
+					schema.properties[eField] = def
+				}
 			}
 		}
 	case types.TImport:
