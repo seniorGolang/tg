@@ -105,7 +105,6 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.Properties[fieldName] = embed
 					continue
 				}
-				fmt.Println(fieldName, inline, embed)
 				for eField, def := range doc.schemas[field.Type.String()].Properties {
 					schema.Properties[eField] = def
 				}
