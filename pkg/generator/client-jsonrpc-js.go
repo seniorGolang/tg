@@ -208,10 +208,10 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 			return
 		}
 		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
-			if js.knownCount(vType.TypeName) < 2 {
+			if js.knownCount(vType.TypeName) < 3 {
+				js.knownInc(vType.TypeName)
 				js.typeDef[vType.TypeName] = js.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
-			js.knownInc(vType.TypeName)
 			return js.typeDef[vType.TypeName]
 		}
 	case types.TMap:
@@ -253,10 +253,10 @@ func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			if js.knownCount(vType.Next.String()) < 2 {
+			if js.knownCount(vType.Next.String()) < 3 {
+				js.knownInc(vType.Next.String())
 				js.typeDef[vType.Next.String()] = js.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 			}
-			js.knownInc(vType.Next.String())
 			return js.typeDef[vType.Next.String()]
 		}
 	case types.TEllipsis:
