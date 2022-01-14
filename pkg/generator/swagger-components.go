@@ -238,11 +238,12 @@ func (doc *swagger) getModName() (module string) {
 }
 
 func castType(originName string) (typeName, format string) {
+
 	typeName = originName
 	switch originName {
 	case "bool":
 		typeName = "boolean"
-	case "Interface":
+	case "Interface", "json.RawMessage":
 		typeName = "object"
 	case "time.Time":
 		format = "date-time"
