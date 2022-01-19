@@ -16,6 +16,9 @@ func (tr Transport) cleanup(outDir string) {
 	var err error
 	var files []os.FileInfo
 	if files, err = ioutil.ReadDir(outDir); err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
 		tr.log.WithError(err).Warn("cleanup")
 		return
 	}
