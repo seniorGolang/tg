@@ -33,6 +33,9 @@ func main() {
 	app.Version = Version + "-" + GitSHA
 	app.Compiled = BuildStamp
 	app.EnableBashCompletion = true
+	app.Authors = []*cli.Author{
+		{Name: "Aleksei Khramtsov", Email: "contact@altsoftllc.com"},
+	}
 
 	app.Commands = []*cli.Command{
 		{
