@@ -216,13 +216,18 @@ func cmdInit(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-	repo := c.String("repo")
 	project := c.String("project")
+	repo := c.String("repo")
+	projectBaseDir := c.Args().First()
+
+	if project == "" {
+		project = projectBaseDir
+	}
 
 	if repo == "" {
 		repo = project
 	}
-	return skeleton.GenerateSkeleton(log, project, repo, "./"+c.Args().First(), c.Bool("trace"), c.Bool("mongo"))
+	return skeleton.GenerateSkeleton(log, project, repo, projectBaseDir, c.Bool("trace"), c.Bool("mongo"))
 }
 
 func cmdClient(c *cli.Context) (err error) {
