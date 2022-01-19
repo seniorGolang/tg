@@ -4,6 +4,7 @@
 package skeleton
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path"
@@ -40,6 +41,11 @@ func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir str
 
 	if packageName == "" {
 		packageName = path.Join(meta.repoName, meta.projectName)
+	}
+
+	if packageName == "" {
+		err = errors.New("empty project name")
+		return
 	}
 
 	cmdMakeMod := exec.Command("go", "mod", "init", packageName)
