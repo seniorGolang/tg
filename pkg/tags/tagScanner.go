@@ -37,7 +37,7 @@ garbage:
 	c = data[i]
 	switch {
 	case c > ' ' && c != '`' && c != '=':
-		key, val = nil, nil
+		key, val = nil, nil // nolint
 		m = i
 		i++
 		goto key

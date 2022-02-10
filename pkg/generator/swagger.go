@@ -68,8 +68,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 	}
 	for _, serviceName := range doc.serviceKeys() {
 		service := doc.services[serviceName]
-		serviceTags := []string{service.Name}
-		serviceTags = strings.Split(service.tags.Value(tagSwaggerTags, service.Name), ",")
+		serviceTags := strings.Split(service.tags.Value(tagSwaggerTags, service.Name), ",")
 		doc.log.WithField("module", "swagger").Infof("service %s append jsonRPC methods", serviceTags)
 		for _, method := range service.methods {
 			if method.tags.Contains(tagSwaggerTags) {

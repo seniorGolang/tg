@@ -40,7 +40,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
 }
 
-func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.Type) {
+func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.Type) { // nolint
 
 	if doc.schemas == nil {
 		doc.schemas = make(swSchemas)
@@ -176,7 +176,9 @@ func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
 		}
 		var srcFile *types.File
 		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
-			retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name))
+			if retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name)); retErr != nil {
+				return
+			}
 			doc.log.WithError(err).Errorf("parse file %s", filePath)
 			return err
 		}
@@ -280,7 +282,7 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 		return "-", false
 	}
 	value = fieldInfo.Name
-	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 {
+	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 { // nolint
 		value = tagValues[0]
 		if len(tagValues) == 2 {
 			inline = tagValues[1] == "inline"
@@ -303,14 +305,14 @@ func (doc *swagger) knownInc(typeName string) {
 	doc.knownTypes[typeName]++
 }
 
-func (doc *swagger) aliasCount(typeName string) int {
+func (doc *swagger) aliasCount(typeName string) int { // nolint
 	if _, found := doc.aliasTypes[typeName]; !found {
 		return 0
 	}
 	return doc.knownTypes[typeName]
 }
 
-func (doc *swagger) aliasInc(typeName string) {
+func (doc *swagger) aliasInc(typeName string) { // nolint
 	if _, found := doc.aliasTypes[typeName]; !found {
 		doc.knownTypes[typeName] = 0
 	}

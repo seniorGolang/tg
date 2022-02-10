@@ -21,7 +21,7 @@ type Struct struct {
 	Methods []*Method     `json:"methods,omitempty"`
 }
 
-func (s Struct) t() { return }
+func (s Struct) t() {}
 
 func stringFields(fields []StructField) string {
 	var str strings.Builder

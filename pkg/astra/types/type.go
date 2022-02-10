@@ -18,7 +18,7 @@ type TInterface struct {
 	Interface *Interface `json:"interface,omitempty"`
 }
 
-func (i TInterface) t() { return }
+func (i TInterface) t() {}
 
 func (i TInterface) String() string {
 	if i.Interface != nil {
@@ -32,7 +32,7 @@ type TMap struct {
 	Value Type `json:"value,omitempty"`
 }
 
-func (m TMap) t() { return }
+func (m TMap) t() {}
 
 func (m TMap) String() string {
 	return "map[" + m.Key.String() + "]" + m.Value.String()
@@ -42,7 +42,7 @@ type TName struct {
 	TypeName string `json:"type_name,omitempty"`
 }
 
-func (i TName) t() { return }
+func (i TName) t() {}
 
 func (i TName) String() string {
 	return i.TypeName
@@ -57,7 +57,7 @@ type TPointer struct {
 	Next             Type `json:"next,omitempty"`
 }
 
-func (i TPointer) t() { return }
+func (i TPointer) t() {}
 
 func (i TPointer) String() string {
 	str := strings.Repeat("*", i.NumberOfPointers)
@@ -78,7 +78,7 @@ type TArray struct {
 	Next       Type `json:"next,omitempty"`
 }
 
-func (i TArray) t() { return }
+func (i TArray) t() {}
 
 func (i TArray) String() string {
 	str := ""
@@ -104,7 +104,7 @@ type TImport struct {
 	Next   Type    `json:"next,omitempty"`
 }
 
-func (i TImport) t() { return }
+func (i TImport) t() {}
 
 func (i TImport) String() string {
 	str := ""
@@ -126,7 +126,7 @@ type TEllipsis struct {
 	Next Type `json:"next,omitempty"`
 }
 
-func (i TEllipsis) t() { return }
+func (i TEllipsis) t() {}
 
 func (i TEllipsis) String() string {
 	str := "..."
@@ -151,7 +151,7 @@ type TChan struct {
 	Next      Type `json:"next"`
 }
 
-func (c TChan) t() { return }
+func (c TChan) t() {}
 
 func (c TChan) NextType() Type {
 	return c.Next

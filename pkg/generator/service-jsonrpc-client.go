@@ -19,7 +19,7 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	ctx := context.WithValue(context.Background(), "code", srcFile)
+	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageFiber, "fiber")

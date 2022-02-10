@@ -17,7 +17,7 @@ func (svc *service) renderServer(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	ctx := context.WithValue(context.Background(), "code", srcFile)
+	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))

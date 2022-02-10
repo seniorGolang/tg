@@ -297,7 +297,9 @@ func parseType(relPath, name string) (retType types.Type) {
 
 		var srcFile *types.File
 		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
-			retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name))
+			if retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name)); retErr != nil {
+				return
+			}
 			return err
 		}
 		for _, typeInfo := range srcFile.Interfaces {

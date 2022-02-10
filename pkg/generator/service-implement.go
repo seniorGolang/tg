@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func (svc *service) renderImplement(outDir string) (err error) {
+func (svc *service) renderImplement(outDir string) (err error) { // nolint
 
 	outDir, _ = filepath.Abs(outDir)
 	srcFile := newSrc(filepath.Base(outDir))

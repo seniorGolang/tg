@@ -76,7 +76,7 @@ func (m method) isUploadVar(varName string) bool {
 	return found
 }
 
-func (m method) isDownloadVar(varName string) bool {
+func (m method) isDownloadVar(varName string) bool { // nolint
 	_, found := m.downloadVarsMap()[varName]
 	return found
 }
@@ -231,7 +231,7 @@ func (m method) argumentsWithUploads() (vars []types.StructField) {
 				m.tags.Set(arg.Name+".type", "file")
 				m.tags.Set(arg.Name+".format", "byte")
 			}
-			if jsonTags, _ := arg.Tags["json"]; len(jsonTags) == 0 {
+			if jsonTags, _ := arg.Tags["json"]; len(jsonTags) == 0 { // nolint
 				if arg.Tags == nil {
 					arg.Tags = map[string][]string{"json": {arg.Name}}
 				} else {

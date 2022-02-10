@@ -117,7 +117,6 @@ func (tags DocTags) Sub(prefix string) (subTags DocTags) {
 
 func (tags DocTags) Set(tagName string, values ...string) {
 	tags[tagName] = strings.Join(values, ",")
-	return
 }
 
 func (tags DocTags) Value(tagName string, defValue ...string) (value string) {
@@ -161,7 +160,7 @@ func (tags DocTags) ToMap(tagName, separator, splitter string, defValue ...strin
 	return
 }
 
-func (tags DocTags) contains(tagName string) (found bool) {
+func (tags DocTags) contains(tagName string) (found bool) { // nolint
 	_, found = tags[tagName]
 	return
 }

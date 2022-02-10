@@ -21,7 +21,7 @@ func (svc *service) renderLogger(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	ctx := context.WithValue(context.Background(), "code", srcFile)
+	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportName(packageViewer, "viewer")
 	srcFile.ImportName(packageZeroLog, "zerolog")

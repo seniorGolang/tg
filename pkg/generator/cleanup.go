@@ -35,5 +35,4 @@ func (tr Transport) cleanup(outDir string) {
 			_ = goFile.Close()
 		}
 	}
-	return
 }

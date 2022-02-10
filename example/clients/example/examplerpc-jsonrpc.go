@@ -4,6 +4,8 @@ package example
 import (
 	"context"
 	"encoding/json"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type ClientExampleRPC struct {

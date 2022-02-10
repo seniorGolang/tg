@@ -17,7 +17,7 @@ func (svc *service) renderExchange(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	ctx := context.WithValue(context.Background(), "code", srcFile)
+	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	for _, method := range svc.methods {
 		srcFile.Add(svc.exchange(ctx, method.requestStructName(), method.fieldsArgument())).Line()
