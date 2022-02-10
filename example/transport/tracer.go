@@ -2,7 +2,6 @@
 package transport
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/openzipkin/zipkin-go"
 	httpReporter "github.com/openzipkin/zipkin-go/reporter/http"
 	"github.com/rs/zerolog"
+	"github.com/seniorGolang/json"
 	"github.com/uber/jaeger-client-go/config"
 	"github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"

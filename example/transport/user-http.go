@@ -55,6 +55,6 @@ func (http *httpUser) SetRoutes(route *fiber.App) {
 	route.Post("/api/v2/user/file", http.serveUploadFile)
 	route.Patch("/api/v2/user/custom/response", http.serveCustomResponse)
 	route.Delete("/api/v2/user/custom", func(ctx *fiber.Ctx) (err error) {
-		return implement.CustomHandler(ctx, http.base)
+		return implement.CustomHandler(ctx, http.svc)
 	})
 }

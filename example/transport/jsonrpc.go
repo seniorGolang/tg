@@ -2,7 +2,6 @@
 package transport
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/seniorGolang/json"
 )
 
 const (
@@ -83,12 +83,17 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
 		return
 	}
-	ctx.Response().Header.SetContentType(contentTypeJson)
+	var single bool
 	var requests []baseJsonRPC
 	if err = json.Unmarshal(ctx.Body(), &requests); err != nil {
-		ext.Error.Set(batchSpan, true)
-		batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
-		return sendResponse(srv.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
+		var request baseJsonRPC
+		if err = json.Unmarshal(ctx.Body(), &request); err != nil {
+			ext.Error.Set(batchSpan, true)
+			batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
+			return sendResponse(srv.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
+		}
+		single = true
+		requests = append(requests, request)
 	}
 	responses := make(jsonrpcResponses, 0, len(requests))
 	var n int
@@ -128,6 +133,9 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 		n++
 	}
 	wg.Wait()
+	if single {
+		return sendResponse(srv.log, ctx, responses[0])
+	}
 	return sendResponse(srv.log, ctx, responses)
 }
 

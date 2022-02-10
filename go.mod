@@ -19,6 +19,7 @@ require (
 	github.com/rs/zerolog v1.25.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/seniorGolang/dumper v1.5.2
+	github.com/seniorGolang/json v1.2.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
 	github.com/uber/jaeger-lib v2.4.1+incompatible
@@ -38,6 +39,8 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.30.0 // indirect

@@ -3,12 +3,12 @@ package transport
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/seniorGolang/json"
 
 	"github.com/seniorGolang/tg/v2/example/implement"
 )
@@ -93,6 +93,7 @@ func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
 	var request requestUserUploadFile
 
 	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
+		ctx.Status(fiber.StatusBadRequest)
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
 		ctx.Status(fiber.StatusBadRequest)
@@ -143,7 +144,8 @@ func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 		_, err = ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
 	}
-	return implement.CustomResponseHandler(ctx, http.base, request.Arg0, request.Arg1, request.Opts...)
+
+	return implement.CustomResponseHandler(ctx, http.svc, request.Arg0, request.Arg1, request.Opts...)
 }
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
 	span := opentracing.SpanFromContext(ctx)

@@ -2,11 +2,11 @@
 package transport
 
 import (
-	"encoding/json"
 	"io"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
+	"github.com/seniorGolang/json"
 )
 
 const maxRequestBodySize = 104857600
@@ -41,10 +41,10 @@ func New(log zerolog.Logger, options ...Option) (srv *Server) {
 		option(srv)
 	}
 	srv.srvHTTP = fiber.New(srv.config)
-	srv.srvHTTP.Post("/", srv.serveBatch)
 	for _, option := range options {
 		option(srv)
 	}
+	srv.srvHTTP.Post("/", srv.serveBatch)
 	return
 }
 
@@ -53,11 +53,11 @@ func (srv *Server) Fiber() *fiber.App {
 }
 
 func (srv *Server) WithLog(log zerolog.Logger) *Server {
-	if srv.httpUser != nil {
-		srv.httpUser = srv.User().WithLog(log)
-	}
 	if srv.httpExampleRPC != nil {
 		srv.httpExampleRPC = srv.ExampleRPC().WithLog(log)
+	}
+	if srv.httpUser != nil {
+		srv.httpUser = srv.User().WithLog(log)
 	}
 	return srv
 }
