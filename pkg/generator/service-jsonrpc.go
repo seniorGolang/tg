@@ -171,7 +171,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+			return Line().Id("methodContext").Dot("SetUserValue").Call(Lit(header), Id("_"+arg)).
 				Line().If(Err().Op("!=").Nil()).Block(
 				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
@@ -186,7 +186,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id("methodContext"), Lit(header), Id("_"+arg)).
+			return Line().Id("methodContext").Dot("SetUserValue").Call(Lit(header), Id("_"+arg)).
 				Line().If(Err().Op("!=").Nil()).Block(
 				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
