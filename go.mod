@@ -3,14 +3,12 @@ module github.com/seniorGolang/tg
 go 1.16
 
 require (
-	github.com/andybalholm/brotli v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dave/jennifer v1.4.1
 	github.com/fasthttp/router v1.2.2
 	github.com/fatih/structtag v1.2.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gorilla/mux v1.7.4 // indirect
-	github.com/klauspost/compress v1.11.7 // indirect
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.5
 	github.com/openzipkin/zipkin-go v0.2.2
@@ -25,10 +23,9 @@ require (
 	github.com/uber/jaeger-client-go v2.24.0+incompatible
 	github.com/uber/jaeger-lib v2.2.0+incompatible
 	github.com/urfave/cli/v2 v2.3.0
-	github.com/valyala/fasthttp v1.20.0
+	github.com/valyala/fasthttp v1.34.0
 	github.com/vetcher/go-astra v1.2.0
 	golang.org/x/mod v0.4.1
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
