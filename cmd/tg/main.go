@@ -170,6 +170,11 @@ func main() {
 					Value: false,
 					Usage: "enable js client with package manifest",
 				},
+				&cli.BoolFlag{
+					Name:  "ts",
+					Value: false,
+					Usage: "enable ts client with package manifest",
+				},
 			},
 
 			UsageText:   "tg client --services ./pkg/someService/service",
@@ -243,6 +248,11 @@ func cmdClient(c *cli.Context) (err error) {
 	}
 	if c.Bool("js") {
 		if err = tr.RenderClientJS(c.String("outPath")); err != nil {
+			return
+		}
+	}
+	if c.Bool("ts") {
+		if err = tr.RenderClientTS(c.String("outPath")); err != nil {
 			return
 		}
 	}

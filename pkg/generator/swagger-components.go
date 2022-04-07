@@ -256,6 +256,9 @@ func castType(originName string) (typeName, format string) {
 	case "[]byte":
 		format = "byte"
 		typeName = "string"
+	case "JSON":
+		format = "byte"
+		typeName = "string"
 	case "float32", "float64":
 		format = "float"
 		typeName = "number"

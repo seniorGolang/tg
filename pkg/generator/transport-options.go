@@ -42,6 +42,17 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			)),
 		)
 	}
+	srcFile.Line().Func().Id("SetFiberCfg").Params(Id("cfg").Qual(packageFiber, "Config")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("config").Op("=").Id("cfg"),
+			Id("srv").Dot("config").Dot("DisableStartupMessage").Op("=").True(),
+		)),
+	)
+	srcFile.Line().Func().Id("SetReadBufferSize").Params(Id("size").Int()).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("config").Dot("ReadBufferSize").Op("=").Id("size"),
+		)),
+	)
 	srcFile.Line().Func().Id("MaxBodySize").Params(Id("max").Int()).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("config").Dot("BodyLimit").Op("=").Id("max"),

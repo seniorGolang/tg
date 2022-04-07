@@ -16,7 +16,7 @@ import (
 type clientJS struct {
 	*Transport
 	knownTypes map[string]int
-	typeDef    map[string]typeDef
+	typeDef    map[string]typeDefJs
 }
 
 func (tr Transport) RenderClientJS(outDir string) (err error) {
@@ -27,7 +27,7 @@ func newClientJS(tr *Transport) (js *clientJS) {
 	js = &clientJS{
 		Transport:  tr,
 		knownTypes: make(map[string]int),
-		typeDef:    make(map[string]typeDef),
+		typeDef:    make(map[string]typeDefJs),
 	}
 	return
 }
@@ -130,14 +130,14 @@ func (js *clientJS) render(outDir string) (err error) {
 	return ioutil.WriteFile(outFilename, jsFile.Bytes(), 0600)
 }
 
-type typeDef struct {
+type typeDefJs struct {
 	name       string
 	kind       string
 	typeName   string
-	properties map[string]typeDef
+	properties map[string]typeDefJs
 }
 
-func (def typeDef) def() (prop string) {
+func (def typeDefJs) def() (prop string) {
 	switch def.kind {
 	case "map":
 		key := def.properties["key"]
@@ -155,7 +155,7 @@ func (def typeDef) def() (prop string) {
 	}
 }
 
-func (def typeDef) js() (js string) {
+func (def typeDefJs) js() (js string) {
 
 	js += "/**\n"
 	switch def.kind {
@@ -175,7 +175,7 @@ func (def typeDef) js() (js string) {
 	return
 }
 
-func (def typeDef) typeLink() (link string) {
+func (def typeDefJs) typeLink() (link string) {
 	switch def.kind {
 	case "map":
 		return fmt.Sprintf("Object<%s,%s>", castTypeJs(def.properties["key"].typeLink()), castTypeJs(def.properties["value"].typeLink()))
@@ -188,11 +188,11 @@ func (def typeDef) typeLink() (link string) {
 	}
 }
 
-func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, varTags tags.DocTags) (schema typeDef) {
+func (js *clientJS) walkVariable(typeName, pkgPath string, varType types.Type, varTags tags.DocTags) (schema typeDefJs) {
 
 	schema.name = typeName
 	schema.typeName = varType.String()
-	schema.properties = make(map[string]typeDef)
+	schema.properties = make(map[string]typeDefJs)
 	if newType := castTypeJs(varType.String()); newType != varType.String() {
 		schema.kind = "scalar"
 		schema.typeName = newType
