@@ -173,6 +173,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 func (tr Transport) jsonrpcBatchTypeFunc() Code {
 	return Type().Id("Batch").Op("[]").Id("baseJsonRPC").
 		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("Append").Params(Id("request").Id("baseJsonRPC")).Block(
-		Op("*").Id("batch").Op("=").Append(Op("*").Id("batch"), Id("request")),
-	)
+		Op("*").Id("batch").Op("=").Append(Op("*").Id("batch"), Id("request"))).
+		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("ToArray").Params().Params(Op("[]").Id("baseJsonRPC")).Block(
+		Return(Op("*").Id("batch")))
 }
