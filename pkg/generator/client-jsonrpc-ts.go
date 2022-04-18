@@ -67,14 +67,14 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 			}
 		}
 		jsFile.add("}\n")
-		if len(method.results()) > 0 {
-			var fields []string
-			jsFile.add("export interface %sResult {\n", method.Name)
-			for _, ret := range method.results() {
-				fields = append(fields, fmt.Sprintf("%s: %s\n", ret.Name, ts.walkVariable(ret.Name, svc.pkgPath, ret.Type, method.tags).typeLink()))
-			}
-			jsFile.add("}\n")
-		}
+		// if len(method.results()) > 0 {
+		// 	var fields []string
+		// 	jsFile.add("export interface %sResult {\n", method.Name)
+		// 	for _, ret := range method.results() {
+		// 		fields = append(fields, fmt.Sprintf("%s: %s\n", ret.Name, ts.walkVariable(ret.Name, svc.pkgPath, ret.Type, method.tags).typeLink()))
+		// 	}
+		// 	jsFile.add("}\n")
+		// }
 	}
 	for _, def := range ts.typeDefTs {
 		jsFile.add(def.ts())
@@ -101,7 +101,7 @@ func (def typeDefTs) def() (prop string) {
 		item := def.properties["item"]
 		return fmt.Sprintf("%s[]", item.typeLink())
 	case "struct":
-		return fmt.Sprintf("%s", def.name)
+		return def.name
 	case "scalar":
 		return def.typeName
 	default:

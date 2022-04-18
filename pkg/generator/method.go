@@ -46,7 +46,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 		svc:      svc,
 		tags:     tags.ParseTags(fn.Docs),
 	}
-	m.argFields = m.varsToFields(m.argsWithoutContext(), m.tags, m.argCookieMap())
+	m.argFields = m.varsToFields(m.argsWithoutContext(), m.tags, m.argCookieMap(), m.varHeaderMap())
 	m.resultFields = m.varsToFields(m.resultsWithoutError(), m.tags, m.retCookieMap(), m.varHeaderMap())
 	return
 }
@@ -288,6 +288,7 @@ func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement)
 
 	return m.argFromString("header", m.varHeaderMap(),
 		func(srcName string) Code {
+			srcName = strings.TrimPrefix(srcName, "!")
 			return String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Lit(srcName)))
 		},
 		errStatement,
@@ -298,6 +299,7 @@ func (m method) httpCookies(errStatement func(arg, header string) *Statement) (b
 
 	return m.argFromString("cookie", m.varCookieMap(),
 		func(srcName string) Code {
+			srcName = strings.TrimPrefix(srcName, "!")
 			return Id(_ctx_).Dot("Cookies").Call(Lit(srcName))
 		},
 		errStatement,
@@ -309,13 +311,14 @@ func (m method) argFromString(typeName string, varMap map[string]string, strCode
 	block = Line()
 	if len(varMap) != 0 {
 		for argName, srcName := range varMap {
+			argName = strings.TrimPrefix(argName, "!")
 			argTokens := strings.Split(argName, ".")
 			argName = argTokens[0]
 			argVarName := strings.Join(argTokens, "")
 			vArg := m.argByName(argName)
 			if vArg == nil {
 				if m.resultByName(argName) == nil {
-					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", argVarName).WithField(typeName, srcName).Warning("argument not found")
+					m.log.WithField("svc", m.svc.Name).WithField("method", m.Name).WithField("arg", argVarName).WithField(typeName, srcName).Warning("result not found")
 				}
 				continue
 			}
@@ -494,6 +497,7 @@ func (m *method) varHeaderMap() (headers map[string]string) {
 
 func (m method) argByName(argName string) (variable *types.Variable) {
 
+	argName = strings.TrimPrefix(argName, "!")
 	for _, arg := range m.Args {
 		if arg.Name == argName {
 			return &arg
@@ -574,12 +578,15 @@ func (m method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes 
 		field := types.StructField{Variable: variable, Tags: make(map[string][]string)}
 
 		for _, exclude := range excludes {
-			if _, found := exclude[variable.Name]; found {
-				field.Tags["json"] = []string{"-"}
+			for varName := range exclude {
+				if strings.HasPrefix(varName, "!") {
+					if variable.Name == varName[1:] {
+						field.Tags["json"] = []string{"-"}
+					}
+				}
 			}
 		}
 		for key, value := range tags.Sub(variable.Name) {
-
 			if key == tagTag {
 				if list := strings.Split(value, "|"); len(list) > 0 {
 					for _, item := range list {
