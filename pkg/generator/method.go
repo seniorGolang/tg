@@ -107,7 +107,7 @@ func (m *method) uploadVarsMap() (headers map[string]string) {
 func (m *method) downloadVarsMap() (headers map[string]string) {
 
 	if m.downloadVars != nil {
-		return m.uploadVars
+		return m.downloadVars
 	}
 
 	m.downloadVars = make(map[string]string)
