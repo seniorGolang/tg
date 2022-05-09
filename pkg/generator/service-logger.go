@@ -53,51 +53,24 @@ func (svc *service) loggerMiddleware() Code {
 	)
 }
 
-// func (m loggerJsonRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
-//	defer func(begin time.Time) {
-//		fields := map[string]interface{}{
-//			"method": "test",
-//			"request": viewer.Sprintf("%+v", requestJsonRPCTest{
-//				Arg0: arg0,
-//				Arg1: arg1,
-//				Opts: opts,
-//			}),
-//			"response": viewer.Sprintf("%+v", responseJsonRPCTest{
-//				Ret1: ret1,
-//				Ret2: ret2,
-//			}),
-//			"service": "JsonRPC",
-//			"took":    time.Since(begin),
-//		}
-//		if ctx.Value(headerRequestID) != nil {
-//			fields["requestID"] = ctx.Value(headerRequestID)
-//		}
-//		if err != nil {
-//			m.log.Info().Err(err).Fields(fields).Msg("call test")
-//			return
-//		}
-//		m.log.Info().Fields(fields).Msg("call test")
-//	}(time.Now())
-//	return m.next.Test(ctx, arg0, arg1, opts...)
-// }
-
 func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 
 	return func(g *Group) {
-
+		g.Id("log").Op(":=").Id("m").Dot("log").Dot("With").Call().
+			Dot("Str").Call(Lit("service"), Lit(svc.Name)).
+			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
+			Dot("Logger").Call()
+		g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
+			Id("log").Op("=").Id("log").Dot("With").Call().
+				Dot("Interface").Call(Lit("requestID"), Id(_ctx_).Dot("Value").Call(Id("headerRequestID"))).Dot("Logger").Call(),
+		)
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
-
 			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
-
-				d[Lit("service")] = Lit(svc.Name)
-				d[Lit("method")] = Lit(method.lccName())
 
 				skipFields := strings.Split(tags.ParseTags(method.Docs).Value("log-skip"), ",")
 				params := method.argsWithoutContext()
 				params = removeSkippedFields(params, skipFields)
-
 				d[Lit("request")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
-
 				printResult := true
 				for _, field := range skipFields {
 					if strings.TrimSpace(field) == "response" {
@@ -106,20 +79,16 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 					}
 				}
 				returns := method.resultsWithoutError()
-
 				if printResult {
 					d[Lit("response")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
 				}
 				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call()
 			}))
-			g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
-				Id("fields").Op("[").Lit("requestID").Op("]").Op("=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")),
-			)
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
-				g.Id("m").Dot("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+				g.Id("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 				g.Return()
 			})
-			g.Id("m").Dot("log").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+			g.Id("log").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 
 		}).Call(Qual(packageTime, "Now").Call())
 		g.Return().Id("m").Dot(_next_).Dot(method.Name).Call(paramNames(method.Args))
