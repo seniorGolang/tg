@@ -11,6 +11,7 @@ type swObject struct {
 	Schemes    []string          `json:"schemes,omitempty" yaml:"schemes,omitempty"`
 	Paths      map[string]swPath `json:"paths" yaml:"paths"`
 	Components swComponents      `json:"components,omitempty" yaml:"components,omitempty"`
+	Security   []swSecurity      `json:"security,omitempty" yaml:"security,omitempty"`
 }
 
 type swPath struct {
@@ -86,7 +87,8 @@ type swSchemas map[string]swSchema
 type swProperties map[string]swSchema
 
 type swComponents struct {
-	Schemas swSchemas `json:"schemas,omitempty" yaml:"schemas,omitempty"`
+	Schemas         swSchemas         `json:"schemas,omitempty" yaml:"schemas,omitempty"`
+	SecuritySchemes swSecuritySchemes `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
 }
 
 type swSchema struct {
@@ -144,4 +146,17 @@ type swResponses map[string]swResponse
 type swRequestBody struct {
 	Description string    `json:"description,omitempty" yaml:"description,omitempty"`
 	Content     swContent `json:"content,omitempty" yaml:"content,omitempty"`
+}
+
+type swSecurity struct {
+	BearerAuth []interface{} `json:"bearerAuth" yaml:"bearerAuth"`
+}
+
+type swSecuritySchemes struct {
+	BearerAuth swBearerAuth `json:"bearerAuth,omitempty" yaml:"bearerAuth,omitempty"`
+}
+
+type swBearerAuth struct {
+	Type   string `json:"type,omitempty" yaml:"type,omitempty"`
+	Schema string `json:"schema,omitempty" yaml:"schema,omitempty"`
 }
