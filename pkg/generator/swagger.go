@@ -25,6 +25,10 @@ const (
 	contentMultipart = "multipart/form-data"
 )
 
+const (
+	bearerSecuritySchema = "bearer"
+)
+
 type swagger struct {
 	*Transport
 
@@ -56,6 +60,13 @@ func (doc *swagger) render(outFilePath string) (err error) {
 	swaggerDoc.Info.Version = doc.tags.Value("version")
 	swaggerDoc.Info.Description = doc.tags.Value("description")
 	swaggerDoc.Paths = make(map[string]swPath)
+	tagSecurities := strings.Split(doc.tags.Value("security"), "|")
+	for _, tagSecurity := range tagSecurities {
+		if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
+			swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
+			swaggerDoc.Components.SecuritySchemes.BearerAuth = swBearerAuth{Type: "http", Schema: tagSecurity}
+		}
+	}
 	tagServers := strings.Split(doc.tags.Value("servers"), "|")
 	for _, tagServer := range tagServers {
 		var serverDesc string
