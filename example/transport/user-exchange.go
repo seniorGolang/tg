@@ -4,7 +4,7 @@ package transport
 import "github.com/seniorGolang/tg/v2/example/interfaces/types"
 
 type requestUserGetUser struct {
-	Cookie    string `json:"-"`
+	Cookie    string `json:"cookie"`
 	UserAgent string `json:"userAgent"`
 }
 

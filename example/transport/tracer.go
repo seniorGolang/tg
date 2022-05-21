@@ -96,6 +96,12 @@ func extractSpan(log zerolog.Logger, opName string, ctx *fiber.Ctx) (span otg.Sp
 	span.SetTag("requestID", requestID)
 	ctx.Request().Header.Set(headerRequestID, requestID)
 	ctx.Context().SetUserValue(headerRequestID, requestID)
+	appID := string(ctx.Request().Header.Peek(headerApplicationID))
+	if appID != "" {
+		span.SetTag("appID", appID)
+		ctx.Request().Header.Set(headerRequestID, appID)
+		ctx.Context().SetUserValue(headerRequestID, appID)
+	}
 	return
 }
 

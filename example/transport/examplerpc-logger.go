@@ -26,9 +26,12 @@ func loggerMiddlewareExampleRPC(log zerolog.Logger) MiddlewareExampleRPC {
 }
 
 func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+	log := m.log.With().Str("service", "ExampleRPC").Str("method", "test").Logger()
+	if ctx.Value(headerRequestID) != nil {
+		log = log.With().Interface("requestID", ctx.Value(headerRequestID)).Logger()
+	}
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method": "test",
 			"request": viewer.Sprintf("%+v", requestExampleRPCTest{
 				Arg0: arg0,
 				Arg1: arg1,
@@ -38,17 +41,13 @@ func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts 
 				Ret1: ret1,
 				Ret2: ret2,
 			}),
-			"service": "ExampleRPC",
-			"took":    time.Since(begin).String(),
-		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
+			"took": time.Since(begin).String(),
 		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call test")
+			log.Error().Err(err).Fields(fields).Msg("call test")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call test")
+		log.Info().Fields(fields).Msg("call test")
 	}(time.Now())
 	return m.next.Test(ctx, arg0, arg1, opts...)
 }

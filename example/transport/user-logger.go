@@ -27,96 +27,104 @@ func loggerMiddlewareUser(log zerolog.Logger) MiddlewareUser {
 }
 
 func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
+	log := m.log.With().Str("service", "User").Str("method", "getUser").Logger()
+	if ctx.Value(headerRequestID) != nil {
+		log = log.With().Interface("requestID", ctx.Value(headerRequestID)).Logger()
+	}
+	if ctx.Value("X-Forwarded-For") != nil {
+		log = log.With().Interface("ips", ctx.Value("X-Forwarded-For")).Logger()
+	}
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method": "getUser",
 			"request": viewer.Sprintf("%+v", requestUserGetUser{
 				Cookie:    cookie,
 				UserAgent: userAgent,
 			}),
 			"response": viewer.Sprintf("%+v", responseUserGetUser{User: user}),
-			"service":  "User",
 			"took":     time.Since(begin).String(),
 		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
-		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call getUser")
+			log.Error().Err(err).Fields(fields).Msg("call getUser")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call getUser")
+		log.Info().Fields(fields).Msg("call getUser")
 	}(time.Now())
 	return m.next.GetUser(ctx, cookie, userAgent)
 }
 
 func (m loggerUser) UploadFile(ctx context.Context, fileBytes []byte) (err error) {
+	log := m.log.With().Str("service", "User").Str("method", "uploadFile").Logger()
+	if ctx.Value(headerRequestID) != nil {
+		log = log.With().Interface("requestID", ctx.Value(headerRequestID)).Logger()
+	}
+	if ctx.Value("X-Forwarded-For") != nil {
+		log = log.With().Interface("ips", ctx.Value("X-Forwarded-For")).Logger()
+	}
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method":   "uploadFile",
 			"request":  viewer.Sprintf("%+v", requestUserUploadFile{FileBytes: fileBytes}),
 			"response": viewer.Sprintf("%+v", responseUserUploadFile{}),
-			"service":  "User",
 			"took":     time.Since(begin).String(),
 		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
-		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call uploadFile")
+			log.Error().Err(err).Fields(fields).Msg("call uploadFile")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call uploadFile")
+		log.Info().Fields(fields).Msg("call uploadFile")
 	}(time.Now())
 	return m.next.UploadFile(ctx, fileBytes)
 }
 
 func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
+	log := m.log.With().Str("service", "User").Str("method", "customResponse").Logger()
+	if ctx.Value(headerRequestID) != nil {
+		log = log.With().Interface("requestID", ctx.Value(headerRequestID)).Logger()
+	}
+	if ctx.Value("X-Forwarded-For") != nil {
+		log = log.With().Interface("ips", ctx.Value("X-Forwarded-For")).Logger()
+	}
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method": "customResponse",
 			"request": viewer.Sprintf("%+v", requestUserCustomResponse{
 				Arg0: arg0,
 				Arg1: arg1,
 				Opts: opts,
 			}),
 			"response": viewer.Sprintf("%+v", responseUserCustomResponse{}),
-			"service":  "User",
 			"took":     time.Since(begin).String(),
 		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
-		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call customResponse")
+			log.Error().Err(err).Fields(fields).Msg("call customResponse")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call customResponse")
+		log.Info().Fields(fields).Msg("call customResponse")
 	}(time.Now())
 	return m.next.CustomResponse(ctx, arg0, arg1, opts...)
 }
 
 func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
+	log := m.log.With().Str("service", "User").Str("method", "customHandler").Logger()
+	if ctx.Value(headerRequestID) != nil {
+		log = log.With().Interface("requestID", ctx.Value(headerRequestID)).Logger()
+	}
+	if ctx.Value("X-Forwarded-For") != nil {
+		log = log.With().Interface("ips", ctx.Value("X-Forwarded-For")).Logger()
+	}
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method": "customHandler",
 			"request": viewer.Sprintf("%+v", requestUserCustomHandler{
 				Arg0: arg0,
 				Arg1: arg1,
 				Opts: opts,
 			}),
 			"response": viewer.Sprintf("%+v", responseUserCustomHandler{}),
-			"service":  "User",
 			"took":     time.Since(begin).String(),
 		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
-		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call customHandler")
+			log.Error().Err(err).Fields(fields).Msg("call customHandler")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call customHandler")
+		log.Info().Fields(fields).Msg("call customHandler")
 	}(time.Now())
 	return m.next.CustomHandler(ctx, arg0, arg1, opts...)
 }

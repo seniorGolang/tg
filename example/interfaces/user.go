@@ -16,6 +16,7 @@ import (
 // @tg http-server log metrics trace
 // общий код 400 для всех методов, кроме UploadFile
 // @tg 400=github.com/seniorGolang/tg/v2/example/error:ErrorType
+// @tg http-log-header=`X-Forwarded-For=ips`
 type User interface {
 
 	// @tg summary=`Данные пользователя`

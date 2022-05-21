@@ -41,6 +41,19 @@ func User(svc *httpUser) Option {
 	}
 }
 
+func SetFiberCfg(cfg fiber.Config) Option {
+	return func(srv *Server) {
+		srv.config = cfg
+		srv.config.DisableStartupMessage = true
+	}
+}
+
+func SetReadBufferSize(size int) Option {
+	return func(srv *Server) {
+		srv.config.ReadBufferSize = size
+	}
+}
+
 func MaxBodySize(max int) Option {
 	return func(srv *Server) {
 		srv.config.BodyLimit = max
