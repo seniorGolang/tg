@@ -64,6 +64,17 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 			Id("log").Op("=").Id("log").Dot("With").Call().
 				Dot("Interface").Call(Lit("requestID"), Id(_ctx_).Dot("Value").Call(Id("headerRequestID"))).Dot("Logger").Call(),
 		)
+
+		for header, label := range svc.tags.ToMap(tagHtppLogHeader, "|", "=", "") {
+			if label == "" {
+				label = header
+			}
+			g.If(Id(_ctx_).Dot("Value").Call(Lit(header)).Op("!=").Nil()).Block(
+				Id("log").Op("=").Id("log").Dot("With").Call().
+					Dot("Interface").Call(Lit(label), Id(_ctx_).Dot("Value").Call(Lit(header))).Dot("Logger").Call(),
+			)
+		}
+
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 

@@ -45,6 +45,7 @@ const (
 	tagHttpHeader    = "http-headers"
 	tagHttpCookies   = "http-cookies"
 	tagHttpSuccess   = "http-success"
+	tagHtppLogHeader = "http-log-header"
 	tagServerJsonRPC = "jsonRPC-server"
 	tagHttpResponse  = "http-response"
 	tagPackageUUID   = "uuidPackage"

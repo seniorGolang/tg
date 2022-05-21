@@ -17,6 +17,8 @@ func (tr Transport) renderClientOptions(outDir string) (err error) {
 
 	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
 
+	srcFile.Const().Id("headerApplicationID").Op("=").Lit("X-Application-Id")
+
 	srcFile.Line().Type().Id("Option").Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))
 
 	srcFile.Line().Func().Id("DecodeError").Params(Id("decoder").Id("ErrorDecoder")).Params(Id("Option")).Block(

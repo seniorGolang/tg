@@ -36,6 +36,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	}
 
 	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
+	srcFile.Const().Id("headerApplicationID").Op("=").Lit("X-Application-Id")
 
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())

@@ -70,6 +70,13 @@ func (tr Transport) extractSpanFunc() Code {
 		Id("span").Dot("SetTag").Call(Lit("requestID"), Id("requestID")),
 		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
 		Id(_ctx_).Dot("Context").Call().Dot("SetUserValue").Call(Id("headerRequestID"), Id("requestID")),
+
+		Id("appID").Op(":=").String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerApplicationID"))),
+		If(Id("appID").Op("!=").Lit("")).Block(
+			Id("span").Dot("SetTag").Call(Lit("appID"), Id("appID")),
+			Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("appID")),
+			Id(_ctx_).Dot("Context").Call().Dot("SetUserValue").Call(Id("headerRequestID"), Id("appID")),
+		),
 		Return(),
 	)
 }
