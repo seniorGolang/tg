@@ -149,6 +149,7 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 	hasMetric := tr.hasMetrics()
 
 	showError(tr.log, tr.renderHTTP(outDir), "renderHTTP")
+	showError(tr.log, tr.renderFiber(outDir), "renderFiber")
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
 	showError(tr.log, tr.renderContext(outDir), "renderContext")

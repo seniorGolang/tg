@@ -61,9 +61,6 @@ func (tr Transport) serveBatchFunc(hasTrace bool) Code {
 			)
 			ig.Return()
 		})
-		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
-			Return(),
-		)
 		bg.Var().Id("single").Bool()
 		bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
 		bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {

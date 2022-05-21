@@ -62,8 +62,8 @@ func (svc *service) renderServer(outDir string) (err error) {
 	}
 
 	if svc.tags.Contains(tagLogger) {
-		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Block(
-			Id("srv").Dot("Wrap").Call(Id("loggerMiddleware" + svc.Name).Call(Id("log"))),
+		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params().Block(
+			Id("srv").Dot("Wrap").Call(Id("loggerMiddleware" + svc.Name).Call()),
 		)
 	}
 
@@ -124,6 +124,6 @@ func (svc *service) middlewareSetType() Code {
 		if svc.tags.IsSet(tagMetrics) {
 			ig.Id("WithMetrics").Params()
 		}
-		ig.Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger"))
+		ig.Id("WithLog").Params()
 	})
 }

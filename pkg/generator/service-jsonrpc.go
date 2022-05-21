@@ -61,9 +61,6 @@ func (svc *service) serveServiceBatchFunc() Code {
 			)
 			mg.Return()
 		})
-		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).Block(
-			Return(),
-		)
 		bg.Var().Id("single").Bool()
 		bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
 		bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
@@ -157,9 +154,9 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("incorrect protocol version: ").Op("+").Id("requestBase").Dot("Version"), Nil()))
 		})
 		if svc.tags.IsSet(tagTrace) {
-			bf.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("Context").Call(), Id("span"))
+			bf.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))
 		} else {
-			bf.Id("methodContext").Op(":=").Id(_ctx_).Dot("Context").Call()
+			bf.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 		}
 		bf.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
@@ -171,8 +168,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Line().Id("methodContext").Dot("SetUserValue").Call(Lit(header), Id("_"+arg)).
-				Line().If(Err().Op("!=").Nil()).Block(
+			return Line().If(Err().Op("!=").Nil()).Block(
 				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
@@ -186,8 +182,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 				)
 			}
-			return Line().Id("methodContext").Dot("SetUserValue").Call(Lit(header), Id("_"+arg)).
-				Line().If(Err().Op("!=").Nil()).Block(
+			return Line().If(Err().Op("!=").Nil()).Block(
 				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
@@ -269,13 +264,6 @@ func (svc *service) serveMethodFunc() Code {
 				ig.If(List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("only POST method supported")).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),
 				)
-			})
-			bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request canceled"))
-				}
-				ig.Return()
 			})
 			bg.Var().Id("request").Id("baseJsonRPC")
 			bg.Var().Id("response").Op("*").Id("baseJsonRPC")

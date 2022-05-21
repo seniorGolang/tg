@@ -88,9 +88,9 @@ func (svc *service) withErrorHandler() Code {
 
 func (svc *service) withLogFunc() Code {
 
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithLog").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
 
-		bg.Id("http").Dot("svc").Dot("WithLog").Call(Id("log"))
+		bg.Id("http").Dot("svc").Dot("WithLog").Call()
 		bg.Return(Id("http"))
 	})
 }

@@ -21,8 +21,6 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 
-	srcFile.Line().Const().Id("maxRequestBodySize").Op("=").Lit(100 * 1024 * 1024)
-
 	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
@@ -34,8 +32,6 @@ func (tr Transport) renderServer(outDir string) (err error) {
 		}
 		srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	}
-
-	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
 
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())
@@ -68,11 +64,11 @@ func (tr Transport) fiberFunc() Code {
 
 func (tr Transport) withLogFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
 		for _, serviceName := range tr.serviceKeys() {
 			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(Id("log")),
+				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(),
 			)
 		}
 		bg.Return(Id("srv"))
@@ -135,13 +131,13 @@ func (tr Transport) serverNewFunc() Code {
 				Id("log"): Id("log"),
 				Id("config"): Qual(packageFiber, "Config").Values(Dict{
 					Id("DisableStartupMessage"): True(),
-					Id("BodyLimit"):             Id("maxRequestBodySize"),
 				}),
 			})
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
 			)
 			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
+			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("setLogger"))
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
 			)

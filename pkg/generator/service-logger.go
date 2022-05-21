@@ -24,13 +24,13 @@ func (svc *service) renderLogger(outDir string) (err error) {
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportName(packageViewer, "viewer")
+	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageGoKitMetrics, "metrics")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
-	srcFile.Type().Id("logger"+svc.Name).Struct(
+	srcFile.Type().Id("logger" + svc.Name).Struct(
 		Id(_next_).Qual(svc.pkgPath, svc.Name),
-		Id("log").Qual(packageZeroLog, "Logger"),
 	)
 
 	srcFile.Line().Add(svc.loggerMiddleware())
@@ -43,10 +43,9 @@ func (svc *service) renderLogger(outDir string) (err error) {
 
 func (svc *service) loggerMiddleware() Code {
 
-	return Func().Id("loggerMiddleware" + svc.Name).Params(Id("log").Qual(packageZeroLog, "Logger")).Params(Id("Middleware" + svc.Name)).Block(
+	return Func().Id("loggerMiddleware" + svc.Name).Params().Params(Id("Middleware" + svc.Name)).Block(
 		Return(Func().Params(Id(_next_).Qual(svc.pkgPath, svc.Name)).Params(Qual(svc.pkgPath, svc.Name)).Block(
 			Return(Op("&").Id("logger" + svc.Name).Values(Dict{
-				Id("log"):  Id("log"),
 				Id(_next_): Id(_next_),
 			})),
 		)),
@@ -56,14 +55,10 @@ func (svc *service) loggerMiddleware() Code {
 func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 
 	return func(g *Group) {
-		g.Id("log").Op(":=").Id("m").Dot("log").Dot("With").Call().
+		g.Id("logger").Op(":=").Qual(packageZeroLogLog, "Ctx").Call(Id("ctx")).Dot("With").Call().
 			Dot("Str").Call(Lit("service"), Lit(svc.Name)).
 			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
 			Dot("Logger").Call()
-		g.If(Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op("!=").Nil()).Block(
-			Id("log").Op("=").Id("log").Dot("With").Call().
-				Dot("Interface").Call(Lit("requestID"), Id(_ctx_).Dot("Value").Call(Id("headerRequestID"))).Dot("Logger").Call(),
-		)
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 
@@ -85,10 +80,10 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call()
 			}))
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
-				g.Id("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+				g.Id("logger").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 				g.Return()
 			})
-			g.Id("log").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+			g.Id("logger").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 
 		}).Call(Qual(packageTime, "Now").Call())
 		g.Return().Id("m").Dot(_next_).Dot(method.Name).Call(paramNames(method.Args))

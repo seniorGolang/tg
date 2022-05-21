@@ -12,13 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/vetcher/go-astra"
 	"github.com/vetcher/go-astra/types"
 
 	"github.com/seniorGolang/tg/v2/pkg/mod"
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
+)
+
+const (
+	deepLevel = 0
 )
 
 func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
@@ -81,7 +84,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Example = nil
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
-			if doc.knownCount(vType.TypeName) == 0 {
+			if doc.knownCount(vType.TypeName) < deepLevel {
 				doc.knownInc(vType.TypeName)
 				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
@@ -125,7 +128,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					def = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 				}
 			}
-			if doc.knownCount(vType.Next.String()) == 0 {
+			if doc.knownCount(vType.Next.String()) < deepLevel {
 				doc.knownInc(vType.Next.String())
 				doc.schemas[vType.Next.String()] = def
 			}
@@ -165,6 +168,7 @@ func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
 
 	pkgPath, _ := filepath.Abs(relPath)
 	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
+
 		if err != nil {
 			return err
 		}
@@ -176,11 +180,8 @@ func (doc *swagger) parseType(relPath, name string) (retType types.Type) {
 		}
 		var srcFile *types.File
 		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
-			if retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name)); retErr != nil {
-				return
-			}
-			doc.log.WithError(err).Errorf("parse file %s", filePath)
-			return err
+			// doc.log.WithError(err).Errorf("parse file %s", filePath)
+			return nil
 		}
 		for _, typeInfo := range srcFile.Interfaces {
 			if typeInfo.Name == name {
@@ -250,11 +251,18 @@ func castType(originName string) (typeName, format string) {
 	case "time.Time":
 		format = "date-time"
 		typeName = "string"
+	case "sql.NullTime":
+		format = "date-time"
+		typeName = "string"
 	case "byte":
 		format = "uint8"
 		typeName = "number"
 	case "[]byte":
 		format = "byte"
+		typeName = "string"
+	case "fiber.Cookie":
+		typeName = "string"
+	case "snowflake.ID":
 		typeName = "string"
 	case "JSON":
 		format = "byte"

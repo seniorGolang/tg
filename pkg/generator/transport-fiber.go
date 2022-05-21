@@ -1,0 +1,54 @@
+// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// This file (transport-options.go at 14.05.2020, 2:13) is subject to the terms and
+// conditions defined in file 'LICENSE', which is part of this project source code.
+package generator
+
+import (
+	"path"
+	"path/filepath"
+
+	. "github.com/dave/jennifer/jen"
+)
+
+func (tr Transport) renderFiber(outDir string) (err error) {
+
+	srcFile := newSrc(filepath.Base(outDir))
+	srcFile.PackageComment(doNotEdit)
+
+	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageErrors, "errors")
+	srcFile.ImportName(packageZeroLog, "zerolog")
+
+	tr.renderFiberLogger(srcFile)
+	tr.renderFiberRecover(srcFile)
+
+	return srcFile.Save(path.Join(outDir, "fiber.go"))
+}
+
+func (tr Transport) renderFiberLogger(srcFile srcFile) {
+
+	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("setLogger").Params(Id("ctx").Op("*").Qual(packageFiber, "Ctx")).Error().Block(
+		Id("ctx").Dot("SetUserContext").Call(Id("srv").Dot("log").Dot("WithContext").Call(Id("ctx").Dot("UserContext").Call())),
+		Return(Id("ctx").Dot("Next").Call()),
+	)
+}
+
+func (tr Transport) renderFiberRecover(srcFile srcFile) {
+
+	srcFile.Line().Func().Id("Recover").Params(Id("ctx").Op("*").Qual(packageFiber, "Ctx")).Error().Block(
+		Defer().Func().Params().Block(
+			If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil().Block(
+				List(Err(), Id("ok")).Op(":=").Id("r").Op(".").Call(Error()),
+				If(Op("!").Id("ok")).Block(
+					Err().Op("=").Qual(packageErrors, "New").Call(Qual(packageFmt, "Sprintf").Call(Lit("%v"), Id("r"))),
+				),
+				Qual(packageZeroLogLog, "Ctx").Call(Id("ctx").Dot("UserContext").Call()).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Qual(packageErrors, "Wrap").Call(Err(), Lit("recover"))).
+					Dot("Str").Call(Lit("method"), Id("ctx").Dot("Method").Call()).
+					Dot("Str").Call(Lit("path"), Id("ctx").Dot("OriginalURL").Call()).
+					Dot("Msg").Call(Lit("panic occurred")),
+				Id("ctx").Dot("Status").Call(Qual(packageFiber, "StatusInternalServerError")),
+			)),
+		).Call(),
+		Return(Id("ctx").Dot("Next").Call()),
+	)
+}

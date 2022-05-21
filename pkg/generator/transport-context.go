@@ -12,7 +12,6 @@ func (tr Transport) renderContext(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
-	srcFile.Const().Id("CtxCancelRequest").Op("=").Lit("ctxCancelRequest")
 
 	return srcFile.Save(path.Join(outDir, "context.go"))
 }

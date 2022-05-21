@@ -91,14 +91,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.Defer().Id("injectSpan").Call(Id("http").Dot("log"), Id("span"), Id(_ctx_))
 			bg.Defer().Id("span").Dot("Finish").Call()
 		}
-
-		bg.If(Id("value").Op(":=").Id(_ctx_).Dot("Context").Call().Dot("Value").Call(Id("CtxCancelRequest")).Op(";").Id("value").Op("!=").Nil()).BlockFunc(func(ig *Group) {
-			if svc.tags.IsSet(tagTrace) {
-				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-				ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request canceled"))
-			}
-			ig.Return()
-		})
 		bg.Var().Id("request").Id(method.requestStructName())
 		if successCode := method.tags.ValueInt(tagHttpSuccess, 0); successCode != 0 {
 			bg.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Lit(successCode))
@@ -170,9 +162,9 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		} else {
 			bg.Var().Id("response").Id(method.responseStructName())
 			if svc.tags.IsSet(tagTrace) {
-				bg.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("Context").Call(), Id("span"))
+				bg.Id("methodContext").Op(":=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))
 			} else {
-				bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("Context").Call()
+				bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			}
 			bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id("methodContext"), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
 				ex := Line()

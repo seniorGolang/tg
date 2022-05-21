@@ -129,12 +129,6 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 		bg.If(Err().Op("=").Id("agent").Dot("Parse").Call().Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		)
-
-		bg.Line().List(Id("requestID"), Id("_")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("headerRequestID")).Op(".(").String().Op(")")
-		bg.If(Id("requestID").Op("==").Lit("")).Block(
-			Id("requestID").Op("=").Qual(packageUUID, "New").Call().Dot("String").Call(),
-		)
-		bg.Id("req").Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID"))
 		bg.For(List(Id("_"), Id("header")).Op(":=").Range().Id("cli").Dot("headers")).Block(
 			If(List(Id("value"), Id("ok")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("header")).Op(".(").String().Op(")")).Op(";").Id("ok").Block(
 				Id("req").Dot("Header").Dot("Set").Call(Id("header"), Id("value")),

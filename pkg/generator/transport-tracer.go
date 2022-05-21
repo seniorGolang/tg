@@ -46,16 +46,10 @@ func (tr Transport) extractSpanFunc() Code {
 	return Func().Id("extractSpan").
 		Params(Id("log").Qual(packageZeroLog, "Logger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
 		Params(Id("span").Qual(packageOpentracing, "Span")).Block(
-
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
-		Id("requestID").Op(":=").String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
-		If(Id("requestID").Op("==").Lit("")).Block(
-			Id("requestID").Op("=").Qual(packageUUID, "New").Call().Dot("String").Call(),
-		),
 		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
 			Id("headers").Dot("Set").Call(String().Call(Id("key")), String().Call(Id("value"))),
 		)),
-
 		Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
@@ -67,9 +61,6 @@ func (tr Transport) extractSpanFunc() Code {
 		Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
 		Qual(packageOpentracingExt, "HTTPUrl").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("OriginalURL").Call()),
 		Qual(packageOpentracingExt, "HTTPMethod").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("Method").Call()),
-		Id("span").Dot("SetTag").Call(Lit("requestID"), Id("requestID")),
-		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Set").Call(Id("headerRequestID"), Id("requestID")),
-		Id(_ctx_).Dot("Context").Call().Dot("SetUserValue").Call(Id("headerRequestID"), Id("requestID")),
 		Return(),
 	)
 }
@@ -96,7 +87,6 @@ func (tr Transport) injectSpanFunc() Code {
 		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
 		),
-		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetBytesV").Call(Id("headerRequestID"), Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerRequestID"))),
 	)
 }
 
