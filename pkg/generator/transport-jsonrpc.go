@@ -195,8 +195,12 @@ func (tr Transport) batchFunc() Code {
 		func(bg *Group) {
 			bg.Line()
 			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
-			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("srv").Dot("maxParallelBatch"))
-			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("srv").Dot("maxParallelBatch").Op(";").Id("i").Op("++")).Block(
+			bg.Id("batchSize").Op(":=").Id("srv").Dot("maxParallelBatch")
+			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(
+				Id("batchSize").Op("=").Len(Id("requests")),
+			)
+			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
+			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
 				Id("wg").Dot("Add").Call(Lit(1)),
 				Go().Func().Params().Block(
 					Defer().Id("wg").Dot("Done").Call(),

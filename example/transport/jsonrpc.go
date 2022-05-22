@@ -3,14 +3,15 @@ package transport
 
 import (
 	"context"
+	"strings"
+	"sync"
+
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	errors "github.com/pkg/errors"
-	log "github.com/rs/zerolog/log"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
-	"strings"
-	"sync"
 )
 
 const (
@@ -96,8 +97,12 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 func (srv *Server) doBatch(ctx context.Context, requests []baseJsonRPC) (responses jsonrpcResponses) {
 
 	var wg sync.WaitGroup
-	callCh := make(chan baseJsonRPC, srv.maxParallelBatch)
-	for i := 0; i < srv.maxParallelBatch; i++ {
+	batchSize := srv.maxParallelBatch
+	if len(requests) < batchSize {
+		batchSize = len(requests)
+	}
+	callCh := make(chan baseJsonRPC, batchSize)
+	for i := 0; i < batchSize; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
