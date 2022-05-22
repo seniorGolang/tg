@@ -3,7 +3,6 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
@@ -50,4 +49,5 @@ func (http *httpExampleRPC) WithErrorHandler(handler ErrorHandler) *httpExampleR
 func (http *httpExampleRPC) SetRoutes(route *fiber.App) {
 	route.Post("/api/v1/exampleRPC", http.serveBatch)
 	route.Post("/api/v1/exampleRPC/test", http.serveTest)
+	route.Post("/api/v1/exampleRPC/test2", http.serveTest2)
 }

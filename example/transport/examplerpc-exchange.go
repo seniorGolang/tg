@@ -11,3 +11,14 @@ type responseExampleRPCTest struct {
 	Ret1 int    `json:"ret1"`
 	Ret2 string `json:"ret2"`
 }
+
+type requestExampleRPCTest2 struct {
+	Arg0 int           `json:"arg0"`
+	Arg1 string        `json:"arg1"`
+	Opts []interface{} `json:"opts"` // This field was defined with ellipsis (...).
+}
+
+type responseExampleRPCTest2 struct {
+	Ret1 int    `json:"ret1"`
+	Ret2 string `json:"ret2"`
+}

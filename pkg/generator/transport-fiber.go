@@ -19,7 +19,10 @@ func (tr Transport) renderFiber(outDir string) (err error) {
 	srcFile.ImportName(packageErrors, "errors")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 
+	srcFile.Line().Const().Id("logLevelHeader").Op("=").Lit("X-Log-Level")
+
 	tr.renderFiberLogger(srcFile)
+	tr.logLevelHandler(srcFile)
 	tr.renderFiberRecover(srcFile)
 
 	return srcFile.Save(path.Join(outDir, "fiber.go"))
@@ -29,6 +32,28 @@ func (tr Transport) renderFiberLogger(srcFile srcFile) {
 
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("setLogger").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
 		Id(_ctx_).Dot("SetUserContext").Call(Id("srv").Dot("log").Dot("WithContext").Call(Id(_ctx_).Dot("UserContext").Call())),
+		Return(Id(_ctx_).Dot("Next").Call()),
+	)
+}
+
+// if level, err := zerolog.ParseLevel(levelName); err == nil {
+//			logger := log.Ctx(ctx.UserContext()).Level(level)
+//			ctx.SetUserContext(logger.WithContext(ctx.UserContext()))
+//		}
+
+func (tr Transport) logLevelHandler(srcFile srcFile) {
+
+	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("logLevelHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
+
+		Line().
+			If(Id("levelName").Op(":=").String().Call(Id(_ctx_).
+				Dot("Request").Call().Dot("Header").
+				Dot("Peek").Call(Id("logLevelHeader"))).Op(";").Id("levelName").Op("!=").Lit("")).Block(
+			If(List(Id("level"), Err()).Op(":=").Qual(packageZeroLog, "ParseLevel").Call(Id("levelName")).Op(";").Err().Op("==").Nil()).Block(
+				Id("logger").Op(":=").Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Level").Call(Id("level")),
+				Id(_ctx_).Dot("SetUserContext").Call(Id("logger").Dot("WithContext").Call(Id(_ctx_).Dot("UserContext").Call())),
+			),
+		),
 		Return(Id(_ctx_).Dot("Next").Call()),
 	)
 }

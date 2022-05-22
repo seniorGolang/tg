@@ -20,3 +20,9 @@ func (svc traceExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts
 	span.SetTag("method", "Test")
 	return svc.next.Test(ctx, arg0, arg1, opts...)
 }
+
+func (svc traceExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("method", "Test2")
+	return svc.next.Test2(ctx, arg0, arg1, opts...)
+}

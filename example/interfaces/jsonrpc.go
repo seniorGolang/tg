@@ -11,4 +11,5 @@ type ExampleRPC interface {
 	// @tg arg1.type=string
 	// @tg arg1.format=uuid
 	Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error)
+	Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error)
 }

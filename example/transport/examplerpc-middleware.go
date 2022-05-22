@@ -7,7 +7,9 @@ import (
 )
 
 type ExampleRPCTest func(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error)
+type ExampleRPCTest2 func(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error)
 
 type MiddlewareExampleRPC func(next interfaces.ExampleRPC) interfaces.ExampleRPC
 
 type MiddlewareExampleRPCTest func(next ExampleRPCTest) ExampleRPCTest
+type MiddlewareExampleRPCTest2 func(next ExampleRPCTest2) ExampleRPCTest2

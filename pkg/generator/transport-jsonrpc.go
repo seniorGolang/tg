@@ -17,10 +17,12 @@ func (tr Transport) renderJsonRPC(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageErrors, "errors")
+	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageOpentracingExt, "ext")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	srcFile.Line().Add(tr.jsonrpcConstants(false))
 	srcFile.Add(tr.idJsonRPC()).Line()
@@ -174,15 +176,15 @@ func (tr Transport) singleBatchFunc() Code {
 							sg.Case(Lit(svc.lcName() + "." + method.lcName())).Block(
 								Return(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request"))),
 							)
-							sg.Default().BlockFunc(func(dg *Group) {
-								if tr.hasTrace() {
-									dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-									dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
-								}
-								dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
-							})
 						}
 					}
+					sg.Default().BlockFunc(func(dg *Group) {
+						if tr.hasTrace() {
+							dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+							dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
+						}
+						dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
+					})
 				})
 		})
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	errors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 	log "github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
 	"strings"
@@ -140,6 +140,8 @@ func (srv *Server) doSingleBatch(ctx context.Context, request baseJsonRPC) (resp
 	switch method {
 	case "examplerpc.test":
 		return srv.httpExampleRPC.test(ctx, request)
+	case "examplerpc.test2":
+		return srv.httpExampleRPC.test2(ctx, request)
 	default:
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "invalid method '"+methodNameOrigin+"'")

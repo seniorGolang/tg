@@ -147,6 +147,72 @@ paths:
                                         jsonrpc:
                                             type: string
                                             example: "2.0"
+    /api/v1/exampleRPC/test2:
+        post:
+            tags:
+                - ExampleRPC
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                id:
+                                    example: 1
+                                    oneOf:
+                                        - type: number
+                                        - type: string
+                                          format: uuid
+                                jsonrpc:
+                                    type: string
+                                    example: "2.0"
+                                params:
+                                    $ref: '#/components/schemas/requestExampleRPCTest2'
+            responses:
+                "200":
+                    description: Successful operation
+                    content:
+                        application/json:
+                            schema:
+                                oneOf:
+                                    - type: object
+                                      properties:
+                                        id:
+                                            example: 1
+                                            oneOf:
+                                                - type: number
+                                                - type: string
+                                                  format: uuid
+                                        jsonrpc:
+                                            type: string
+                                            example: "2.0"
+                                        result:
+                                            $ref: '#/components/schemas/responseExampleRPCTest2'
+                                    - type: object
+                                      properties:
+                                        error:
+                                            type: object
+                                            properties:
+                                                code:
+                                                    type: number
+                                                    format: int32
+                                                    example: -32603
+                                                data:
+                                                    type: object
+                                                    nullable: true
+                                                message:
+                                                    type: string
+                                                    example: not found
+                                            nullable: true
+                                        id:
+                                            example: 1
+                                            oneOf:
+                                                - type: number
+                                                - type: string
+                                                  format: uuid
+                                        jsonrpc:
+                                            type: string
+                                            example: "2.0"
 components:
     schemas:
         requestExampleRPCTest:
@@ -158,6 +224,19 @@ components:
                 arg1:
                     type: string
                     format: uuid
+                opts:
+                    type: array
+                    items:
+                        type: object
+                        nullable: true
+        requestExampleRPCTest2:
+            type: object
+            properties:
+                arg0:
+                    type: number
+                    format: int
+                arg1:
+                    type: string
                 opts:
                     type: array
                     items:
@@ -199,6 +278,14 @@ components:
                     format: byte
             description: Загрузка файла
         responseExampleRPCTest:
+            type: object
+            properties:
+                ret1:
+                    type: number
+                    format: int
+                ret2:
+                    type: string
+        responseExampleRPCTest2:
             type: object
             properties:
                 ret1:

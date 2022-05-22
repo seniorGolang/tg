@@ -59,6 +59,52 @@ func (http *httpExampleRPC) test(ctx context.Context, requestBase baseJsonRPC) (
 	}
 	return
 }
+func (http *httpExampleRPC) serveTest2(ctx *fiber.Ctx) (err error) {
+	return http.serveMethod(ctx, "test2", http.test2)
+}
+func (http *httpExampleRPC) test2(ctx context.Context, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
+
+	var err error
+	var request requestExampleRPCTest2
+
+	span := otg.SpanFromContext(ctx)
+	span.SetTag("method", "test2")
+
+	if requestBase.Params != nil {
+		if err = json.Unmarshal(requestBase.Params, &request); err != nil {
+			ext.Error.Set(span, true)
+			span.SetTag("msg", "request body could not be decoded: "+err.Error())
+			return makeErrorResponseJsonRPC(requestBase.ID, parseError, "request body could not be decoded: "+err.Error(), nil)
+		}
+	}
+	if requestBase.Version != Version {
+		ext.Error.Set(span, true)
+		span.SetTag("msg", "incorrect protocol version: "+requestBase.Version)
+		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "incorrect protocol version: "+requestBase.Version, nil)
+	}
+
+	var response responseExampleRPCTest2
+	response.Ret1, response.Ret2, err = http.svc.Test2(ctx, request.Arg0, request.Arg1, request.Opts...)
+	if err != nil {
+		if http.errorHandler != nil {
+			err = http.errorHandler(err)
+		}
+		ext.Error.Set(span, true)
+		span.SetTag("msg", err)
+		span.SetTag("errData", toString(err))
+		return makeErrorResponseJsonRPC(requestBase.ID, internalError, err.Error(), err)
+	}
+	responseBase = &baseJsonRPC{
+		ID:      requestBase.ID,
+		Version: Version,
+	}
+	if responseBase.Result, err = json.Marshal(response); err != nil {
+		ext.Error.Set(span, true)
+		span.SetTag("msg", "response body could not be encoded: "+err.Error())
+		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "response body could not be encoded: "+err.Error(), nil)
+	}
+	return
+}
 func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {
 
 	span := otg.SpanFromContext(ctx.UserContext())
@@ -170,6 +216,8 @@ func (http *httpExampleRPC) doSingleBatch(ctx context.Context, request baseJsonR
 	switch method {
 	case "test":
 		return http.test(ctx, request)
+	case "test2":
+		return http.test2(ctx, request)
 	default:
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "invalid method '"+methodNameOrigin+"'")

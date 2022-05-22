@@ -268,14 +268,14 @@ func (svc *service) singleBatchFunc() Code {
 						sg.Case(Lit(method.lcName())).Block(
 							Return(Id("http").Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request"))),
 						)
-						sg.Default().BlockFunc(func(dg *Group) {
-							if svc.tr.hasTrace() {
-								dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-								dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
-							}
-							dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
-						})
 					}
+					sg.Default().BlockFunc(func(dg *Group) {
+						if svc.tr.hasTrace() {
+							dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+							dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
+						}
+						dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
+					})
 				})
 		})
 }
