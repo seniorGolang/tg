@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/zerolog/log"
 
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
@@ -19,8 +18,11 @@ func NewUser() (svc *UserService) {
 
 func (svc *UserService) GetUser(ctx context.Context, cookie, userAgent string) (user *types.User, err error) {
 
-	log.Ctx(ctx).Debug().Msg(">>>")
-	panic("implement me")
+	user = &types.User{
+		UserID: 1000,
+		Name:   "John Dow",
+	}
+	return
 }
 
 func (svc *UserService) UploadFile(ctx context.Context, fileBytes []byte) (err error) {

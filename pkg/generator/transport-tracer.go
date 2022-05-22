@@ -53,9 +53,7 @@ func (tr Transport) makeSpanFunc() Code {
 		Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
-		If(Err().Op("!=").Nil()).Block(
-			Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("extract span from HTTP headers")),
-		).Else().Block(
+		If(Err().Op("==").Nil()).Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
 		Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),

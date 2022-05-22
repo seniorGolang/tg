@@ -80,9 +80,7 @@ func makeSpan(ctx *fiber.Ctx, opName string) (span otg.Span) {
 	})
 	var opts []otg.StartSpanOption
 	wireContext, err := otg.GlobalTracer().Extract(otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers))
-	if err != nil {
-		log.Ctx(ctx.UserContext()).Debug().Err(err).Msg("extract span from HTTP headers")
-	} else {
+	if err == nil {
 		opts = append(opts, otg.ChildOf(wireContext))
 	}
 	span = otg.GlobalTracer().StartSpan(opName, opts...)

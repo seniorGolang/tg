@@ -23,15 +23,14 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
 	srcFile.Type().Id("http"+svc.Name).Struct(
-		Id("log").Qual(packageZeroLog, "Logger"),
 		Id("errorHandler").Id("ErrorHandler"),
+		Id("maxParallelBatch").Int(),
 		Id("svc").Op("*").Id("server"+svc.Name),
 		Id("base").Qual(svc.pkgPath, svc.Name),
 	)
 
-	srcFile.Line().Func().Id("New"+svc.Name).Params(Id("log").Qual(packageZeroLog, "Logger"), Id("svc"+svc.Name).Qual(svc.pkgPath, svc.Name)).Params(Id("srv").Op("*").Id("http"+svc.Name)).Block(
+	srcFile.Line().Func().Id("New"+svc.Name).Params(Id("svc"+svc.Name).Qual(svc.pkgPath, svc.Name)).Params(Id("srv").Op("*").Id("http"+svc.Name)).Block(
 		Line().Id("srv").Op("=").Op("&").Id("http"+svc.Name).Values(Dict{
-			Id("log"):  Id("log"),
 			Id("base"): Id("svc" + svc.Name),
 			Id("svc"):  Id("newServer" + svc.Name).Call(Id("svc" + svc.Name)),
 		}),
@@ -51,6 +50,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")).BlockFunc(func(bg *Group) {
 		if svc.tags.Contains(tagServerJsonRPC) {
+			bg.Id("route").Dot("Post").Call(Lit(svc.batchPath()), Id("http").Dot("serveBatch"))
 			for _, method := range svc.methods {
 				if !method.isJsonRPC() {
 					continue

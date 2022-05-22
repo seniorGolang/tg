@@ -3,22 +3,21 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/zerolog"
+
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
 type httpExampleRPC struct {
-	log          zerolog.Logger
-	errorHandler ErrorHandler
-	svc          *serverExampleRPC
-	base         interfaces.ExampleRPC
+	errorHandler     ErrorHandler
+	maxParallelBatch int
+	svc              *serverExampleRPC
+	base             interfaces.ExampleRPC
 }
 
-func NewExampleRPC(log zerolog.Logger, svcExampleRPC interfaces.ExampleRPC) (srv *httpExampleRPC) {
+func NewExampleRPC(svcExampleRPC interfaces.ExampleRPC) (srv *httpExampleRPC) {
 
 	srv = &httpExampleRPC{
 		base: svcExampleRPC,
-		log:  log,
 		svc:  newServerExampleRPC(svcExampleRPC),
 	}
 	return
@@ -49,5 +48,6 @@ func (http *httpExampleRPC) WithErrorHandler(handler ErrorHandler) *httpExampleR
 }
 
 func (http *httpExampleRPC) SetRoutes(route *fiber.App) {
+	route.Post("/api/v1/exampleRPC", http.serveBatch)
 	route.Post("/api/v1/exampleRPC/test", http.serveTest)
 }

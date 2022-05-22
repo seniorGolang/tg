@@ -151,13 +151,12 @@ func (tr Transport) singleBatchFunc() Code {
 			if tr.hasTrace() {
 				bg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").
 					Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
-				bg.Id("span").Dot("SetTag").Call(Lit("batch"), True())
 				bg.Defer().Id("span").Dot("Finish").Call()
 				bg.Id(_ctx_).Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span"))
 			}
 			bg.Defer().Func().Params().Block(
 				If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil()).Block(
-					Err().Op(":=").Qual(packageErrors, "New").Call(Lit("batch call method panic")),
+					Err().Op(":=").Qual(packageErrors, "New").Call(Lit("call method panic")),
 					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
 						Id("response").Op("=").Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("invalidRequestError"), Lit("panic on method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Err()),
 					),

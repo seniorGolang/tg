@@ -27,6 +27,7 @@ func ExampleRPC(svc *httpExampleRPC) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
 			srv.httpExampleRPC = svc
+			svc.maxParallelBatch = srv.maxParallelBatch
 			svc.SetRoutes(srv.Fiber())
 		}
 	}
@@ -36,6 +37,7 @@ func User(svc *httpUser) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
 			srv.httpUser = svc
+			svc.maxParallelBatch = srv.maxParallelBatch
 			svc.SetRoutes(srv.Fiber())
 		}
 	}

@@ -3,23 +3,21 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/zerolog"
 	implement "github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
 type httpUser struct {
-	log          zerolog.Logger
-	errorHandler ErrorHandler
-	svc          *serverUser
-	base         interfaces.User
+	errorHandler     ErrorHandler
+	maxParallelBatch int
+	svc              *serverUser
+	base             interfaces.User
 }
 
-func NewUser(log zerolog.Logger, svcUser interfaces.User) (srv *httpUser) {
+func NewUser(svcUser interfaces.User) (srv *httpUser) {
 
 	srv = &httpUser{
 		base: svcUser,
-		log:  log,
 		svc:  newServerUser(svcUser),
 	}
 	return

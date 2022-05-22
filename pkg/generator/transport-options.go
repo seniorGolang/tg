@@ -37,6 +37,7 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 				If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
 					Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
+					Id("svc").Dot("maxParallelBatch").Op("=").Id("srv").Dot("maxParallelBatch"),
 					Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
 				),
 			)),

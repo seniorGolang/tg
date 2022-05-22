@@ -3,15 +3,14 @@ package transport
 
 import (
 	"context"
-	"strings"
-	"sync"
-
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
+	errors "github.com/pkg/errors"
+	log "github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"strings"
+	"sync"
 )
 
 const (
@@ -127,12 +126,11 @@ func (srv *Server) doSingleBatch(ctx context.Context, request baseJsonRPC) (resp
 	method := strings.ToLower(request.Method)
 	batchSpan := otg.SpanFromContext(ctx)
 	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
-	span.SetTag("batch", true)
 	defer span.Finish()
 	ctx = otg.ContextWithSpan(ctx, span)
 	defer func() {
 		if r := recover(); r != nil {
-			err := errors.New("batch call method panic")
+			err := errors.New("call method panic")
 			if request.ID != nil {
 				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
 			}
