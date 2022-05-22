@@ -4,8 +4,7 @@ package transport
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
-
-	"github.com/seniorGolang/tg/v2/example/implement"
+	implement "github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
@@ -30,8 +29,8 @@ func (http httpUser) Service() MiddlewareSetUser {
 	return http.svc
 }
 
-func (http *httpUser) WithLog(log zerolog.Logger) *httpUser {
-	http.svc.WithLog(log)
+func (http *httpUser) WithLog() *httpUser {
+	http.svc.WithLog()
 	return http
 }
 
@@ -51,10 +50,10 @@ func (http *httpUser) WithErrorHandler(handler ErrorHandler) *httpUser {
 }
 
 func (http *httpUser) SetRoutes(route *fiber.App) {
-	route.Get("/api/v2/user/info", http.serveGetUser)
-	route.Post("/api/v2/user/file", http.serveUploadFile)
-	route.Patch("/api/v2/user/custom/response", http.serveCustomResponse)
-	route.Delete("/api/v2/user/custom", func(ctx *fiber.Ctx) (err error) {
+	route.Get("/api/v1/api/v2/user/info", http.serveGetUser)
+	route.Post("/api/v1/api/v2/user/file", http.serveUploadFile)
+	route.Patch("/api/v1/api/v2/user/custom/response", http.serveCustomResponse)
+	route.Delete("/api/v1/api/v2/user/custom", func(ctx *fiber.Ctx) (err error) {
 		return implement.CustomHandler(ctx, http.svc)
 	})
 }

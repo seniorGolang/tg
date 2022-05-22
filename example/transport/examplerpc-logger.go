@@ -3,32 +3,26 @@ package transport
 
 import (
 	"context"
-	"time"
-
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/dumper/viewer"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"time"
 )
 
 type loggerExampleRPC struct {
 	next interfaces.ExampleRPC
-	log  zerolog.Logger
 }
 
-func loggerMiddlewareExampleRPC(log zerolog.Logger) MiddlewareExampleRPC {
+func loggerMiddlewareExampleRPC() MiddlewareExampleRPC {
 	return func(next interfaces.ExampleRPC) interfaces.ExampleRPC {
-		return &loggerExampleRPC{
-			log:  log,
-			next: next,
-		}
+		return &loggerExampleRPC{next: next}
 	}
 }
 
 func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+	logger := log.Ctx(ctx).With().Str("service", "ExampleRPC").Str("method", "test").Logger()
 	defer func(begin time.Time) {
 		fields := map[string]interface{}{
-			"method": "test",
 			"request": viewer.Sprintf("%+v", requestExampleRPCTest{
 				Arg0: arg0,
 				Arg1: arg1,
@@ -38,17 +32,13 @@ func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts 
 				Ret1: ret1,
 				Ret2: ret2,
 			}),
-			"service": "ExampleRPC",
-			"took":    time.Since(begin).String(),
-		}
-		if ctx.Value(headerRequestID) != nil {
-			fields["requestID"] = ctx.Value(headerRequestID)
+			"took": time.Since(begin).String(),
 		}
 		if err != nil {
-			m.log.Error().Err(err).Fields(fields).Msg("call test")
+			logger.Error().Err(err).Fields(fields).Msg("call test")
 			return
 		}
-		m.log.Info().Fields(fields).Msg("call test")
+		logger.Info().Fields(fields).Msg("call test")
 	}(time.Now())
 	return m.next.Test(ctx, arg0, arg1, opts...)
 }

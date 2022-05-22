@@ -4,21 +4,22 @@ import (
 	"context"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
 
 type UserService struct {
-	log zerolog.Logger
 }
 
-func NewUser(log zerolog.Logger) (svc *UserService) {
-	return &UserService{log: log}
+func NewUser() (svc *UserService) {
+	return &UserService{}
 }
 
 func (svc *UserService) GetUser(ctx context.Context, cookie, userAgent string) (user *types.User, err error) {
+
+	log.Ctx(ctx).Debug().Msg(">>>")
 	panic("implement me")
 }
 

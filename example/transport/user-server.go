@@ -3,9 +3,6 @@ package transport
 
 import (
 	"context"
-
-	"github.com/rs/zerolog"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
@@ -27,7 +24,7 @@ type MiddlewareSetUser interface {
 
 	WithTrace()
 	WithMetrics()
-	WithLog(log zerolog.Logger)
+	WithLog()
 }
 
 func newServerUser(svc interfaces.User) *serverUser {
@@ -88,6 +85,6 @@ func (srv *serverUser) WithMetrics() {
 	srv.Wrap(metricsMiddlewareUser)
 }
 
-func (srv *serverUser) WithLog(log zerolog.Logger) {
-	srv.Wrap(loggerMiddlewareUser(log))
+func (srv *serverUser) WithLog() {
+	srv.Wrap(loggerMiddlewareUser())
 }

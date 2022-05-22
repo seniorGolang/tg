@@ -10,8 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 
-	"github.com/gofiber/fiber/v2/middleware/recover"
-
 	"github.com/seniorGolang/tg/v2/example/config"
 	"github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/transport"
@@ -30,21 +28,23 @@ func main() {
 	log.Info().Msg("start server")
 	defer log.Info().Msg("shutdown server")
 
-	svcUser := implement.NewUser(log.With().Str("module", "user").Logger())
+	svcUser := implement.NewUser()
 	svcJsonRPC := implement.NewJsonRPC(log.With().Str("module", "jsonRPC").Logger())
 
 	services := []transport.Option{
-		transport.Use(recover.New()),
+		transport.WithRequestID("X-Request-Id"),
 		transport.User(transport.NewUser(log.Logger, svcUser)),
 		transport.ExampleRPC(transport.NewExampleRPC(log.Logger, svcJsonRPC)),
 	}
 
-	srv := transport.New(log.Logger, services...).WithLog(log.Logger).WithTrace().TraceJaeger("example")
+	srv := transport.New(log.Logger, services...).WithLog().WithTrace().TraceJaeger("example")
 
 	go func() {
-		if err := srv.Fiber().Listen(":3000"); err != nil {
+		log.Info().Str("bind", config.Service().Bind).Msg("listen on")
+		if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
 			log.Panic().Err(err).Stack().Msg("server error")
 		}
 	}()
+
 	<-shutdown
 }

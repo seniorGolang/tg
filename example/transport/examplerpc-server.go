@@ -3,9 +3,6 @@ package transport
 
 import (
 	"context"
-
-	"github.com/rs/zerolog"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
@@ -20,7 +17,7 @@ type MiddlewareSetExampleRPC interface {
 
 	WithTrace()
 	WithMetrics()
-	WithLog(log zerolog.Logger)
+	WithLog()
 }
 
 func newServerExampleRPC(svc interfaces.ExampleRPC) *serverExampleRPC {
@@ -51,6 +48,6 @@ func (srv *serverExampleRPC) WithMetrics() {
 	srv.Wrap(metricsMiddlewareExampleRPC)
 }
 
-func (srv *serverExampleRPC) WithLog(log zerolog.Logger) {
-	srv.Wrap(loggerMiddlewareExampleRPC(log))
+func (srv *serverExampleRPC) WithLog() {
+	srv.Wrap(loggerMiddlewareExampleRPC())
 }

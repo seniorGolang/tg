@@ -2,15 +2,12 @@
 package transport
 
 import (
-	"io"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
+	log "github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"io"
 )
-
-const maxRequestBodySize = 104857600
-const headerRequestID = "X-Request-Id"
 
 type Server struct {
 	log zerolog.Logger
@@ -24,27 +21,32 @@ type Server struct {
 	srvHealth *fiber.App
 
 	reporterCloser io.Closer
-	httpExampleRPC *httpExampleRPC
-	httpUser       *httpUser
+
+	maxParallelBatch int
+	httpExampleRPC   *httpExampleRPC
+	httpUser         *httpUser
+	headerHandlers   map[string]HeaderHandler
 }
 
 func New(log zerolog.Logger, options ...Option) (srv *Server) {
 
 	srv = &Server{
-		config: fiber.Config{
-			BodyLimit:             maxRequestBodySize,
-			DisableStartupMessage: true,
-		},
-		log: log,
+		config:           fiber.Config{DisableStartupMessage: true},
+		headerHandlers:   make(map[string]HeaderHandler),
+		log:              log,
+		maxParallelBatch: defaultMaxParallelBatch,
 	}
 	for _, option := range options {
 		option(srv)
 	}
 	srv.srvHTTP = fiber.New(srv.config)
+	srv.srvHTTP.Use(recoverHandler)
+	srv.srvHTTP.Use(srv.setLogger)
+	srv.srvHTTP.Use(srv.headersHandler)
 	for _, option := range options {
 		option(srv)
 	}
-	srv.srvHTTP.Post("/", srv.serveBatch)
+	srv.srvHTTP.Post("/api/v1", srv.serveBatch)
 	return
 }
 
@@ -52,12 +54,12 @@ func (srv *Server) Fiber() *fiber.App {
 	return srv.srvHTTP
 }
 
-func (srv *Server) WithLog(log zerolog.Logger) *Server {
+func (srv *Server) WithLog() *Server {
 	if srv.httpExampleRPC != nil {
-		srv.httpExampleRPC = srv.ExampleRPC().WithLog(log)
+		srv.httpExampleRPC = srv.ExampleRPC().WithLog()
 	}
 	if srv.httpUser != nil {
-		srv.httpUser = srv.User().WithLog(log)
+		srv.httpUser = srv.User().WithLog()
 	}
 	return srv
 }
@@ -73,10 +75,10 @@ func (srv *Server) ServeHealth(address string, response interface{}) {
 	}()
 }
 
-func sendResponse(log zerolog.Logger, ctx *fiber.Ctx, resp interface{}) (err error) {
+func sendResponse(ctx *fiber.Ctx, resp interface{}) (err error) {
 	ctx.Response().Header.SetContentType("application/json")
 	if err = json.NewEncoder(ctx).Encode(resp); err != nil {
-		log.Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
+		log.Ctx(ctx.UserContext()).Error().Err(err).Str("body", string(ctx.Body())).Msg("response write error")
 	}
 	return
 }

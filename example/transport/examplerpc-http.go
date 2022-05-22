@@ -4,7 +4,6 @@ package transport
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
@@ -29,8 +28,8 @@ func (http httpExampleRPC) Service() MiddlewareSetExampleRPC {
 	return http.svc
 }
 
-func (http *httpExampleRPC) WithLog(log zerolog.Logger) *httpExampleRPC {
-	http.svc.WithLog(log)
+func (http *httpExampleRPC) WithLog() *httpExampleRPC {
+	http.svc.WithLog()
 	return http
 }
 
@@ -50,6 +49,5 @@ func (http *httpExampleRPC) WithErrorHandler(handler ErrorHandler) *httpExampleR
 }
 
 func (http *httpExampleRPC) SetRoutes(route *fiber.App) {
-	route.Post("/examplerpc", http.serveBatch)
-	route.Post("/exampleRPC/test", http.serveTest)
+	route.Post("/api/v1/exampleRPC/test", http.serveTest)
 }

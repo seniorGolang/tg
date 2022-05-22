@@ -6,7 +6,7 @@ info:
 servers:
     - url: http://example.test
 paths:
-    /api/v2/user/custom:
+    /api/v1/api/v2/user/custom:
         delete:
             tags:
                 - User
@@ -21,7 +21,7 @@ paths:
                     description: Successful operation
                 "400":
                     description: Bad Request
-    /api/v2/user/custom/response:
+    /api/v1/api/v2/user/custom/response:
         patch:
             tags:
                 - User
@@ -36,7 +36,7 @@ paths:
                     description: Successful operation
                 "400":
                     description: Bad Request
-    /api/v2/user/file:
+    /api/v1/api/v2/user/file:
         post:
             tags:
                 - User
@@ -52,7 +52,7 @@ paths:
                     description: Successful operation
                 "400":
                     description: Bad Request
-    /api/v2/user/info:
+    /api/v1/api/v2/user/info:
         get:
             tags:
                 - User
@@ -80,7 +80,7 @@ paths:
                     description: Bad Request
                 "401":
                     description: Unauthorized
-    /exampleRPC/test:
+    /api/v1/exampleRPC/test:
         post:
             tags:
                 - ExampleRPC
@@ -149,14 +149,6 @@ paths:
                                             example: "2.0"
 components:
     schemas:
-        User:
-            type: object
-            properties:
-                name:
-                    type: string
-                userID:
-                    type: number
-                    format: uint64
         requestExampleRPCTest:
             type: object
             properties:

@@ -2,18 +2,19 @@
 package transport
 
 import (
-	"fmt"
+	"context"
+	"github.com/gofiber/fiber/v2"
+	otg "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	errors "github.com/pkg/errors"
+	log "github.com/rs/zerolog/log"
+	"github.com/seniorGolang/json"
 	"strings"
 	"sync"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/seniorGolang/json"
 )
 
 const (
-	maxParallelBatch = 100
+	defaultMaxParallelBatch = 10
 	// Version defines the version of the JSON RPC implementation
 	Version = "2.0"
 	// contentTypeJson defines the content type to be served
@@ -62,14 +63,11 @@ func (responses *jsonrpcResponses) append(response *baseJsonRPC) {
 		*responses = append(*responses, *response)
 	}
 }
-
-type methodJsonRPC func(ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
-type methodTraceJsonRPC func(span opentracing.Span, ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
-
 func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
-	batchSpan := extractSpan(srv.log, fmt.Sprintf("jsonRPC:%s", ctx.Path()), ctx)
-	defer injectSpan(srv.log, batchSpan, ctx)
-	defer batchSpan.Finish()
+
+	var single bool
+	var requests []baseJsonRPC
+	batchSpan := otg.SpanFromContext(ctx.UserContext())
 	methodHTTP := ctx.Method()
 	if methodHTTP != fiber.MethodPost {
 		ext.Error.Set(batchSpan, true)
@@ -80,64 +78,73 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 		}
 		return
 	}
-	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
-		return
-	}
-	var single bool
-	var requests []baseJsonRPC
 	if err = json.Unmarshal(ctx.Body(), &requests); err != nil {
 		var request baseJsonRPC
 		if err = json.Unmarshal(ctx.Body(), &request); err != nil {
 			ext.Error.Set(batchSpan, true)
 			batchSpan.SetTag("msg", "request body could not be decoded: "+err.Error())
-			return sendResponse(srv.log, ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
+			return sendResponse(ctx, makeErrorResponseJsonRPC([]byte("\"0\""), parseError, "request body could not be decoded: "+err.Error(), nil))
 		}
 		single = true
 		requests = append(requests, request)
 	}
-	responses := make(jsonrpcResponses, 0, len(requests))
-	var n int
-	var wg sync.WaitGroup
-	for _, request := range requests {
-		methodNameOrigin := request.Method
-		method := strings.ToLower(request.Method)
-		switch method {
-
-		case "examplerpc.test":
-			wg.Add(1)
-			go func(request baseJsonRPC) {
-
-				span := opentracing.StartSpan(request.Method, opentracing.ChildOf(batchSpan.Context()))
-				span.SetTag("batch", true)
-				defer span.Finish()
-				if request.ID != nil {
-					responses.append(srv.httpExampleRPC.test(span, ctx, request))
-					wg.Done()
-					return
-				}
-				srv.httpExampleRPC.test(span, ctx, request)
-				wg.Done()
-			}(request)
-		default:
-			span := opentracing.StartSpan(request.Method, opentracing.ChildOf(batchSpan.Context()))
-			span.SetTag("batch", true)
-			ext.Error.Set(span, true)
-			span.SetTag("msg", "invalid method '"+methodNameOrigin+"'")
-			responses.append(makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method '"+methodNameOrigin+"'", nil))
-			span.Finish()
-		}
-		if n > maxParallelBatch {
-			n = 0
-			wg.Wait()
-		}
-		n++
-	}
-	wg.Wait()
 	if single {
-		return sendResponse(srv.log, ctx, responses[0])
+		return sendResponse(ctx, srv.doSingleBatch(ctx.UserContext(), requests[0]))
 	}
-	return sendResponse(srv.log, ctx, responses)
+	return sendResponse(ctx, srv.doBatch(ctx.UserContext(), requests))
 }
+func (srv *Server) doBatch(ctx context.Context, requests []baseJsonRPC) (responses jsonrpcResponses) {
+
+	var wg sync.WaitGroup
+	callCh := make(chan baseJsonRPC, srv.maxParallelBatch)
+	for i := 0; i < srv.maxParallelBatch; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for request := range callCh {
+				response := srv.doSingleBatch(ctx, request)
+				if request.ID != nil {
+					responses.append(response)
+				}
+			}
+		}()
+	}
+	for idx := range requests {
+		callCh <- requests[idx]
+	}
+	close(callCh)
+	wg.Wait()
+	return
+}
+func (srv *Server) doSingleBatch(ctx context.Context, request baseJsonRPC) (response *baseJsonRPC) {
+
+	methodNameOrigin := request.Method
+	method := strings.ToLower(request.Method)
+	batchSpan := otg.SpanFromContext(ctx)
+	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
+	span.SetTag("batch", true)
+	defer span.Finish()
+	ctx = otg.ContextWithSpan(ctx, span)
+	defer func() {
+		if r := recover(); r != nil {
+			err := errors.New("batch call method panic")
+			if request.ID != nil {
+				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
+			}
+			log.Ctx(ctx).Error().Stack().Err(err).Msg("panic occurred")
+		}
+	}()
+	switch method {
+	case "examplerpc.test":
+		return srv.httpExampleRPC.test(ctx, request)
+	default:
+		ext.Error.Set(span, true)
+		span.SetTag("msg", "invalid method '"+methodNameOrigin+"'")
+		return makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method '"+methodNameOrigin+"'", nil)
+	}
+}
+
+type methodJsonRPC func(ctx context.Context, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
 
 func makeErrorResponseJsonRPC(id idJsonRPC, code int, msg string, data interface{}) *baseJsonRPC {
 

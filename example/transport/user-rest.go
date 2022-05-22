@@ -3,18 +3,18 @@ package transport
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/opentracing/opentracing-go"
+	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/seniorGolang/json"
-
-	"github.com/seniorGolang/tg/v2/example/implement"
+	implement "github.com/seniorGolang/tg/v2/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {
-	span := opentracing.SpanFromContext(ctx)
+
+	span := otg.SpanFromContext(ctx)
+	span.SetTag("method", "getUser")
+
 	response.User, err = http.svc.GetUser(ctx, request.Cookie, request.UserAgent)
 	if err != nil {
 		if http.errorHandler != nil {
@@ -30,14 +30,10 @@ func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (
 	return
 }
 func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
-	defer injectSpan(http.log, span, ctx)
-	defer span.Finish()
-	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request canceled")
-		return
-	}
+
+	span := otg.SpanFromContext(ctx.UserContext())
+	span.SetTag("method", "getUser")
+
 	var request requestUserGetUser
 	ctx.Response().SetStatusCode(204)
 
@@ -54,19 +50,21 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 	}
 
 	var response responseUserGetUser
-	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	if response, err = http.getUser(methodContext, request); err == nil {
-		return sendResponse(http.log, ctx, response)
+	if response, err = http.getUser(ctx.UserContext(), request); err == nil {
+		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {
 		ctx.Status(errCoder.Code())
 	} else {
 		ctx.Status(fiber.StatusInternalServerError)
 	}
-	return sendResponse(http.log, ctx, err)
+	return sendResponse(ctx, err)
 }
 func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadFile) (response responseUserUploadFile, err error) {
-	span := opentracing.SpanFromContext(ctx)
+
+	span := otg.SpanFromContext(ctx)
+	span.SetTag("method", "uploadFile")
+
 	err = http.svc.UploadFile(ctx, request.FileBytes)
 	if err != nil {
 		if http.errorHandler != nil {
@@ -82,14 +80,10 @@ func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadF
 	return
 }
 func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
-	defer injectSpan(http.log, span, ctx)
-	defer span.Finish()
-	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request canceled")
-		return
-	}
+
+	span := otg.SpanFromContext(ctx.UserContext())
+	span.SetTag("method", "uploadFile")
+
 	var request requestUserUploadFile
 
 	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
@@ -97,22 +91,24 @@ func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
 		ctx.Status(fiber.StatusBadRequest)
-		return sendResponse(http.log, ctx, "upload file 'fileBytes' error: "+err.Error())
+		return sendResponse(ctx, "upload file 'fileBytes' error: "+err.Error())
 	}
 	var response responseUserUploadFile
-	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	if response, err = http.uploadFile(methodContext, request); err == nil {
-		return sendResponse(http.log, ctx, response)
+	if response, err = http.uploadFile(ctx.UserContext(), request); err == nil {
+		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {
 		ctx.Status(errCoder.Code())
 	} else {
 		ctx.Status(fiber.StatusInternalServerError)
 	}
-	return sendResponse(http.log, ctx, err)
+	return sendResponse(ctx, err)
 }
 func (http *httpUser) customResponse(ctx context.Context, request requestUserCustomResponse) (response responseUserCustomResponse, err error) {
-	span := opentracing.SpanFromContext(ctx)
+
+	span := otg.SpanFromContext(ctx)
+	span.SetTag("method", "customResponse")
+
 	err = http.svc.CustomResponse(ctx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
@@ -128,14 +124,10 @@ func (http *httpUser) customResponse(ctx context.Context, request requestUserCus
 	return
 }
 func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
-	defer injectSpan(http.log, span, ctx)
-	defer span.Finish()
-	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request canceled")
-		return
-	}
+
+	span := otg.SpanFromContext(ctx.UserContext())
+	span.SetTag("method", "customResponse")
+
 	var request requestUserCustomResponse
 	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
 		ext.Error.Set(span, true)
@@ -148,7 +140,10 @@ func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 	return implement.CustomResponseHandler(ctx, http.svc, request.Arg0, request.Arg1, request.Opts...)
 }
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
-	span := opentracing.SpanFromContext(ctx)
+
+	span := otg.SpanFromContext(ctx)
+	span.SetTag("method", "customHandler")
+
 	err = http.svc.CustomHandler(ctx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
@@ -164,14 +159,10 @@ func (http *httpUser) customHandler(ctx context.Context, request requestUserCust
 	return
 }
 func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
-	span := extractSpan(http.log, fmt.Sprintf("request:%s", ctx.Path()), ctx)
-	defer injectSpan(http.log, span, ctx)
-	defer span.Finish()
-	if value := ctx.Context().Value(CtxCancelRequest); value != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request canceled")
-		return
-	}
+
+	span := otg.SpanFromContext(ctx.UserContext())
+	span.SetTag("method", "customHandler")
+
 	var request requestUserCustomHandler
 	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
 		ext.Error.Set(span, true)
@@ -182,14 +173,13 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 	}
 
 	var response responseUserCustomHandler
-	methodContext := opentracing.ContextWithSpan(ctx.Context(), span)
-	if response, err = http.customHandler(methodContext, request); err == nil {
-		return sendResponse(http.log, ctx, response)
+	if response, err = http.customHandler(ctx.UserContext(), request); err == nil {
+		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {
 		ctx.Status(errCoder.Code())
 	} else {
 		ctx.Status(fiber.StatusInternalServerError)
 	}
-	return sendResponse(http.log, ctx, err)
+	return sendResponse(ctx, err)
 }
