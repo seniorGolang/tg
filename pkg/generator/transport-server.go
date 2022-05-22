@@ -143,6 +143,7 @@ func (tr Transport) serverNewFunc() Code {
 			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("recoverHandler"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("setLogger"))
+			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("logLevelHandler"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("headersHandler"))
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),

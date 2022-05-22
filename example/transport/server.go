@@ -42,6 +42,7 @@ func New(log zerolog.Logger, options ...Option) (srv *Server) {
 	srv.srvHTTP = fiber.New(srv.config)
 	srv.srvHTTP.Use(recoverHandler)
 	srv.srvHTTP.Use(srv.setLogger)
+	srv.srvHTTP.Use(srv.logLevelHandler)
 	srv.srvHTTP.Use(srv.headersHandler)
 	for _, option := range options {
 		option(srv)
