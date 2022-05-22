@@ -13,6 +13,7 @@ import (
 	"github.com/seniorGolang/tg/v2/example/config"
 	"github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/transport"
+	"github.com/seniorGolang/tg/v2/example/utils/header"
 )
 
 func main() {
@@ -32,6 +33,7 @@ func main() {
 	svcJsonRPC := implement.NewJsonRPC(log.With().Str("module", "jsonRPC").Logger())
 
 	services := []transport.Option{
+		transport.WithHeader(header.AppHeader, header.AppName),
 		transport.WithRequestID("X-Request-Id"),
 		transport.User(transport.NewUser(log.Logger, svcUser)),
 		transport.ExampleRPC(transport.NewExampleRPC(log.Logger, svcJsonRPC)),
