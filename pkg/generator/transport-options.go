@@ -58,6 +58,11 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			Id("srv").Dot("config").Dot("BodyLimit").Op("=").Id("max"),
 		)),
 	)
+	srcFile.Line().Func().Id("BatchSizeJsonRPC").Params(Id("size").Int()).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("maxParallelBatch").Op("=").Id("size"),
+		)),
+	)
 	srcFile.Line().Func().Id("ReadTimeout").Params(Id("timeout").Qual(packageTime, "Duration")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("config").Dot("ReadTimeout").Op("=").Id("timeout"),
@@ -66,6 +71,29 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 	srcFile.Line().Func().Id("WriteTimeout").Params(Id("timeout").Qual(packageTime, "Duration")).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("config").Dot("WriteTimeout").Op("=").Id("timeout"),
+		)),
+	)
+	srcFile.Line().Func().Id("WithRequestID").Params(Id("headerName").String()).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("headerHandlers").Op("[").Id("headerName").Op("]").Op("=").
+				Func().Params(Id("value").String()).Params(Id("Header")).Block(
+				If(Id("value").Op("==").Lit("")).Block(
+					Id("value").Op("=").Qual(packageUUID, "New").Call().Dot("String").Call(),
+				),
+				Return(Id("Header").Block(Dict{
+					Id("SpanKey"):       Lit("requestID"),
+					Id("SpanValue"):     Id("value"),
+					Id("ResponseKey"):   Id("headerName"),
+					Id("ResponseValue"): Id("value"),
+					Id("LogKey"):        Lit("requestID"),
+					Id("LogValue"):      Id("value"),
+				})),
+			),
+		)),
+	)
+	srcFile.Line().Func().Id("WithHeader").Params(Id("headerName").String(), Id("handler").Id("HeaderHandler")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("headerHandlers").Op("[").Id("headerName").Op("]").Op("=").Id("handler"),
 		)),
 	)
 	srcFile.Line().Func().Id("Use").Params(Id("args").Op("...").Interface()).Id("Option").Block(

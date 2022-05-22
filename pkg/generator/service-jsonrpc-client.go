@@ -78,7 +78,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 					}),
 					Return(),
 				),
-				Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("jsonrpcResponse").Dot("Result"), Op("&").Id("response")),
+				Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("jsonrpcResponse").Dot("Result"), Op("&").Id("response")),
 				Id("ret").CallFunc(func(cg *Group) {
 					for _, ret := range method.resultsWithoutError() {
 						cg.Id("response").Dot(utils.ToCamel(ret.Name))

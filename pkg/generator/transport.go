@@ -47,6 +47,7 @@ const (
 	tagHttpSuccess   = "http-success"
 	tagServerJsonRPC = "jsonRPC-server"
 	tagHttpResponse  = "http-response"
+	tagPackageJSON   = "packageJSON"
 	tagPackageUUID   = "uuidPackage"
 	tagSwaggerTags   = "swaggerTags"
 )
@@ -69,24 +70,18 @@ func NewTransport(log logrus.FieldLogger, svcDir string, options ...Option) (tr 
 	}
 
 	for _, file := range files {
-
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".go") {
 			continue
 		}
-
 		var serviceAst *types.File
 		svcDir, _ = filepath.Abs(svcDir)
 		filePath := path.Join(svcDir, file.Name())
 		if serviceAst, err = astra.ParseFile(filePath); err != nil {
 			return
 		}
-
 		tr.tags = tr.tags.Merge(tags.ParseTags(serviceAst.Docs))
-
 		for _, iface := range serviceAst.Interfaces {
-
 			if len(tags.ParseTags(iface.Docs)) != 0 {
-
 				service := newService(log, &tr, filePath, iface, options...)
 				tr.services[iface.Name] = service
 
@@ -150,6 +145,7 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 
 	showError(tr.log, tr.renderHTTP(outDir), "renderHTTP")
 	showError(tr.log, tr.renderFiber(outDir), "renderFiber")
+	showError(tr.log, tr.renderHeader(outDir), "renderHeader")
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
 	showError(tr.log, tr.renderContext(outDir), "renderContext")

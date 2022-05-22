@@ -16,7 +16,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageIO, "io")
-	srcFile.ImportName(packageJson, "json")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
@@ -117,9 +117,11 @@ func (tr Transport) serverType() Code {
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
+		g.Line().Id("maxParallelBatch").Int()
 		for _, serviceName := range tr.serviceKeys() {
 			g.Id("http" + serviceName).Op("*").Id("http" + serviceName)
 		}
+		g.Id("headerHandlers").Map(String()).Id("HeaderHandler")
 	})
 }
 
@@ -128,7 +130,9 @@ func (tr Transport) serverNewFunc() Code {
 	return Func().Id("New").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
 		BlockFunc(func(bg *Group) {
 			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(Dict{
-				Id("log"): Id("log"),
+				Id("log"):              Id("log"),
+				Id("maxParallelBatch"): Id("defaultMaxParallelBatch"),
+				Id("headerHandlers"):   Make(Map(String()).Id("HeaderHandler")),
 				Id("config"): Qual(packageFiber, "Config").Values(Dict{
 					Id("DisableStartupMessage"): True(),
 				}),
@@ -137,7 +141,9 @@ func (tr Transport) serverNewFunc() Code {
 				Id("option").Call(Id("srv")),
 			)
 			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
+			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("recoverHandler"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("setLogger"))
+			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("headersHandler"))
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
 			)
@@ -181,10 +187,10 @@ func (tr Transport) shutdownFunc(hasMetrics bool) Code {
 }
 
 func (tr Transport) sendResponseFunc() Code {
-	return Func().Id("sendResponse").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Params(Err().Error()).Block(
+	return Func().Id("sendResponse").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Params(Err().Error()).Block(
 		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Lit("application/json")),
-		If(Err().Op("=").Qual(packageJson, "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("body"), String().Call(Id(_ctx_).Dot("Body").Call())).Dot("Msg").Call(Lit("response write error")),
+		If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
+			Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("body"), String().Call(Id(_ctx_).Dot("Body").Call())).Dot("Msg").Call(Lit("response write error")),
 		),
 		Return(),
 	)

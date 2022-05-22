@@ -51,7 +51,6 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")).BlockFunc(func(bg *Group) {
 		if svc.tags.Contains(tagServerJsonRPC) {
-			bg.Id("route").Dot("Post").Call(Lit(svc.batchPath()), Id("http").Dot("serveBatch"))
 			for _, method := range svc.methods {
 				if !method.isJsonRPC() {
 					continue

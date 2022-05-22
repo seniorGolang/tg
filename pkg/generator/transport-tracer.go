@@ -15,15 +15,15 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(packageJson, "json")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportAlias(packageUUID, "goUUID")
-	srcFile.ImportName(packageJaegerLog, "log")
-	srcFile.ImportName(packageZeroLog, "zerolog")
+	srcFile.ImportName(packageZeroLogLog, "log")
+	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageOpenZipkin, "zipkin")
 	srcFile.ImportName(packageOpentracingExt, "ext")
-	srcFile.ImportAlias(packageOpentracing, "otg")
+	srcFile.ImportAlias(packageJaegerLog, "jaegerLog")
 	srcFile.ImportName(packageJaegerConfig, "config")
 	srcFile.ImportName(packageJaegerClient, "jaeger")
 	srcFile.ImportName(packageJaegerMetrics, "metrics")
@@ -34,19 +34,19 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	srcFile.Line().Add(tr.traceZipkinFunc())
 
 	srcFile.Line().Add(tr.injectSpanFunc())
-	srcFile.Line().Add(tr.extractSpanFunc())
+	srcFile.Line().Add(tr.makeSpanFunc())
 
 	srcFile.Line().Add(tr.toStringFunc())
 
 	return srcFile.Save(path.Join(outDir, "tracer.go"))
 }
 
-func (tr Transport) extractSpanFunc() Code {
+func (tr Transport) makeSpanFunc() Code {
 
-	return Func().Id("extractSpan").
-		Params(Id("log").Qual(packageZeroLog, "Logger"), Id("opName").String(), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).
+	return Func().Id("makeSpan").
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("opName").String()).
 		Params(Id("span").Qual(packageOpentracing, "Span")).Block(
-		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
+		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("VisitAll").Call(Func().Params(Id("key"), Id("value").Op("[]").Byte()).Block(
 			Id("headers").Dot("Set").Call(String().Call(Id("key")), String().Call(Id("value"))),
 		)),
@@ -54,13 +54,14 @@ func (tr Transport) extractSpanFunc() Code {
 		List(Id("wireContext"), Err()).Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("Extract").Call(Qual(packageOpentracing, "HTTPHeaders"), Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers"))),
 
 		If(Err().Op("!=").Nil()).Block(
-			Id("log").Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("extract span from HTTP headers")),
+			Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("extract span from HTTP headers")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("wireContext"))),
 		),
 		Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
 		Qual(packageOpentracingExt, "HTTPUrl").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("OriginalURL").Call()),
 		Qual(packageOpentracingExt, "HTTPMethod").Dot("Set").Call(Id("span"), Id(_ctx_).Dot("Method").Call()),
+		Id(_ctx_).Dot("SetUserContext").Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))),
 		Return(),
 	)
 }
@@ -68,21 +69,21 @@ func (tr Transport) extractSpanFunc() Code {
 func (tr Transport) toStringFunc() Code {
 
 	return Func().Id("toString").Params(Id("value").Interface()).String().Block(
-		List(Id("data"), Id("_")).Op(":=").Qual(packageJson, "Marshal").Call(Id("value")),
+		List(Id("data"), Id("_")).Op(":=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("value")),
 		Return(String().Call(Id("data"))),
 	)
 }
 
 func (tr Transport) injectSpanFunc() Code {
-	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Block(
-		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
+	return Func().Line().Id("injectSpan").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("span").Qual(packageOpentracing, "Span")).Block(
+		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(
 			Id("span").Dot("Context").Call(),
 			Qual(packageOpentracing, "HTTPHeaders"),
 			Qual(packageOpentracing, "HTTPHeadersCarrier").Call(Id("headers")),
 		).Op(";").Err().Op("!=").Nil()).Block(
-			Id("log").Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("inject span to HTTP headers")),
+			Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Debug").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("inject span to HTTP headers")),
 		),
 		For(List(Id("key"), Id("values")).Op(":=").Range().Id("headers")).Block(
 			Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),

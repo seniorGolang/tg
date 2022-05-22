@@ -15,7 +15,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(packageJson, "json")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageJaegerLog, "log")
@@ -26,7 +26,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.Line().Add(tr.jsonrpcConstants(true))
 
 	srcFile.Line().Add(tr.idJsonRPC())
-	srcFile.Type().Id("ErrorDecoder").Func().Params(Id("errData").Qual(packageJson, "RawMessage")).Params(Error())
+	srcFile.Type().Id("ErrorDecoder").Func().Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Error())
 	srcFile.Line().Add(tr.baseJsonRPC(true))
 	srcFile.Line().Add(tr.errorJsonRPC())
 	srcFile.Line().Add(tr.jsonrpcClientStructFunc())
@@ -61,9 +61,9 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 			)
 		}
 	}
-	srcFile.Line().Func().Id("defaultErrorDecoder").Params(Id("errData").Qual(packageJson, "RawMessage")).Params(Err().Error()).Block(
+	srcFile.Line().Func().Id("defaultErrorDecoder").Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Err().Error()).Block(
 		Line().Var().Id("jsonrpcError").Id("errorJsonRPC"),
-		If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("errData"), Op("&").Id("jsonrpcError")).Op(";").Err().Op("!=").Nil()).Block(
+		If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("errData"), Op("&").Id("jsonrpcError")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		),
 		Return(Id("jsonrpcError")),
@@ -134,7 +134,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 				Id("req").Dot("Header").Dot("Set").Call(Id("header"), Id("value")),
 			),
 		)
-		bg.If(Err().Op("=").Qual(packageJson, "NewEncoder").Call(Id("req").Dot("BodyWriter").Call()).Dot("Encode").Call(Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
+		bg.If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "NewEncoder").Call(Id("req").Dot("BodyWriter").Call()).Dot("Encode").Call(Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		)
 		if hasTrace {
@@ -151,7 +151,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 			),
 		)
 		bg.Var().Id("responses").Op("[]").Id("baseJsonRPC")
-		bg.If(Err().Op("=").Qual(packageJson, "Unmarshal").Call(Id("resp").Dot("Body").Call(), Op("&").Id("responses")).Op(";").Err().Op("!=").Nil()).Block(
+		bg.If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("resp").Dot("Body").Call(), Op("&").Id("responses")).Op(";").Err().Op("!=").Nil()).Block(
 			Id("cli").Dot("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("response"), String().Call(Id("resp").Dot("Body").Call())).Dot("Msg").Call(Lit("unmarshal response error")),
 			Return(),
 		)

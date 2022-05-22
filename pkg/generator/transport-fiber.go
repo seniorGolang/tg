@@ -27,28 +27,28 @@ func (tr Transport) renderFiber(outDir string) (err error) {
 
 func (tr Transport) renderFiberLogger(srcFile srcFile) {
 
-	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("setLogger").Params(Id("ctx").Op("*").Qual(packageFiber, "Ctx")).Error().Block(
-		Id("ctx").Dot("SetUserContext").Call(Id("srv").Dot("log").Dot("WithContext").Call(Id("ctx").Dot("UserContext").Call())),
-		Return(Id("ctx").Dot("Next").Call()),
+	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("setLogger").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
+		Id(_ctx_).Dot("SetUserContext").Call(Id("srv").Dot("log").Dot("WithContext").Call(Id(_ctx_).Dot("UserContext").Call())),
+		Return(Id(_ctx_).Dot("Next").Call()),
 	)
 }
 
 func (tr Transport) renderFiberRecover(srcFile srcFile) {
 
-	srcFile.Line().Func().Id("Recover").Params(Id("ctx").Op("*").Qual(packageFiber, "Ctx")).Error().Block(
+	srcFile.Line().Func().Id("recoverHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
 		Defer().Func().Params().Block(
 			If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil().Block(
 				List(Err(), Id("ok")).Op(":=").Id("r").Op(".").Call(Error()),
 				If(Op("!").Id("ok")).Block(
 					Err().Op("=").Qual(packageErrors, "New").Call(Qual(packageFmt, "Sprintf").Call(Lit("%v"), Id("r"))),
 				),
-				Qual(packageZeroLogLog, "Ctx").Call(Id("ctx").Dot("UserContext").Call()).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Qual(packageErrors, "Wrap").Call(Err(), Lit("recover"))).
-					Dot("Str").Call(Lit("method"), Id("ctx").Dot("Method").Call()).
-					Dot("Str").Call(Lit("path"), Id("ctx").Dot("OriginalURL").Call()).
+				Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Qual(packageErrors, "Wrap").Call(Err(), Lit("recover"))).
+					Dot("Str").Call(Lit("method"), Id(_ctx_).Dot("Method").Call()).
+					Dot("Str").Call(Lit("path"), Id(_ctx_).Dot("OriginalURL").Call()).
 					Dot("Msg").Call(Lit("panic occurred")),
-				Id("ctx").Dot("Status").Call(Qual(packageFiber, "StatusInternalServerError")),
+				Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusInternalServerError")),
 			)),
 		).Call(),
-		Return(Id("ctx").Dot("Next").Call()),
+		Return(Id(_ctx_).Dot("Next").Call()),
 	)
 }
