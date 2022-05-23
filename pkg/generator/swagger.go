@@ -32,6 +32,8 @@ const (
 type swagger struct {
 	*Transport
 
+	deepLevel int
+
 	schemas    swSchemas
 	aliasTypes map[string]int
 	knownTypes map[string]int
@@ -44,6 +46,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 		schemas:    make(swSchemas),
 		aliasTypes: make(map[string]int),
 		knownTypes: make(map[string]int),
+		deepLevel:  tr.tags.ValueInt(tagSwaggerDeep, 0),
 	}
 	return
 }
@@ -64,7 +67,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 	for _, tagSecurity := range tagSecurities {
 		if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
 			swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
-			swaggerDoc.Components.SecuritySchemes.BearerAuth = swBearerAuth{Type: "http", Schema: tagSecurity}
+			swaggerDoc.Components.SecuritySchemes.BearerAuth = swBearerAuth{Type: "http", Scheme: tagSecurity}
 		}
 	}
 	tagServers := strings.Split(doc.tags.Value("servers"), "|")

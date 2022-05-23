@@ -158,5 +158,5 @@ type swSecuritySchemes struct {
 
 type swBearerAuth struct {
 	Type   string `json:"type,omitempty" yaml:"type,omitempty"`
-	Schema string `json:"schema,omitempty" yaml:"schema,omitempty"`
+	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`
 }

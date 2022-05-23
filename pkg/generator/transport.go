@@ -50,6 +50,7 @@ const (
 	tagPackageJSON   = "packageJSON"
 	tagPackageUUID   = "uuidPackage"
 	tagSwaggerTags   = "swaggerTags"
+	tagSwaggerDeep   = "swaggerDeep"
 )
 
 type Transport struct {

@@ -20,10 +20,6 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-const (
-	deepLevel = 0
-)
-
 func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
 
 	if len(fields) == 0 {
@@ -84,7 +80,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Example = nil
 		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
-			if doc.knownCount(vType.TypeName) < deepLevel {
+			if doc.knownCount(vType.TypeName) < doc.deepLevel {
 				doc.knownInc(vType.TypeName)
 				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
@@ -128,7 +124,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					def = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 				}
 			}
-			if doc.knownCount(vType.Next.String()) < deepLevel {
+			if doc.knownCount(vType.Next.String()) < doc.deepLevel {
 				doc.knownInc(vType.Next.String())
 				doc.schemas[vType.Next.String()] = def
 			}

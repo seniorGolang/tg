@@ -16,10 +16,11 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageIO, "io")
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {
