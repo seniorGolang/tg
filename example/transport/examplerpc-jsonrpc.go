@@ -2,26 +2,28 @@
 package transport
 
 import (
-	"context"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	errors "github.com/pkg/errors"
-	log "github.com/rs/zerolog/log"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
-	"strings"
-	"sync"
 )
 
 func (http *httpExampleRPC) serveTest(ctx *fiber.Ctx) (err error) {
 	return http.serveMethod(ctx, "test", http.test)
 }
-func (http *httpExampleRPC) test(ctx context.Context, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
+func (http *httpExampleRPC) test(ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
 
 	var err error
 	var request requestExampleRPCTest
 
-	span := otg.SpanFromContext(ctx)
+	methodCtx := ctx.UserContext()
+	span := otg.SpanFromContext(methodCtx)
 	span.SetTag("method", "test")
 
 	if requestBase.Params != nil {
@@ -37,8 +39,23 @@ func (http *httpExampleRPC) test(ctx context.Context, requestBase baseJsonRPC) (
 		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "incorrect protocol version: "+requestBase.Version, nil)
 	}
 
+	if _arg0 := string(ctx.Request().Header.Peek("X-Arg")); _arg0 != "" {
+		var arg0 int
+		arg0, err = strconv.Atoi(_arg0)
+		span.SetTag("X-Arg", _arg0)
+		if err != nil {
+
+			ext.Error.Set(span, true)
+
+			span.SetTag("msg", "http header 'X-Arg' could not be decoded: "+err.Error())
+
+			return makeErrorResponseJsonRPC(requestBase.ID, parseError, "http header 'X-Arg' could not be decoded: "+err.Error(), nil)
+		}
+		request.Arg0 = arg0
+	}
+
 	var response responseExampleRPCTest
-	response.Ret1, response.Ret2, err = http.svc.Test(ctx, request.Arg0, request.Arg1, request.Opts...)
+	response.Ret1, response.Ret2, err = http.svc.Test(methodCtx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -62,12 +79,13 @@ func (http *httpExampleRPC) test(ctx context.Context, requestBase baseJsonRPC) (
 func (http *httpExampleRPC) serveTest2(ctx *fiber.Ctx) (err error) {
 	return http.serveMethod(ctx, "test2", http.test2)
 }
-func (http *httpExampleRPC) test2(ctx context.Context, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
+func (http *httpExampleRPC) test2(ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC) {
 
 	var err error
 	var request requestExampleRPCTest2
 
-	span := otg.SpanFromContext(ctx)
+	methodCtx := ctx.UserContext()
+	span := otg.SpanFromContext(methodCtx)
 	span.SetTag("method", "test2")
 
 	if requestBase.Params != nil {
@@ -84,7 +102,7 @@ func (http *httpExampleRPC) test2(ctx context.Context, requestBase baseJsonRPC) 
 	}
 
 	var response responseExampleRPCTest2
-	response.Ret1, response.Ret2, err = http.svc.Test2(ctx, request.Arg0, request.Arg1, request.Opts...)
+	response.Ret1, response.Ret2, err = http.svc.Test2(methodCtx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
@@ -107,7 +125,8 @@ func (http *httpExampleRPC) test2(ctx context.Context, requestBase baseJsonRPC) 
 }
 func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {
 
-	span := otg.SpanFromContext(ctx.UserContext())
+	methodCtx := ctx.UserContext()
+	span := otg.SpanFromContext(methodCtx)
 	span.SetTag("method", methodName)
 
 	methodHTTP := ctx.Method()
@@ -133,13 +152,13 @@ func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, metho
 		span.SetTag("msg", "invalid method "+methodNameOrigin)
 		return sendResponse(ctx, makeErrorResponseJsonRPC(request.ID, methodNotFoundError, "invalid method "+methodNameOrigin, nil))
 	}
-	response = methodHandler(ctx.UserContext(), request)
+	response = methodHandler(ctx, request)
 	if response != nil {
 		return sendResponse(ctx, response)
 	}
 	return
 }
-func (http *httpExampleRPC) doBatch(ctx context.Context, requests []baseJsonRPC) (responses jsonrpcResponses) {
+func (http *httpExampleRPC) doBatch(ctx *fiber.Ctx, requests []baseJsonRPC) (responses jsonrpcResponses) {
 
 	var wg sync.WaitGroup
 	batchSize := http.maxParallelBatch
@@ -170,7 +189,8 @@ func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 
 	var single bool
 	var requests []baseJsonRPC
-	batchSpan := otg.SpanFromContext(ctx.UserContext())
+	methodCtx := ctx.UserContext()
+	batchSpan := otg.SpanFromContext(methodCtx)
 	methodHTTP := ctx.Method()
 	if methodHTTP != fiber.MethodPost {
 		ext.Error.Set(batchSpan, true)
@@ -192,25 +212,26 @@ func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 		requests = append(requests, request)
 	}
 	if single {
-		return sendResponse(ctx, http.doSingleBatch(ctx.UserContext(), requests[0]))
+		return sendResponse(ctx, http.doSingleBatch(ctx, requests[0]))
 	}
-	return sendResponse(ctx, http.doBatch(ctx.UserContext(), requests))
+	return sendResponse(ctx, http.doBatch(ctx, requests))
 }
-func (http *httpExampleRPC) doSingleBatch(ctx context.Context, request baseJsonRPC) (response *baseJsonRPC) {
+func (http *httpExampleRPC) doSingleBatch(ctx *fiber.Ctx, request baseJsonRPC) (response *baseJsonRPC) {
 
+	methodContext := ctx.UserContext()
 	methodNameOrigin := request.Method
 	method := strings.ToLower(request.Method)
-	batchSpan := otg.SpanFromContext(ctx)
+	batchSpan := otg.SpanFromContext(methodContext)
 	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
 	defer span.Finish()
-	ctx = otg.ContextWithSpan(ctx, span)
+	methodContext = otg.ContextWithSpan(ctx.UserContext(), span)
 	defer func() {
 		if r := recover(); r != nil {
 			err := errors.New("call method panic")
 			if request.ID != nil {
 				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
 			}
-			log.Ctx(ctx).Error().Stack().Err(err).Msg("panic occurred")
+			log.Ctx(methodContext).Error().Stack().Err(err).Msg("panic occurred")
 		}
 	}()
 	switch method {

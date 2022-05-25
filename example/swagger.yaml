@@ -85,6 +85,13 @@ paths:
             tags:
                 - ExampleRPC
             summary: json RPC метод
+            parameters:
+                - in: header
+                  name: X-Arg
+                  required: true
+                  schema:
+                    type: number
+                    format: int
             requestBody:
                 content:
                     application/json:
@@ -218,9 +225,6 @@ components:
         requestExampleRPCTest:
             type: object
             properties:
-                arg0:
-                    type: number
-                    format: int
                 arg1:
                     type: string
                     format: uuid

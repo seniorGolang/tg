@@ -34,7 +34,7 @@ func (tr Transport) renderJsonRPC(outDir string) (err error) {
 	srcFile.Add(tr.batchFunc())
 	srcFile.Add(tr.singleBatchFunc())
 
-	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
+	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
 	srcFile.Line().Add(tr.makeErrorResponseJsonRPCFunc())
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
@@ -142,19 +142,20 @@ func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
 func (tr Transport) singleBatchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doSingleBatch").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
+			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
 			if tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
+				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
 			}
 			if tr.hasTrace() {
 				bg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").
 					Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
 				bg.Defer().Id("span").Dot("Finish").Call()
-				bg.Id(_ctx_).Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span"))
+				bg.Id("methodCtx").Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id("methodCtx"), Id("span"))
 			}
 			bg.Defer().Func().Params().Block(
 				If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil()).Block(
@@ -162,7 +163,7 @@ func (tr Transport) singleBatchFunc() Code {
 					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
 						Id("response").Op("=").Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("invalidRequestError"), Lit("panic on method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Err()),
 					),
-					Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_)).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("panic occurred")),
+					Qual(packageZeroLogLog, "Ctx").Call(Id("methodCtx")).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("panic occurred")),
 				),
 			).Call()
 			bg.Switch(Id("method")).BlockFunc(
@@ -192,7 +193,7 @@ func (tr Transport) singleBatchFunc() Code {
 func (tr Transport) batchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doBatch").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
 			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
@@ -259,11 +260,11 @@ func (tr Transport) serveBatchFunc() Code {
 			})
 			bg.If(Id("single")).Block(
 				Return(Id("sendResponse").Call(Id(_ctx_), Id("srv").Dot("doSingleBatch").
-					Call(Id(_ctx_).Dot("UserContext").Call(), Id("requests").Op("[").Lit(0).Op("]")),
+					Call(Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
 				)),
 			)
 			bg.Return(Id("sendResponse").Call(Id(_ctx_), Id("srv").Dot("doBatch").
-				Call(Id(_ctx_).Dot("UserContext").Call(), Id("requests")),
+				Call(Id(_ctx_), Id("requests")),
 			))
 		})
 }

@@ -2,15 +2,15 @@
 package transport
 
 import (
-	"context"
+	"strings"
+	"sync"
+
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
-	"strings"
-	"sync"
 )
 
 const (
@@ -89,11 +89,11 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 		requests = append(requests, request)
 	}
 	if single {
-		return sendResponse(ctx, srv.doSingleBatch(ctx.UserContext(), requests[0]))
+		return sendResponse(ctx, srv.doSingleBatch(ctx, requests[0]))
 	}
-	return sendResponse(ctx, srv.doBatch(ctx.UserContext(), requests))
+	return sendResponse(ctx, srv.doBatch(ctx, requests))
 }
-func (srv *Server) doBatch(ctx context.Context, requests []baseJsonRPC) (responses jsonrpcResponses) {
+func (srv *Server) doBatch(ctx *fiber.Ctx, requests []baseJsonRPC) (responses jsonrpcResponses) {
 
 	var wg sync.WaitGroup
 	batchSize := srv.maxParallelBatch
@@ -120,21 +120,22 @@ func (srv *Server) doBatch(ctx context.Context, requests []baseJsonRPC) (respons
 	wg.Wait()
 	return
 }
-func (srv *Server) doSingleBatch(ctx context.Context, request baseJsonRPC) (response *baseJsonRPC) {
+func (srv *Server) doSingleBatch(ctx *fiber.Ctx, request baseJsonRPC) (response *baseJsonRPC) {
 
+	methodCtx := ctx.UserContext()
 	methodNameOrigin := request.Method
 	method := strings.ToLower(request.Method)
-	batchSpan := otg.SpanFromContext(ctx)
+	batchSpan := otg.SpanFromContext(methodCtx)
 	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
 	defer span.Finish()
-	ctx = otg.ContextWithSpan(ctx, span)
+	methodCtx = otg.ContextWithSpan(methodCtx, span)
 	defer func() {
 		if r := recover(); r != nil {
 			err := errors.New("call method panic")
 			if request.ID != nil {
 				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
 			}
-			log.Ctx(ctx).Error().Stack().Err(err).Msg("panic occurred")
+			log.Ctx(methodCtx).Error().Stack().Err(err).Msg("panic occurred")
 		}
 	}()
 	switch method {
@@ -149,7 +150,7 @@ func (srv *Server) doSingleBatch(ctx context.Context, request baseJsonRPC) (resp
 	}
 }
 
-type methodJsonRPC func(ctx context.Context, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
+type methodJsonRPC func(ctx *fiber.Ctx, requestBase baseJsonRPC) (responseBase *baseJsonRPC)
 
 func makeErrorResponseJsonRPC(id idJsonRPC, code int, msg string, data interface{}) *baseJsonRPC {
 

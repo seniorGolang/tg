@@ -20,6 +20,8 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageErrors, "errors")
+	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageOpentracingExt, "ext")
@@ -45,21 +47,17 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 func (svc *service) rpcMethodFunc(method *method) Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id(method.lccName()).
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requestBase").Id("baseJsonRPC")).
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).
 		Params(Id("responseBase").Op("*").Id("baseJsonRPC")).BlockFunc(func(bg *Group) {
-
 		bg.Line()
-
 		bg.Var().Err().Error()
 		bg.Var().Id("request").Id(method.requestStructName())
-
 		bg.Line()
-
+		bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 		if svc.tags.IsSet(tagTrace) {
-			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
+			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
 			bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
 		}
-
 		bg.If(Id("requestBase").Dot("Params").Op("!=").Nil()).Block(
 			If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("requestBase").Dot("Params"), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
@@ -78,8 +76,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		})
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
-				return Line().Id("methodContext").Op("=").Qual(packageContext, "WithValue").Call(Id(_ctx_), Lit(header), Id("_"+arg)).
-					Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+				return Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
 					Line().If(Err().Op("!=").Nil()).Block(
 					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
@@ -92,8 +89,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
 			if svc.tags.IsSet(tagTrace) {
-				return Line().Id(_ctx_).Op("=").Qual(packageContext, "WithValue").Call(Id(_ctx_), Lit(header), Id("_"+arg)).
-					Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+				return Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
 					Line().If(Err().Op("!=").Nil()).Block(
 					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
 					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
@@ -111,7 +107,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 			}
 			lg.Err()
 		}).Op("=").Id("http").Dot("svc").Dot(method.Name).CallFunc(func(cg *Group) {
-			cg.Id(_ctx_)
+			cg.Id("methodCtx")
 			for _, arg := range method.argsWithoutContext() {
 				argCode := Id("request").Dot(utils.ToCamel(arg.Name))
 				if types.IsEllipsis(arg.Type) {
@@ -158,8 +154,9 @@ func (svc *service) serveMethodFunc() Code {
 		Params(Err().Error()).
 		BlockFunc(func(bg *Group) {
 			bg.Line()
+			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			if svc.tags.IsSet(tagTrace) {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
+				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
 				bg.Id("span").Dot("SetTag").Call(Lit("method"), Id("methodName")).Line()
 			}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
@@ -192,7 +189,7 @@ func (svc *service) serveMethodFunc() Code {
 				}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil()))
 			})
-			bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_).Dot("UserContext").Call(), Id("request"))
+			bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_), Id("request"))
 			bg.If(Id("response").Op("!=").Nil()).Block(
 				Return().Id("sendResponse").Call(Id(_ctx_), Id("response")),
 			)
@@ -203,7 +200,7 @@ func (svc *service) serveMethodFunc() Code {
 func (svc *service) batchFunc() Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id("doBatch").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
 			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
@@ -236,19 +233,20 @@ func (svc *service) batchFunc() Code {
 func (svc *service) singleBatchFunc() Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id("doSingleBatch").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
+		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
+			bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
 			if svc.tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
+				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodContext"))
 			}
 			if svc.tr.hasTrace() {
 				bg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").
 					Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
 				bg.Defer().Id("span").Dot("Finish").Call()
-				bg.Id(_ctx_).Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_), Id("span"))
+				bg.Id("methodContext").Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))
 			}
 			bg.Defer().Func().Params().Block(
 				If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil()).Block(
@@ -256,7 +254,7 @@ func (svc *service) singleBatchFunc() Code {
 					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
 						Id("response").Op("=").Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("invalidRequestError"), Lit("panic on method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Err()),
 					),
-					Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_)).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("panic occurred")),
+					Qual(packageZeroLogLog, "Ctx").Call(Id("methodContext")).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("panic occurred")),
 				),
 			).Call()
 			bg.Switch(Id("method")).BlockFunc(
@@ -288,8 +286,9 @@ func (svc *service) serveBatchFunc() Code {
 			bg.Line()
 			bg.Var().Id("single").Bool()
 			bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
+			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			if svc.tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
+				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
 			}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
 			bg.If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).BlockFunc(func(ig *Group) {
@@ -317,11 +316,11 @@ func (svc *service) serveBatchFunc() Code {
 			})
 			bg.If(Id("single")).Block(
 				Return(Id("sendResponse").Call(Id(_ctx_), Id("http").Dot("doSingleBatch").
-					Call(Id(_ctx_).Dot("UserContext").Call(), Id("requests").Op("[").Lit(0).Op("]")),
+					Call(Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
 				)),
 			)
 			bg.Return(Id("sendResponse").Call(Id(_ctx_), Id("http").Dot("doBatch").
-				Call(Id(_ctx_).Dot("UserContext").Call(), Id("requests")),
+				Call(Id(_ctx_), Id("requests")),
 			))
 		})
 }

@@ -4,7 +4,7 @@ package transport
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
-	log "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
 	"io"
 )

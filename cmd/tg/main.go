@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	GitSHA     = "-"
-	BuildStamp = time.Now()
 	Version    = "local.dev"
+	BuildStamp = time.Now().String()
 )
 
 var log = logger.Log.WithField("module", "tg")
@@ -27,11 +26,11 @@ var log = logger.Log.WithField("module", "tg")
 func main() {
 
 	app := cli.NewApp()
-	app.Name = "golang service 't'ransport 'g'enerator (tg)"
-	app.Usage = "make Go-Kit API easy"
-	app.Version = Version + "-" + GitSHA
-	app.Compiled = BuildStamp
+	app.Version = Version
 	app.EnableBashCompletion = true
+	app.Usage = "make Go-Kit API easy"
+	app.Name = "golang service 't'ransport 'g'enerator (tg)"
+	app.Compiled, _ = time.Parse(time.RFC3339, BuildStamp)
 
 	app.Commands = []*cli.Command{
 		{
