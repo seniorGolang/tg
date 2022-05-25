@@ -154,9 +154,8 @@ func (svc *service) serveMethodFunc() Code {
 		Params(Err().Error()).
 		BlockFunc(func(bg *Group) {
 			bg.Line()
-			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			if svc.tags.IsSet(tagTrace) {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
+				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
 				bg.Id("span").Dot("SetTag").Call(Lit("method"), Id("methodName")).Line()
 			}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
@@ -286,9 +285,8 @@ func (svc *service) serveBatchFunc() Code {
 			bg.Line()
 			bg.Var().Id("single").Bool()
 			bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
-			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 			if svc.tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
+				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
 			}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
 			bg.If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).BlockFunc(func(ig *Group) {
