@@ -149,7 +149,6 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 	showError(tr.log, tr.renderHeader(outDir), "renderHeader")
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
-	showError(tr.log, tr.renderContext(outDir), "renderContext")
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
 	if hasMetric {
 		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
