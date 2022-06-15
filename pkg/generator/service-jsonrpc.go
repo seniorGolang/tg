@@ -125,7 +125,11 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 				ig.Id("span").Dot("SetTag").Call(Lit("msg"), Err())
 				ig.Id("span").Dot("SetTag").Call(Lit("errData"), Id("toString").Call(Err()))
 			}
-			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("internalError"), Err().Dot("Error").Call(), Err()))
+			ig.Id("code").Op(":=").Id("internalError")
+			ig.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
+				Id("code").Op("=").Id("errCoder").Dot("Code").Call(),
+			)
+			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("code"), Err().Dot("Error").Call(), Err()))
 		})
 		bg.Id("responseBase").Op("=").Op("&").Id("baseJsonRPC").Values(Dict{
 			Id("Version"): Id("Version"),
