@@ -37,6 +37,7 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 				If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
 					Id("srv").Dot("http"+serviceName).Op("=").Id("svc"),
+					Id("svc").Dot("maxBatchSize").Op("=").Id("srv").Dot("maxBatchSize"),
 					Id("svc").Dot("maxParallelBatch").Op("=").Id("srv").Dot("maxParallelBatch"),
 					Id("svc").Dot("SetRoutes").Call(Id("srv").Dot("Fiber").Call()),
 				),
@@ -59,7 +60,12 @@ func (tr Transport) renderOptions(outDir string) (err error) {
 			Id("srv").Dot("config").Dot("BodyLimit").Op("=").Id("max"),
 		)),
 	)
-	srcFile.Line().Func().Id("BatchSizeJsonRPC").Params(Id("size").Int()).Id("Option").Block(
+	srcFile.Line().Func().Id("MaxBatchSize").Params(Id("size").Int()).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			Id("srv").Dot("maxBatchSize").Op("=").Id("size"),
+		)),
+	)
+	srcFile.Line().Func().Id("MaxBatchWorkers").Params(Id("size").Int()).Id("Option").Block(
 		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
 			Id("srv").Dot("maxParallelBatch").Op("=").Id("size"),
 		)),

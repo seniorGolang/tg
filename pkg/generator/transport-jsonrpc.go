@@ -120,6 +120,7 @@ func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
 	}
 
 	return Const().Op("(").
+		Line().Id("defaultMaxBatchSize").Op("=").Lit(100).
 		Line().Id("defaultMaxParallelBatch").Op("=").Lit(10).
 		Line().Comment("Version defines the version of the JSON RPC implementation").
 		Line().Id("Version").Op("=").Lit("2.0").
@@ -196,6 +197,10 @@ func (tr Transport) batchFunc() Code {
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
+			bg.If(Len(Id("requests")).Op("<").Id("srv").Dot("maxBatchSize")).Block(
+				Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Nil(), Id("invalidRequestError"), Lit("batch size exceeded"), Nil())),
+				Return(),
+			)
 			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
 			bg.Id("batchSize").Op(":=").Id("srv").Dot("maxParallelBatch")
 			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(

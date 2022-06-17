@@ -24,6 +24,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile.Type().Id("http"+svc.Name).Struct(
 		Id("errorHandler").Id("ErrorHandler"),
+		Id("maxBatchSize").Int(),
 		Id("maxParallelBatch").Int(),
 		Id("svc").Op("*").Id("server"+svc.Name),
 		Id("base").Qual(svc.pkgPath, svc.Name),

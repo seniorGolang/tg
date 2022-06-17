@@ -118,7 +118,10 @@ func (tr Transport) serverType() Code {
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
-		g.Line().Id("maxParallelBatch").Int()
+		if tr.hasJsonRPC {
+			g.Line().Id("maxBatchSize").Int()
+			g.Id("maxParallelBatch").Int().Line()
+		}
 		for _, serviceName := range tr.serviceKeys() {
 			g.Id("http" + serviceName).Op("*").Id("http" + serviceName)
 		}
@@ -130,14 +133,19 @@ func (tr Transport) serverNewFunc() Code {
 
 	return Func().Id("New").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
 		BlockFunc(func(bg *Group) {
-			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(Dict{
-				Id("log"):              Id("log"),
-				Id("maxParallelBatch"): Id("defaultMaxParallelBatch"),
-				Id("headerHandlers"):   Make(Map(String()).Id("HeaderHandler")),
-				Id("config"): Qual(packageFiber, "Config").Values(Dict{
+			bg.Line().Id("srv").Op("=").Op("&").Id("Server").Values(DictFunc(func(dict Dict) {
+
+				dict[Id("log")] = Id("log")
+				if tr.hasJsonRPC {
+					dict[Id("maxBatchSize")] = Id("defaultMaxBatchSize")
+					dict[Id("maxParallelBatch")] = Id("defaultMaxParallelBatch")
+				}
+				dict[Id("headerHandlers")] = Make(Map(String()).Id("HeaderHandler"))
+				dict[Id("config")] = Qual(packageFiber, "Config").Values(Dict{
 					Id("DisableStartupMessage"): True(),
-				}),
-			})
+				})
+			},
+			))
 			bg.For(List(Id("_"), Id("option")).Op(":=").Range().Id("options")).Block(
 				Id("option").Call(Id("srv")),
 			)
