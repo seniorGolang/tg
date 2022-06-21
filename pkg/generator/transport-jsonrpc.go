@@ -197,7 +197,7 @@ func (tr Transport) batchFunc() Code {
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
-			bg.If(Len(Id("requests")).Op("<").Id("srv").Dot("maxBatchSize")).Block(
+			bg.If(Len(Id("requests")).Op(">").Id("srv").Dot("maxBatchSize")).Block(
 				Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Nil(), Id("invalidRequestError"), Lit("batch size exceeded"), Nil())),
 				Return(),
 			)
