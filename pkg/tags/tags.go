@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
 // This file (tags.go at 14.05.2020, 3:45) is subject to the terms and
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package tags

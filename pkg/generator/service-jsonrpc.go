@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
 // This file (service-jsonrpc.go at 24.06.2020, 15:31) is subject to the terms and
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package generator

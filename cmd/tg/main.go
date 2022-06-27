@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
 // This file (main.go at 24.06.2020, 15:03) is subject to the terms and
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package main
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "local.dev"
+	Version    = "v2.2.14"
 	BuildStamp = time.Now().String()
 )
 

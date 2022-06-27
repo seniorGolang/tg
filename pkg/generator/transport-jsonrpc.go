@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
 // This file (transport-jsonrpc.go at 25.06.2020, 11:07) is subject to the terms and
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package generator

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Khramtsov Aleksei (contact@altsoftllc.com).
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
 // This file (constants.go at 19.06.2020, 16:08) is subject to the terms and
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package generator
