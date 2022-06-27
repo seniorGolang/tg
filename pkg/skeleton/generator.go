@@ -14,7 +14,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/generator"
 )
 
-func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir string, trace, mongo bool) (err error) {
+func GenerateSkeleton(log logrus.FieldLogger, version, projectName, repoName, baseDir string, trace, mongo bool) (err error) {
 
 	if baseDir, err = filepath.Abs(baseDir); err != nil {
 		return
@@ -56,7 +56,7 @@ func GenerateSkeleton(log logrus.FieldLogger, projectName, repoName, baseDir str
 	}
 
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, path.Join(meta.baseDir, "pkg", projectName, "service")); err == nil {
+	if tr, err = generator.NewTransport(log, version, path.Join(meta.baseDir, "pkg", projectName, "service")); err == nil {
 		if err = tr.RenderServer(path.Join(meta.baseDir, "pkg", projectName, "transport")); err != nil {
 			return
 		}

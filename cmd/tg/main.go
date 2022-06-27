@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.2.14"
+	Version    = "v2.2.15"
 	BuildStamp = time.Now().String()
 )
 
@@ -226,7 +226,7 @@ func cmdInit(c *cli.Context) (err error) {
 	if repo == "" {
 		repo = project
 	}
-	return skeleton.GenerateSkeleton(log, project, repo, "./"+c.Args().First(), c.Bool("trace"), c.Bool("mongo"))
+	return skeleton.GenerateSkeleton(log, Version, project, repo, "./"+c.Args().First(), c.Bool("trace"), c.Bool("mongo"))
 }
 
 func cmdClient(c *cli.Context) (err error) {
@@ -237,7 +237,7 @@ func cmdClient(c *cli.Context) (err error) {
 		}
 	}()
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services")); err != nil {
 		return
 	}
 	if c.Bool("go") {
@@ -270,7 +270,7 @@ func cmdTransport(c *cli.Context) (err error) {
 		generator.WithImplements(c.String("implements")),
 	}
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, c.String("services"), opts...); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services"), opts...); err != nil {
 		return
 	}
 	outPath, _ := path.Split(c.String("services"))
@@ -303,7 +303,7 @@ func cmdSwagger(c *cli.Context) (err error) {
 	}()
 
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services")); err != nil {
 		return
 	}
 
@@ -332,7 +332,7 @@ func cmdAzure(c *cli.Context) (err error) {
 		}
 	}()
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, c.String("services")); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services")); err != nil {
 		return
 	}
 	outPath := path.Join(c.String("services"), "azure-fApp")

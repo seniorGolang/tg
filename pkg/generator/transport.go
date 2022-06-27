@@ -55,14 +55,16 @@ const (
 
 type Transport struct {
 	hasJsonRPC bool
+	version    string
 	tags       tags.DocTags
 	log        logrus.FieldLogger
 	services   map[string]*service
 }
 
-func NewTransport(log logrus.FieldLogger, svcDir string, options ...Option) (tr Transport, err error) {
+func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Option) (tr Transport, err error) {
 
 	tr.log = log
+	tr.version = version
 	tr.services = make(map[string]*service)
 
 	var files []os.FileInfo
@@ -149,6 +151,7 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 	showError(tr.log, tr.renderHeader(outDir), "renderHeader")
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
+	showError(tr.log, tr.renderVersion(outDir), "renderVersion")
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
 	if hasMetric {
 		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
