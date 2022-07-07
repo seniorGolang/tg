@@ -299,13 +299,11 @@ func castTypeJs(originName string) (typeName string) {
 		typeName = "Object"
 	case "time.Time":
 		typeName = "string"
-	case "byte":
-		typeName = "number"
 	case "[]byte":
 		typeName = "string"
 	case "float32", "float64":
 		typeName = "number"
-	case "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64":
+	case "byte", "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "time.Duration":
 		typeName = "number"
 	}
 	if strings.HasSuffix(originName, "UUID") {
