@@ -51,6 +51,7 @@ const (
 	tagPackageUUID   = "uuidPackage"
 	tagSwaggerTags   = "swaggerTags"
 	tagSwaggerDeep   = "swaggerDeep"
+	tagLogSkip       = "log-skip"
 )
 
 type Transport struct {

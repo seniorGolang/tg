@@ -62,7 +62,7 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 
-				skipFields := strings.Split(tags.ParseTags(method.Docs).Value("log-skip"), ",")
+				skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
 				params := method.argsWithoutContext()
 				params = removeSkippedFields(params, skipFields)
 				d[Lit("request")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))

@@ -280,6 +280,9 @@ func castTypeTs(originName string) (typeName string) {
 	case "byte", "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "time.Duration":
 		typeName = "number"
 	}
+	if strings.HasSuffix(originName, "RawMessage") {
+		typeName = "string"
+	}
 	if strings.HasSuffix(originName, "UUID") {
 		typeName = "string"
 	}
