@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.2.17"
+	Version    = "v2.2.18"
 	BuildStamp = time.Now().String()
 )
 
