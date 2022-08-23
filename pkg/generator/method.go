@@ -364,7 +364,7 @@ func (m method) httpRetHeaders() (block *Statement) {
 				}
 				continue
 			}
-			block.If(Id("response").Dot(utils.ToCamel(ret)).Op("!=").Lit("").Block(
+			block.If(Id("response").Call().Dot(utils.ToCamel(ret)).Op("!=").Lit("").Block(
 				Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Lit(header), Id("response").Dot(utils.ToCamel(ret))),
 			))
 		}

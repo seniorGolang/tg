@@ -104,7 +104,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.Properties[fieldName] = embed
 					continue
 				}
-				for eField, def := range doc.schemas[field.Type.String()].Properties {
+				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
+				embed = doc.schemas[inlineTokens[len(inlineTokens)-1]]
+				for eField, def := range embed.Properties {
 					schema.Properties[eField] = def
 				}
 			}
@@ -285,9 +287,9 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 	if fieldInfo.Variable.Name == "" {
 		fieldInfo.Variable.Name = fieldInfo.Type.String()
 	}
-	if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
-		return "-", false
-	}
+	// if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
+	// 	return "-", false
+	// }
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 { // nolint
 		value = tagValues[0]

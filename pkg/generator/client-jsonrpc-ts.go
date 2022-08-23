@@ -281,7 +281,7 @@ func castTypeTs(originName string) (typeName string) {
 		typeName = "number"
 	}
 	if strings.HasSuffix(originName, "RawMessage") {
-		typeName = "string"
+		typeName = "any"
 	}
 	if strings.HasSuffix(originName, "UUID") {
 		typeName = "string"
