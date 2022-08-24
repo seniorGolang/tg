@@ -15,7 +15,7 @@ import (
 
 	"github.com/fatih/structtag"
 
-	"github.com/vetcher/go-astra/types"
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 )
 
 var (

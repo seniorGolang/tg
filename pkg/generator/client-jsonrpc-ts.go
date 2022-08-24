@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/vetcher/go-astra/types"
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 )

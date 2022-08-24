@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vetcher/go-astra/types"
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 )
 
 // Opens and parses file by name and return information about it.
 func ParseFile(filename string, options ...Option) (*types.File, error) {
+
 	path, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, fmt.Errorf("can not filepath.Abs: %v", err)
@@ -32,6 +33,7 @@ func ParseFile(filename string, options ...Option) (*types.File, error) {
 
 // Merges parsed files to one. Helpful, when you need full information about package.
 func MergeFiles(files []*types.File) (*types.File, error) {
+
 	targetFile := &types.File{}
 	for _, file := range files {
 		if file == nil {
@@ -58,6 +60,7 @@ func MergeFiles(files []*types.File) (*types.File, error) {
 // Parses all .go files from directory.
 // Deprecated: use GetPackage instead
 func ParsePackage(path string, options ...Option) ([]*types.File, error) {
+
 	p, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("can not filepath.Abs: %v", err)

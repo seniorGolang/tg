@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vetcher/go-astra"
-	"github.com/vetcher/go-astra/types"
 
+	"github.com/seniorGolang/tg/v2/pkg/astra"
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 )
 
@@ -87,7 +87,6 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Opt
 			if len(tags.ParseTags(iface.Docs)) != 0 {
 				service := newService(log, &tr, filePath, iface, options...)
 				tr.services[iface.Name] = service
-
 				if service.tags.Contains(tagServerJsonRPC) {
 					tr.hasJsonRPC = true
 				}

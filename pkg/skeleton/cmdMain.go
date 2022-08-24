@@ -12,8 +12,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/vetcher/go-astra"
-	"github.com/vetcher/go-astra/types"
+	"github.com/seniorGolang/tg/v2/pkg/astra"
+
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
 	. "github.com/dave/jennifer/jen"
 

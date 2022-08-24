@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 
 	. "github.com/dave/jennifer/jen"
-	"github.com/vetcher/go-astra/types"
+
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 )
 
 func (svc *service) renderTrace(outDir string) (err error) {

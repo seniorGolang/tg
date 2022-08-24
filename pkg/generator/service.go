@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vetcher/go-astra/types"
+
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"

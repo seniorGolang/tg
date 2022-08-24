@@ -30,7 +30,6 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible
 	github.com/urfave/cli/v2 v2.7.1
 	github.com/valyala/fasthttp v1.37.0
-	github.com/vetcher/go-astra v1.2.0
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4
 	golang.org/x/tools v0.1.10
 	gopkg.in/yaml.v3 v3.0.0
