@@ -2,9 +2,10 @@
 package transport
 
 import (
-	"github.com/gofiber/fiber/v2"
-	uuid "github.com/google/uuid"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type ServiceRoute interface {

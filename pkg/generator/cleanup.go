@@ -5,7 +5,6 @@ package generator
 
 import (
 	"bufio"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -14,8 +13,8 @@ import (
 func (tr Transport) cleanup(outDir string) {
 
 	var err error
-	var files []os.FileInfo
-	if files, err = ioutil.ReadDir(outDir); err != nil {
+	var files []os.DirEntry
+	if files, err = os.ReadDir(outDir); err != nil {
 		tr.log.WithError(err).Warn("cleanup")
 		return
 	}

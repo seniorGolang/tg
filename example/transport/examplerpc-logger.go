@@ -3,10 +3,12 @@ package transport
 
 import (
 	"context"
+	"time"
+
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/dumper/viewer"
+
 	"github.com/seniorGolang/tg/v2/example/interfaces"
-	"time"
 )
 
 type loggerExampleRPC struct {

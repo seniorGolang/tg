@@ -33,7 +33,7 @@ func (tr Transport) renderHTTP(outDir string) (err error) {
 			Return(),
 		),
 		Defer().Id("file").Dot("Close").Call(),
-		Return(Qual(packageIOUtil, "ReadAll").Call(Id("file"))),
+		Return(Qual(packageIO, "ReadAll").Call(Id("file"))),
 	)
 
 	return srcFile.Save(path.Join(outDir, "http.go"))

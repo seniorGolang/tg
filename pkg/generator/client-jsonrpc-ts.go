@@ -2,7 +2,6 @@ package generator
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -80,7 +79,7 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 		jsFile.add(def.ts())
 	}
 	jsFile.add("}\n\n")
-	return ioutil.WriteFile(outFilename, jsFile.Bytes(), 0600)
+	return os.WriteFile(outFilename, jsFile.Bytes(), 0600)
 }
 
 type typeDefTs struct {
@@ -132,8 +131,10 @@ func (def typeDefTs) ts() (js string) {
 		}
 		js += "}\n"
 	default:
-		js += fmt.Sprintf("%s%s: %s\n", def.name, nullable, castTypeTs(def.def()))
-		js += "}\n"
+		if def.name != "" {
+			js += fmt.Sprintf("%s%s: %s\n", def.name, nullable, castTypeTs(def.def()))
+			js += "}\n"
+		}
 	}
 	return
 }
@@ -215,14 +216,19 @@ func (ts *clientTS) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.properties[fieldName] = embed
 					continue
 				}
-				for eField, def := range ts.typeDefTs[field.Type.String()].properties {
+				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
+				embed = ts.typeDefTs[inlineTokens[len(inlineTokens)-1]]
+				for eField, def := range embed.properties {
 					schema.properties[eField] = def
 				}
+				// for eField, def := range ts.typeDefTs[field.Type.String()].properties {
+				// 	schema.properties[eField] = def
+				// }
 			}
 		}
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			if ts.knownCount(vType.Next.String()) < 3 {
+			if ts.knownCount(vType.Next.String()) < 10 {
 				ts.knownInc(vType.Next.String())
 				ts.typeDefTs[vType.Next.String()] = ts.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 			}
@@ -271,14 +277,19 @@ func castTypeTs(originName string) (typeName string) {
 		typeName = "boolean"
 	case "interface":
 		typeName = "any"
+	case "gorm.DeletedAt":
+		typeName = "Date"
 	case "time.Time":
-		typeName = "string"
+		typeName = "Date"
 	case "[]byte":
 		typeName = "string"
 	case "float32", "float64":
 		typeName = "number"
 	case "byte", "int", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "time.Duration":
 		typeName = "number"
+	}
+	if strings.HasSuffix(originName, "NullTime") {
+		typeName = "Date"
 	}
 	if strings.HasSuffix(originName, "RawMessage") {
 		typeName = "any"

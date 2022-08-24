@@ -6,7 +6,6 @@ package mod
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -43,7 +42,7 @@ func parseMod(modPath string) (pkgPath map[string]string) {
 	var err error
 	var fileBytes []byte
 
-	if fileBytes, err = ioutil.ReadFile(modPath); err != nil {
+	if fileBytes, err = os.ReadFile(modPath); err != nil {
 		return
 	}
 

@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	astParser "go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,7 +62,7 @@ func ParsePackage(path string, options ...Option) ([]*types.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not filepath.Abs: %v", err)
 	}
-	files, err := ioutil.ReadDir(p)
+	files, err := os.ReadDir(p)
 	if err != nil {
 		return nil, fmt.Errorf("can not read dir: %v", err)
 	}

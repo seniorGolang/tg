@@ -4,7 +4,6 @@
 package generator
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -68,8 +67,8 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Opt
 	tr.version = version
 	tr.services = make(map[string]*service)
 
-	var files []os.FileInfo
-	if files, err = ioutil.ReadDir(svcDir); err != nil {
+	var files []os.DirEntry
+	if files, err = os.ReadDir(svcDir); err != nil {
 		return
 	}
 

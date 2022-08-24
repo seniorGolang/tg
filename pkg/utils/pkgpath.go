@@ -6,7 +6,6 @@ package utils
 import (
 	"bytes"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -124,7 +123,7 @@ func GetModulePath(goModPath string) string {
 		pkgPathFromGoModCache[goModPath] = pkgPath
 	}()
 
-	data, err := ioutil.ReadFile(goModPath)
+	data, err := os.ReadFile(goModPath)
 
 	if err != nil {
 		return ""

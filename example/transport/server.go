@@ -2,11 +2,12 @@
 package transport
 
 import (
+	"io"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
-	"io"
 )
 
 type Server struct {

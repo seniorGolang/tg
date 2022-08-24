@@ -2,7 +2,6 @@ package generator
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -51,7 +50,7 @@ func (app *azure) render(appName, routePrefix, outFilePath, logLevel string, ena
 			if err = os.MkdirAll(filepath.Dir(outFileName), 0777); err != nil {
 				return
 			}
-			if err = ioutil.WriteFile(outFileName, toJSON(fn), 0600); err != nil {
+			if err = os.WriteFile(outFileName, toJSON(fn), 0600); err != nil {
 				return
 			}
 		}
@@ -93,7 +92,7 @@ func (app *azure) render(appName, routePrefix, outFilePath, logLevel string, ena
 		if err = os.MkdirAll(filepath.Dir(outFileName), 0777); err != nil {
 			return
 		}
-		return ioutil.WriteFile(outFileName, toJSON(host), 0600)
+		return os.WriteFile(outFileName, toJSON(host), 0600)
 	}
 	return
 }

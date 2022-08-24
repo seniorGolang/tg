@@ -4,10 +4,12 @@ package transport
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
+
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
-	"time"
 )
 
 type metricsUser struct {

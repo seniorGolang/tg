@@ -3,6 +3,7 @@ package transport
 
 import (
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	opentracinggo "github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"

@@ -2,7 +2,6 @@ package generator
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -127,7 +126,7 @@ func (js *clientJS) render(outDir string) (err error) {
 	for _, def := range js.typeDef {
 		jsFile.add(def.js())
 	}
-	return ioutil.WriteFile(outFilename, jsFile.Bytes(), 0600)
+	return os.WriteFile(outFilename, jsFile.Bytes(), 0600)
 }
 
 type typeDefJs struct {

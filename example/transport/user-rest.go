@@ -3,11 +3,13 @@ package transport
 
 import (
 	"context"
+
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/seniorGolang/json"
-	implement "github.com/seniorGolang/tg/v2/example/implement"
+
+	"github.com/seniorGolang/tg/v2/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {

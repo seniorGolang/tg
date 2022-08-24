@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -56,8 +55,8 @@ func makeCmdMain(meta metaInfo, pkgBase, mainPath string) (err error) {
 
 	serviceDirectory := path.Join(meta.baseDir, "pkg", meta.projectName, "service")
 
-	var files []os.FileInfo
-	if files, err = ioutil.ReadDir(serviceDirectory); err != nil {
+	var files []os.DirEntry
+	if files, err = os.ReadDir(serviceDirectory); err != nil {
 		return
 	}
 

@@ -17,7 +17,6 @@ const (
 	packageContext               = "context"
 	packageStrconv               = "strconv"
 	packageStrings               = "strings"
-	packageIOUtil                = "io/ioutil"
 	packageStdJSON               = "encoding/json"
 	packageMultipart             = "mime/multipart"
 	packageCors                  = "github.com/lab259/cors"

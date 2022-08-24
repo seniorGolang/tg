@@ -6,7 +6,6 @@ package generator
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -235,7 +234,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 		}
 	}
 	doc.log.Info("write to ", outFilePath)
-	return ioutil.WriteFile(outFilePath, docData, 0600)
+	return os.WriteFile(outFilePath, docData, 0600)
 }
 
 func (doc *swagger) fillErrors(responses swResponses, tags tags.DocTags) {
