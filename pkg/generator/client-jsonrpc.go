@@ -119,9 +119,6 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 			bg.Defer().Id("span").Dot("Finish").Call()
 		}
 		bg.Id("agent").Op(":=").Qual(packageFiber, "AcquireAgent").Call()
-		bg.If(Id("cli").Dot("insecure")).Block(
-			bg.Id("agent").Op("=").Id("agent").Dot("InsecureSkipVerify").Call(),
-		)
 		bg.Id("req").Op(":=").Id("agent").Dot("Request").Call()
 		bg.Id("resp").Op(":=").Qual(packageFiber, "AcquireResponse").Call()
 		bg.Id("agent").Dot("SetResponse").Call(Id("resp"))
@@ -132,6 +129,9 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 		bg.Id("req").Dot("Header").Dot("SetMethod").Call(Qual(packageFiber, "MethodPost"))
 		bg.If(Err().Op("=").Id("agent").Dot("Parse").Call().Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
+		)
+		bg.If(Id("cli").Dot("insecure")).Block(
+			Id("agent").Op("=").Id("agent").Dot("InsecureSkipVerify").Call(),
 		)
 		bg.For(List(Id("_"), Id("header")).Op(":=").Range().Id("cli").Dot("headers")).Block(
 			If(List(Id("value"), Id("ok")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("header")).Op(".(").String().Op(")")).Op(";").Id("ok").Block(
