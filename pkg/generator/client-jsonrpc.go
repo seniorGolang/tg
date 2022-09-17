@@ -97,6 +97,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 	return Type().Id("ClientJsonRPC").Struct(
 		Id("url").String(),
 		Id("name").String(),
+		Id("insecure").Bool(),
 		Id("log").Qual(packageZeroLog, "Logger"),
 		Id("headers").Op("[]").String(),
 		Line().Id("errorDecoder").Id("ErrorDecoder"),
@@ -118,6 +119,9 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 			bg.Defer().Id("span").Dot("Finish").Call()
 		}
 		bg.Id("agent").Op(":=").Qual(packageFiber, "AcquireAgent").Call()
+		bg.If(Id("cli").Dot("insecure")).Block(
+			bg.Id("agent").Op("=").Id("agent").Dot("InsecureSkipVerify").Call(),
+		)
 		bg.Id("req").Op(":=").Id("agent").Dot("Request").Call()
 		bg.Id("resp").Op(":=").Qual(packageFiber, "AcquireResponse").Call()
 		bg.Id("agent").Dot("SetResponse").Call(Id("resp"))

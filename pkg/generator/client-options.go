@@ -27,5 +27,10 @@ func (tr Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("headers").Op("=").Id("headers"),
 		),
 	)
+	srcFile.Line().Func().Id("Insecure").Params().Params(Id("Option")).Block(
+		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+			Id("cli").Dot("insecure").Op("=").True(),
+		),
+	)
 	return srcFile.Save(path.Join(outDir, "options.go"))
 }
