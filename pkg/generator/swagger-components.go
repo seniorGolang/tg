@@ -83,7 +83,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
 			if doc.knownCount(vType.TypeName) < doc.deepLevel {
 				doc.knownInc(vType.TypeName)
+				// if def, found := doc.schemas[vType.TypeName]; !found || len(def.Properties) == 0 {
 				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
+				// }
 			}
 		}
 	case types.TMap:
@@ -113,13 +115,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			}
 		}
 	case types.TImport:
-		schema.Example = nil
-		refName := vType.Next.String()
-		schema.Ref = fmt.Sprintf("#/components/schemas/%s", refName)
 		if nextType := doc.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
 			def := doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
 			if typeName == vType.Next.String() {
-				depth := 5
+				depth := 10
 				for def.Ref != "" {
 					if depth--; depth == 0 {
 						break
@@ -129,7 +128,14 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			}
 			if doc.knownCount(vType.Next.String()) < doc.deepLevel {
 				doc.knownInc(vType.Next.String())
+				// if existDef, found := doc.schemas[vType.Next.String()]; !found || len(existDef.Properties) == 0 {
 				doc.schemas[vType.Next.String()] = def
+				schema = def
+				// }
+			} else {
+				schema.Example = nil
+				refName := vType.Next.String()
+				schema.Ref = fmt.Sprintf("#/components/schemas/%s", refName)
 			}
 		}
 	case types.TEllipsis:
