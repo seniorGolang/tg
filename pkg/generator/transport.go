@@ -96,15 +96,15 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Opt
 	return
 }
 
-func (tr Transport) RenderAzure(appName, routePrefix, outDir, logLevel string, enableHealth bool) (err error) {
-	return newAzure(&tr).render(appName, routePrefix, outDir, logLevel, enableHealth)
+func (tr *Transport) RenderAzure(appName, routePrefix, outDir, logLevel string, enableHealth bool) (err error) {
+	return newAzure(tr).render(appName, routePrefix, outDir, logLevel, enableHealth)
 }
 
-func (tr Transport) RenderSwagger(outDir string) (err error) {
-	return newSwagger(&tr).render(outDir)
+func (tr *Transport) RenderSwagger(outDir string) (err error) {
+	return newSwagger(tr).render(outDir)
 }
 
-func (tr Transport) serviceKeys() (keys []string) {
+func (tr *Transport) serviceKeys() (keys []string) {
 
 	for serviceName := range tr.services {
 		keys = append(keys, serviceName)
@@ -113,7 +113,7 @@ func (tr Transport) serviceKeys() (keys []string) {
 	return
 }
 
-func (tr Transport) RenderClient(outDir string) (err error) {
+func (tr *Transport) RenderClient(outDir string) (err error) {
 
 	tr.cleanup(outDir)
 	if err = os.MkdirAll(outDir, 0777); err != nil {
@@ -134,7 +134,7 @@ func (tr Transport) RenderClient(outDir string) (err error) {
 	return
 }
 
-func (tr Transport) RenderServer(outDir string) (err error) {
+func (tr *Transport) RenderServer(outDir string) (err error) {
 
 	tr.cleanup(outDir)
 
@@ -169,7 +169,7 @@ func (tr Transport) RenderServer(outDir string) (err error) {
 	return
 }
 
-func (tr Transport) hasTrace() (hasTrace bool) {
+func (tr *Transport) hasTrace() (hasTrace bool) {
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
 		if svc.tags.IsSet(tagTrace) {
@@ -179,7 +179,7 @@ func (tr Transport) hasTrace() (hasTrace bool) {
 	return
 }
 
-func (tr Transport) hasMetrics() (hasMetric bool) {
+func (tr *Transport) hasMetrics() (hasMetric bool) {
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
 		if svc.tags.IsSet(tagMetrics) {

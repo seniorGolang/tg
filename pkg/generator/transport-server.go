@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderServer(outDir string) (err error) {
+func (tr *Transport) renderServer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -49,7 +49,7 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	}
 
 	for _, serviceName := range tr.serviceKeys() {
-		srcFile.Line().Add(Func().Params(Id("srv").Id("Server")).Id(serviceName).Params().Params(Op("*").Id("http" + serviceName)).Block(
+		srcFile.Line().Add(Func().Params(Id("srv").Op("*").Id("Server")).Id(serviceName).Params().Params(Op("*").Id("http" + serviceName)).Block(
 			Return(Id("srv").Dot("http" + serviceName)),
 		))
 	}
@@ -57,13 +57,13 @@ func (tr Transport) renderServer(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "server.go"))
 }
 
-func (tr Transport) fiberFunc() Code {
+func (tr *Transport) fiberFunc() Code {
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Fiber").Params().Params(Op("*").Qual(packageFiber, "App")).Block(
 		Return(Id("srv").Dot("srvHTTP")),
 	)
 }
 
-func (tr Transport) withLogFunc() Code {
+func (tr *Transport) withLogFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
@@ -76,7 +76,7 @@ func (tr Transport) withLogFunc() Code {
 	})
 }
 
-func (tr Transport) withTraceFunc() Code {
+func (tr *Transport) withTraceFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithTrace").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
@@ -92,7 +92,7 @@ func (tr Transport) withTraceFunc() Code {
 	})
 }
 
-func (tr Transport) withMetricsFunc() Code {
+func (tr *Transport) withMetricsFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
@@ -108,7 +108,7 @@ func (tr Transport) withMetricsFunc() Code {
 	})
 }
 
-func (tr Transport) serverType() Code {
+func (tr *Transport) serverType() Code {
 
 	return Type().Id("Server").StructFunc(func(g *Group) {
 		g.Id("log").Qual(packageZeroLog, "Logger")
@@ -129,7 +129,7 @@ func (tr Transport) serverType() Code {
 	})
 }
 
-func (tr Transport) serverNewFunc() Code {
+func (tr *Transport) serverNewFunc() Code {
 
 	return Func().Id("New").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("options").Op("...").Id("Option")).Params(Id("srv").Op("*").Id("Server")).
 		BlockFunc(func(bg *Group) {
@@ -164,7 +164,7 @@ func (tr Transport) serverNewFunc() Code {
 		})
 }
 
-func (tr Transport) serveHealthFunc() Code {
+func (tr *Transport) serveHealthFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeHealth").Params(Id("address").String(), Id("response").Interface()).Block(
 
@@ -180,7 +180,7 @@ func (tr Transport) serveHealthFunc() Code {
 	)
 }
 
-func (tr Transport) shutdownFunc(hasMetrics bool) Code {
+func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().BlockFunc(func(bg *Group) {
 		bg.If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHTTP").Dot("Shutdown").Call(),
@@ -196,7 +196,7 @@ func (tr Transport) shutdownFunc(hasMetrics bool) Code {
 	})
 }
 
-func (tr Transport) sendResponseFunc() Code {
+func (tr *Transport) sendResponseFunc() Code {
 	return Func().Id("sendResponse").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("resp").Interface()).Params(Err().Error()).Block(
 		Id(_ctx_).Dot("Response").Call().Dot("Header").Dot("SetContentType").Call(Lit("application/json")),
 		If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "NewEncoder").Call(Id(_ctx_)).Dot("Encode").Call(Id("resp")).Op(";").Err().Op("!=").Nil()).Block(

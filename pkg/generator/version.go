@@ -17,7 +17,7 @@ func (tr *Transport) renderVersion(outDir string) (err error) {
 
 	srcFile.Const().Id("VersionTg").Op("=").Lit(tr.version)
 
-	srcFile.Line().Add(Func().Params(Id("srv").Id("Server")).Id("VersionTg").Params().Params(String()).Block(
+	srcFile.Line().Add(Func().Params(Id("srv").Op("*").Id("Server")).Id("VersionTg").Params().Params(String()).Block(
 		Return(Id("VersionTg")),
 	))
 

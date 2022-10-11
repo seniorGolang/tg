@@ -12,7 +12,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func (tr Transport) renderJsonRPC(outDir string) (err error) {
+func (tr *Transport) renderJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -39,7 +39,7 @@ func (tr Transport) renderJsonRPC(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
 
-func (tr Transport) makeErrorResponseJsonRPCFunc() Code {
+func (tr *Transport) makeErrorResponseJsonRPCFunc() Code {
 
 	return Func().Id("makeErrorResponseJsonRPC").Params(Id("id").Id("idJsonRPC"), Id("code").Int(), Id("msg").String(), Id("data").Interface()).Params(Op("*").Id("baseJsonRPC")).Block(
 
@@ -59,7 +59,7 @@ func (tr Transport) makeErrorResponseJsonRPCFunc() Code {
 	)
 }
 
-func (tr Transport) baseJsonRPC(isClient bool) Code {
+func (tr *Transport) baseJsonRPC(isClient bool) Code {
 
 	return Type().Id("baseJsonRPC").StructFunc(func(tg *Group) {
 
@@ -83,7 +83,7 @@ func (tr Transport) baseJsonRPC(isClient bool) Code {
 	})
 }
 
-func (tr Transport) errorJsonRPC() Code {
+func (tr *Transport) errorJsonRPC() Code {
 
 	return Type().Id("errorJsonRPC").Struct(
 		Id("Code").Id("int").Tag(map[string]string{"json": "code"}),
@@ -94,7 +94,7 @@ func (tr Transport) errorJsonRPC() Code {
 	)
 }
 
-func (tr Transport) jsonrpcResponsesTypeFunc() Code {
+func (tr *Transport) jsonrpcResponsesTypeFunc() Code {
 
 	return Type().Id("jsonrpcResponses").Op("[]").Id("baseJsonRPC").
 		Line().Func().Params(Id("responses").Op("*").Id("jsonrpcResponses")).Id("append").Params(Id("response").Op("*").Id("baseJsonRPC")).Block(
@@ -105,11 +105,11 @@ func (tr Transport) jsonrpcResponsesTypeFunc() Code {
 	)
 }
 
-func (tr Transport) idJsonRPC() Code {
+func (tr *Transport) idJsonRPC() Code {
 	return Type().Id("idJsonRPC").Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")
 }
 
-func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
+func (tr *Transport) jsonrpcConstants(exportErrors bool) Code {
 
 	export := func(name string, export bool) string {
 
@@ -140,7 +140,7 @@ func (tr Transport) jsonrpcConstants(exportErrors bool) Code {
 		Op(")")
 }
 
-func (tr Transport) singleBatchFunc() Code {
+func (tr *Transport) singleBatchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doSingleBatch").
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
@@ -191,7 +191,7 @@ func (tr Transport) singleBatchFunc() Code {
 		})
 }
 
-func (tr Transport) batchFunc() Code {
+func (tr *Transport) batchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doBatch").
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
@@ -207,6 +207,7 @@ func (tr Transport) batchFunc() Code {
 				Id("batchSize").Op("=").Len(Id("requests")),
 			)
 			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
+			bg.Id("responses").Op("=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
 			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
 				Id("wg").Dot("Add").Call(Lit(1)),
 				Go().Func().Params().Block(
@@ -228,7 +229,7 @@ func (tr Transport) batchFunc() Code {
 		})
 }
 
-func (tr Transport) serveBatchFunc() Code {
+func (tr *Transport) serveBatchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("serveBatch").
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Id("err").Error()).BlockFunc(

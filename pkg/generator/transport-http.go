@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderHTTP(outDir string) (err error) {
+func (tr *Transport) renderHTTP(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)

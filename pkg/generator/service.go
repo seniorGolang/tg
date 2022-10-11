@@ -54,15 +54,15 @@ func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface ty
 	return
 }
 
-func (svc service) isJsonRPC() bool {
+func (svc *service) isJsonRPC() bool {
 	return svc.tags.IsSet(tagServerJsonRPC)
 }
 
-func (svc service) lcName() string {
+func (svc *service) lcName() string {
 	return strings.ToLower(svc.Name)
 }
 
-func (svc service) lccName() string {
+func (svc *service) lccName() string {
 	return utils.ToLowerCamel(svc.Name)
 }
 
@@ -106,6 +106,6 @@ func (svc *service) render(outDir string) (err error) {
 	return
 }
 
-func (svc service) batchPath() string {
+func (svc *service) batchPath() string {
 	return path.Join("/", svc.tr.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPath, path.Join("/", svc.lccName())))
 }

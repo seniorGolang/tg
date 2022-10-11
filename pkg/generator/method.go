@@ -52,32 +52,32 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 	return
 }
 
-func (m method) fullName() string {
+func (m *method) fullName() string {
 	return m.svc.Name + m.Name
 }
 
-func (m method) lcName() string {
+func (m *method) lcName() string {
 	return strings.ToLower(m.Name)
 }
 
-func (m method) lccName() string {
+func (m *method) lccName() string {
 	return utils.ToLowerCamel(m.Name)
 }
 
-func (m method) requestStructName() string {
+func (m *method) requestStructName() string {
 	return "request" + m.svc.Name + m.Name
 }
 
-func (m method) responseStructName() string {
+func (m *method) responseStructName() string {
 	return "response" + m.svc.Name + m.Name
 }
 
-func (m method) isUploadVar(varName string) bool {
+func (m *method) isUploadVar(varName string) bool {
 	_, found := m.uploadVarsMap()[varName]
 	return found
 }
 
-func (m method) isDownloadVar(varName string) bool { // nolint
+func (m *method) isDownloadVar(varName string) bool { // nolint
 	_, found := m.downloadVarsMap()[varName]
 	return found
 }
@@ -128,7 +128,7 @@ func (m *method) downloadVarsMap() (headers map[string]string) {
 	return m.downloadVars
 }
 
-func (m method) httpPath(withoutPrefix ...bool) string {
+func (m *method) httpPath(withoutPrefix ...bool) string {
 	var elements []string
 	if len(withoutPrefix) == 0 {
 		elements = append(elements, "/")
@@ -139,7 +139,7 @@ func (m method) httpPath(withoutPrefix ...bool) string {
 	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
 }
 
-func (m method) jsonrpcPath(withoutPrefix ...bool) string {
+func (m *method) jsonrpcPath(withoutPrefix ...bool) string {
 	var elements []string
 	if len(withoutPrefix) == 0 {
 		elements = append(elements, "/")
@@ -150,7 +150,7 @@ func (m method) jsonrpcPath(withoutPrefix ...bool) string {
 	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
 }
 
-func (m method) httpMethod() string {
+func (m *method) httpMethod() string {
 
 	switch strings.ToUpper(m.tags.Value(tagMethodHTTP)) {
 	case "GET":
@@ -172,15 +172,15 @@ func formatPathURL(url string) string {
 	return strings.Split(url, ":")[0]
 }
 
-func (m method) isHTTP() bool {
+func (m *method) isHTTP() bool {
 	return m.svc.tags.Contains(tagServerHTTP) && m.tags.Contains(tagMethodHTTP)
 }
 
-func (m method) isJsonRPC() bool {
+func (m *method) isJsonRPC() bool {
 	return m.svc.tags.Contains(tagServerJsonRPC) && !m.tags.Contains(tagMethodHTTP)
 }
 
-func (m method) handlerQual() (pkgPath, handler string) {
+func (m *method) handlerQual() (pkgPath, handler string) {
 
 	if !m.tags.Contains(tagHandler) {
 		return
@@ -191,7 +191,7 @@ func (m method) handlerQual() (pkgPath, handler string) {
 	return
 }
 
-func (m method) arguments() (vars []types.StructField) {
+func (m *method) arguments() (vars []types.StructField) {
 
 	argsAll := m.fieldsArgument()
 
@@ -215,7 +215,7 @@ func (m method) arguments() (vars []types.StructField) {
 	return
 }
 
-func (m method) argumentsWithUploads() (vars []types.StructField) {
+func (m *method) argumentsWithUploads() (vars []types.StructField) {
 
 	argsAll := m.fieldsArgument()
 
@@ -246,7 +246,7 @@ func (m method) argumentsWithUploads() (vars []types.StructField) {
 	return
 }
 
-func (m method) results() (vars []types.StructField) {
+func (m *method) results() (vars []types.StructField) {
 
 	argsAll := m.fieldsResult()
 
@@ -265,7 +265,7 @@ func (m method) results() (vars []types.StructField) {
 	return
 }
 
-func (m method) urlArgs(errStatement func(arg, header string) *Statement) (g *Statement) {
+func (m *method) urlArgs(errStatement func(arg, header string) *Statement) (g *Statement) {
 
 	return m.argFromString("urlParam", m.argPathMap(),
 		func(srcName string) Code {
@@ -275,7 +275,7 @@ func (m method) urlArgs(errStatement func(arg, header string) *Statement) (g *St
 	)
 }
 
-func (m method) urlParams(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) urlParams(errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	return m.argFromString("urlParam", m.argParamMap(),
 		func(srcName string) Code {
@@ -285,7 +285,7 @@ func (m method) urlParams(errStatement func(arg, header string) *Statement) (blo
 	)
 }
 
-func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) httpArgHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	return m.argFromString("header", m.varHeaderMap(),
 		func(srcName string) Code {
@@ -296,7 +296,7 @@ func (m method) httpArgHeaders(errStatement func(arg, header string) *Statement)
 	)
 }
 
-func (m method) httpCookies(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) httpCookies(errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	return m.argFromString("cookie", m.varCookieMap(),
 		func(srcName string) Code {
@@ -307,7 +307,7 @@ func (m method) httpCookies(errStatement func(arg, header string) *Statement) (b
 	)
 }
 
-func (m method) argFromString(typeName string, varMap map[string]string, strCodeFn func(srcName string) Code, errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) argFromString(typeName string, varMap map[string]string, strCodeFn func(srcName string) Code, errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	block = Line()
 	if len(varMap) != 0 {
@@ -353,7 +353,7 @@ func (m method) argFromString(typeName string, varMap map[string]string, strCode
 	return
 }
 
-func (m method) httpRetHeaders() (block *Statement) {
+func (m *method) httpRetHeaders() (block *Statement) {
 
 	block = Line()
 	if len(m.varHeaderMap()) != 0 {
@@ -496,7 +496,7 @@ func (m *method) varHeaderMap() (headers map[string]string) {
 	return m.headerToVar
 }
 
-func (m method) argByName(argName string) (variable *types.Variable) {
+func (m *method) argByName(argName string) (variable *types.Variable) {
 
 	argName = strings.TrimPrefix(argName, "!")
 	for _, arg := range m.Args {
@@ -507,7 +507,7 @@ func (m method) argByName(argName string) (variable *types.Variable) {
 	return
 }
 
-func (m method) resultByName(retName string) (variable *types.Variable) {
+func (m *method) resultByName(retName string) (variable *types.Variable) {
 
 	for _, ret := range m.Results {
 		if ret.Name == retName {
@@ -517,22 +517,22 @@ func (m method) resultByName(retName string) (variable *types.Variable) {
 	return
 }
 
-func (m method) fieldsResult() []types.StructField {
+func (m *method) fieldsResult() []types.StructField {
 	return m.resultFields
 }
 
-func (m method) fieldsArgument() []types.StructField {
+func (m *method) fieldsArgument() []types.StructField {
 	return m.argFields
 }
 
-func (m method) resultsWithoutError() []types.Variable {
+func (m *method) resultsWithoutError() []types.Variable {
 	if isErrorLast(m.Results) {
 		return m.Results[:len(m.Results)-1]
 	}
 	return m.Results
 }
 
-func (m method) argsWithoutContext() (args []types.Variable) {
+func (m *method) argsWithoutContext() (args []types.Variable) {
 
 	if isContextFirst(m.Args) {
 		return m.Args[1:]
@@ -540,7 +540,7 @@ func (m method) argsWithoutContext() (args []types.Variable) {
 	return m.Args
 }
 
-func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statement, errStatement *Statement) *Statement {
+func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *Statement, errStatement *Statement) *Statement {
 
 	op := "="
 
@@ -572,7 +572,7 @@ func (m method) argToTypeConverter(from *Statement, vType types.Type, id *Statem
 	return Line().Add(from)
 }
 
-func (m method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes ...map[string]string) (fields []types.StructField) {
+func (m *method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes ...map[string]string) (fields []types.StructField) {
 
 	for _, variable := range vars {
 

@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
+func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -92,7 +92,7 @@ func (tr Transport) renderClientJsonRPC(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
 
-func (tr Transport) jsonrpcClientStructFunc() Code {
+func (tr *Transport) jsonrpcClientStructFunc() Code {
 
 	return Type().Id("ClientJsonRPC").Struct(
 		Id("url").String(),
@@ -104,7 +104,7 @@ func (tr Transport) jsonrpcClientStructFunc() Code {
 	)
 }
 
-func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
+func (tr *Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 
 	return Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("jsonrpcCall").
 		ParamsFunc(func(pg *Group) {
@@ -168,7 +168,7 @@ func (tr Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
 	})
 }
 
-func (tr Transport) jsonrpcBatchTypeFunc() Code {
+func (tr *Transport) jsonrpcBatchTypeFunc() Code {
 	return Type().Id("Batch").Op("[]").Id("baseJsonRPC").
 		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("Append").Params(Id("request").Id("baseJsonRPC")).Block(
 		Op("*").Id("batch").Op("=").Append(Op("*").Id("batch"), Id("request"))).

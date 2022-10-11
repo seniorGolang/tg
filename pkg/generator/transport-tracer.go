@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderTracer(outDir string) (err error) {
+func (tr *Transport) renderTracer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -41,7 +41,7 @@ func (tr Transport) renderTracer(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "tracer.go"))
 }
 
-func (tr Transport) makeSpanFunc() Code {
+func (tr *Transport) makeSpanFunc() Code {
 
 	return Func().Id("makeSpan").
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("opName").String()).
@@ -64,7 +64,7 @@ func (tr Transport) makeSpanFunc() Code {
 	)
 }
 
-func (tr Transport) toStringFunc() Code {
+func (tr *Transport) toStringFunc() Code {
 
 	return Func().Id("toString").Params(Id("value").Interface()).String().Block(
 		List(Id("data"), Id("_")).Op(":=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("value")),
@@ -72,7 +72,7 @@ func (tr Transport) toStringFunc() Code {
 	)
 }
 
-func (tr Transport) injectSpanFunc() Code {
+func (tr *Transport) injectSpanFunc() Code {
 	return Func().Line().Id("injectSpan").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("span").Qual(packageOpentracing, "Span")).Block(
 		Line().Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
@@ -89,7 +89,7 @@ func (tr Transport) injectSpanFunc() Code {
 	)
 }
 
-func (tr Transport) traceJaegerFunc() Code {
+func (tr *Transport) traceJaegerFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("TraceJaeger").Params(Id("serviceName").String()).Params(Op("*").Id("Server")).BlockFunc(func(g *Group) {
 
@@ -115,7 +115,7 @@ func (tr Transport) traceJaegerFunc() Code {
 	})
 }
 
-func (tr Transport) traceZipkinFunc() Code {
+func (tr *Transport) traceZipkinFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("TraceZipkin").Params(Id("serviceName").String(), Id("zipkinUrl").String()).Params(Op("*").Id("Server")).BlockFunc(func(g *Group) {
 

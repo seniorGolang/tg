@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderErrors(outDir string) (err error) {
+func (tr *Transport) renderErrors(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -25,7 +25,7 @@ func (tr Transport) renderErrors(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "errors.go"))
 }
 
-func (tr Transport) strErrorType() Code {
+func (tr *Transport) strErrorType() Code {
 
 	return Type().Id("strError").String().Line().
 		Func().Params(Id("e").Id("strError")).Id("Error").Params().Params(String()).Block(
@@ -33,7 +33,7 @@ func (tr Transport) strErrorType() Code {
 	)
 }
 
-func (tr Transport) exitOnErrorFunc() Code {
+func (tr *Transport) exitOnErrorFunc() Code {
 	return Func().Id("ExitOnError").Params(Id("log").Qual(packageZeroLog, "Logger"), Err().Error(), Id("msg").String()).Block(
 		If(Err().Op("!=").Nil()).Block(
 			Id("log").Dot("Panic").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Id("msg")),

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (tr Transport) cleanup(outDir string) {
+func (tr *Transport) cleanup(outDir string) {
 
 	var err error
 	var files []os.DirEntry

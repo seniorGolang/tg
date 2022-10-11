@@ -18,8 +18,8 @@ type clientJS struct {
 	typeDef    map[string]typeDefJs
 }
 
-func (tr Transport) RenderClientJS(outDir string) (err error) {
-	return newClientJS(&tr).render(outDir)
+func (tr *Transport) RenderClientJS(outDir string) (err error) {
+	return newClientJS(tr).render(outDir)
 }
 
 func newClientJS(tr *Transport) (js *clientJS) {

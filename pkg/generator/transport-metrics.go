@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderMetrics(outDir string) (err error) {
+func (tr *Transport) renderMetrics(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 
@@ -37,7 +37,7 @@ func (tr Transport) renderMetrics(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "metrics.go"))
 }
 
-func (tr Transport) serveMetricsFunc() Code {
+func (tr *Transport) serveMetricsFunc() Code {
 	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("address").String()).Block(
 		// fiber.Config{DisableStartupMessage: true}`
 		Id("srvMetrics").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),

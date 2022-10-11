@@ -37,7 +37,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 		}),
 		Return(),
 	)
-	srcFile.Line().Func().Params(Id("http").Id("http" + svc.Name)).Id("Service").Params().Params(Id("MiddlewareSet" + svc.Name)).Block(
+	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("Service").Params().Params(Id("MiddlewareSet" + svc.Name)).Block(
 		Return(Id("http").Dot("svc")),
 	)
 	srcFile.Line().Add(svc.withLogFunc())

@@ -217,6 +217,7 @@ func (svc *service) batchFunc() Code {
 				Id("batchSize").Op("=").Len(Id("requests")),
 			)
 			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
+			bg.Id("responses").Op("=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
 			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
 				Id("wg").Dot("Add").Call(Lit(1)),
 				Go().Func().Params().Block(

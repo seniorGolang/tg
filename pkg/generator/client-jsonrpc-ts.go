@@ -17,8 +17,8 @@ type clientTS struct {
 	typeDefTs  map[string]typeDefTs
 }
 
-func (tr Transport) RenderClientTS(outDir string) (err error) {
-	return newClientTS(&tr).render(outDir)
+func (tr *Transport) RenderClientTS(outDir string) (err error) {
+	return newClientTS(tr).render(outDir)
 }
 
 func newClientTS(tr *Transport) (js *clientTS) {

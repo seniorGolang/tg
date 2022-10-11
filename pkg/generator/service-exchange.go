@@ -27,7 +27,7 @@ func (svc *service) renderExchange(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-exchange.go"))
 }
 
-func (svc service) exchange(ctx context.Context, name string, params []types.StructField) Code {
+func (svc *service) exchange(ctx context.Context, name string, params []types.StructField) Code {
 
 	if len(params) == 0 {
 		return Comment("Formal exchange type, please do not delete.").Line().Type().Id(name).Struct()

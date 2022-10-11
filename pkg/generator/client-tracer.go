@@ -10,7 +10,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr Transport) renderClientTracer(outDir string) (err error) {
+func (tr *Transport) renderClientTracer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -27,7 +27,7 @@ func (tr Transport) renderClientTracer(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "tracer.go"))
 }
 
-func (tr Transport) extractSpanClientFunc() Code {
+func (tr *Transport) extractSpanClientFunc() Code {
 
 	return Func().Id("extractSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Qual(packageContext, "Context"), Id("opName").String()).Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 
@@ -45,7 +45,7 @@ func (tr Transport) extractSpanClientFunc() Code {
 	)
 }
 
-func (tr Transport) injectSpanClientFunc() Code {
+func (tr *Transport) injectSpanClientFunc() Code {
 	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFiber, "Request")).Params().Block(
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
