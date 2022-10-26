@@ -21,7 +21,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
+func (doc *swagger) registerStruct(method *method, name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
 
 	if len(fields) == 0 {
 		doc.schemas[name] = swSchema{Type: "object"}
@@ -38,6 +38,15 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 		structType.Fields = append(structType.Fields, field)
 	}
 	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
+
+	// v := variable{
+	// 	Type:       structType,
+	// 	tags:       mTags,
+	// 	method:     method,
+	// 	schemas:    make(swSchemas),
+	// 	knownTypes: make(map[string]int),
+	// }
+	// v.scan(name)
 }
 
 func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.Type) { // nolint
@@ -50,11 +59,14 @@ func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.T
 
 func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, varTags tags.DocTags) (schema swSchema) {
 
+	var found bool
+	schemaName := doc.toSchemaName(typeName, pkgPath)
+	if schema, found = doc.schemas[schemaName]; found {
+		return schema
+	}
 	if len(varTags) > 0 {
-
 		schema.Description = varTags.Value(tagDesc)
 		if example := varTags.Value(tagExample); example != "" {
-
 			var value interface{} = example
 			_ = json.Unmarshal([]byte(example), &value)
 			schema.Example = value
@@ -73,21 +85,6 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		return
 	}
 	switch vType := varType.(type) {
-	case types.TName:
-		if types.IsBuiltin(varType) {
-			schema.Type = vType.TypeName
-			return
-		}
-		schema.Example = nil
-		schema.Ref = fmt.Sprintf("#/components/schemas/%s", vType.String())
-		if nextType := doc.searchType(pkgPath, vType.TypeName); nextType != nil {
-			if doc.knownCount(vType.TypeName) < doc.deepLevel {
-				doc.knownInc(vType.TypeName)
-				// if def, found := doc.schemas[vType.TypeName]; !found || len(def.Properties) == 0 {
-				doc.schemas[vType.TypeName] = doc.walkVariable(typeName, pkgPath, nextType, varTags)
-				// }
-			}
-		}
 	case types.TMap:
 		schema.Type = "object"
 		schema.AdditionalProperties = doc.walkVariable(typeName, pkgPath, vType.Value, nil)
@@ -95,48 +92,46 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Type = "array"
 		schema.Maximum = vType.ArrayLen
 		schema.Nullable = vType.IsSlice
-		itemSchema := doc.walkVariable(typeName, pkgPath, vType.Next, nil)
+		itemSchema := doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, nil)
 		schema.Items = &itemSchema
 	case types.Struct:
 		schema.Type = "object"
 		schema.Properties = make(swProperties)
 		for _, field := range vType.Fields {
 			if fieldName, inline := jsonName(field); fieldName != "-" {
-				embed := doc.walkVariable(field.Name, pkgPath, field.Type, tags.ParseTags(field.Docs))
+				embed := doc.walkVariable(field.Type.String(), pkgPath, field.Type, tags.ParseTags(field.Docs))
 				if !inline {
 					schema.Properties[fieldName] = embed
 					continue
 				}
 				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
-				embed = doc.schemas[inlineTokens[len(inlineTokens)-1]]
+				embedName := inlineTokens[len(inlineTokens)-1]
+				embed = doc.schemas[embedName]
 				for eField, def := range embed.Properties {
 					schema.Properties[eField] = def
 				}
 			}
 		}
+	case types.TName:
+		if types.IsBuiltin(varType) {
+			schema.Type = vType.TypeName
+			return
+		}
+		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
+			if doc.knownCount(schemaName) < 1 {
+				doc.knownInc(schemaName)
+				doc.schemas[schemaName] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
+			}
+			schemaName = doc.toSchemaName(vType.TypeName, pkgPath)
+			schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+		}
 	case types.TImport:
-		if nextType := doc.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			def := doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
-			if typeName == vType.Next.String() {
-				depth := 10
-				for def.Ref != "" {
-					if depth--; depth == 0 {
-						break
-					}
-					def = doc.walkVariable(typeName, vType.Import.Package, nextType, varTags)
-				}
+		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
+			schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+			if _, found = doc.schemas[schemaName]; found {
+				return
 			}
-			if doc.knownCount(vType.Next.String()) < doc.deepLevel {
-				doc.knownInc(vType.Next.String())
-				// if existDef, found := doc.schemas[vType.Next.String()]; !found || len(existDef.Properties) == 0 {
-				doc.schemas[vType.Next.String()] = def
-				schema = def
-				// }
-			} else {
-				schema.Example = nil
-				refName := vType.Next.String()
-				schema.Ref = fmt.Sprintf("#/components/schemas/%s", refName)
-			}
+			doc.schemas[schemaName] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
 		}
 	case types.TEllipsis:
 		schema.Type = "array"
@@ -149,9 +144,17 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Nullable = true
 	default:
 		doc.log.WithField("type", vType).Error("unknown type")
-		return
 	}
 	return
+}
+
+func (doc *swagger) toSchemaName(typeName, pkgPath string) string {
+
+	schemaName := strings.TrimPrefix(typeName, "*")
+	if !strings.Contains(schemaName, ".") {
+		schemaName = fmt.Sprintf("%s.%s", filepath.Base(pkgPath), schemaName)
+	}
+	return schemaName
 }
 
 func (doc *swagger) searchType(pkg, name string) (retType types.Type) {

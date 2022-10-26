@@ -229,8 +229,8 @@ func (m *method) argumentsWithUploads() (vars []types.StructField) {
 		if !inArgs && !inPath && !inHeader && !inCookie {
 
 			if m.isUploadVar(arg.Name) {
-				m.tags.Set(arg.Name+".type", "file")
-				m.tags.Set(arg.Name+".format", "byte")
+				m.tags.Set(arg.Name+".type", "string")
+				m.tags.Set(arg.Name+".format", "binary")
 			}
 			if jsonTags, _ := arg.Tags["json"]; len(jsonTags) == 0 { // nolint
 				if arg.Tags == nil {

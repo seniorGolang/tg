@@ -45,7 +45,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 		schemas:    make(swSchemas),
 		aliasTypes: make(map[string]int),
 		knownTypes: make(map[string]int),
-		deepLevel:  tr.tags.ValueInt(tagSwaggerDeep, 0),
+		deepLevel:  tr.tags.ValueInt(tagSwaggerDeep, 3),
 	}
 	return
 }
@@ -89,8 +89,8 @@ func (doc *swagger) render(outFilePath string) (err error) {
 			}
 			successCode := method.tags.ValueInt(tagHttpSuccess, fasthttp.StatusOK)
 
-			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.argumentsWithUploads())
-			doc.registerStruct(method.responseStructName(), service.pkgPath, method.tags, method.results())
+			doc.registerStruct(method, method.requestStructName(), service.pkgPath, method.tags, method.argumentsWithUploads())
+			doc.registerStruct(method, method.responseStructName(), service.pkgPath, method.tags, method.results())
 
 			var parameters []swParameter
 			var retHeaders map[string]swHeader
