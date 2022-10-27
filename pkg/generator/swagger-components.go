@@ -21,7 +21,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func (doc *swagger) registerStruct(method *method, name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
+func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
 
 	if len(fields) == 0 {
 		doc.schemas[name] = swSchema{Type: "object"}
@@ -38,15 +38,6 @@ func (doc *swagger) registerStruct(method *method, name, pkgPath string, mTags t
 		structType.Fields = append(structType.Fields, field)
 	}
 	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
-
-	// v := variable{
-	// 	Type:       structType,
-	// 	tags:       mTags,
-	// 	method:     method,
-	// 	schemas:    make(swSchemas),
-	// 	knownTypes: make(map[string]int),
-	// }
-	// v.scan(name)
 }
 
 func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.Type) { // nolint
@@ -61,8 +52,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 
 	var found bool
 	schemaName := doc.toSchemaName(typeName, pkgPath)
-	if schema, found = doc.schemas[schemaName]; found {
-		return schema
+	if _, found = doc.schemas[schemaName]; found {
+		schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+		return
 	}
 	if len(varTags) > 0 {
 		schema.Description = varTags.Value(tagDesc)
@@ -97,6 +89,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 	case types.Struct:
 		schema.Type = "object"
 		schema.Properties = make(swProperties)
+		var inlined []swSchema
 		for _, field := range vType.Fields {
 			if fieldName, inline := jsonName(field); fieldName != "-" {
 				embed := doc.walkVariable(field.Type.String(), pkgPath, field.Type, tags.ParseTags(field.Docs))
@@ -104,13 +97,16 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.Properties[fieldName] = embed
 					continue
 				}
-				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
-				embedName := inlineTokens[len(inlineTokens)-1]
-				embed = doc.schemas[embedName]
-				for eField, def := range embed.Properties {
-					schema.Properties[eField] = def
-				}
+				inlined = append(inlined, swSchema{Ref: embed.Ref})
 			}
+		}
+		var allOf swSchema
+		if len(inlined) != 0 {
+			for _, inline := range inlined {
+				allOf.AllOf = append(allOf.AllOf, inline)
+			}
+			allOf.AllOf = append(allOf.AllOf, schema)
+			schema = allOf
 		}
 	case types.TName:
 		if types.IsBuiltin(varType) {
@@ -135,10 +131,13 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 	case types.TEllipsis:
 		schema.Type = "array"
-		itemSchema := doc.walkVariable(typeName, pkgPath, vType.Next, varTags)
+		itemSchema := doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags)
 		schema.Items = &itemSchema
 	case types.TPointer:
-		return doc.walkVariable(typeName, pkgPath, vType.Next, nil)
+		if _, found = doc.schemas[schemaName]; found {
+			return doc.schemas[schemaName]
+		}
+		schema = doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags)
 	case types.TInterface:
 		schema.Type = "object"
 		schema.Nullable = true

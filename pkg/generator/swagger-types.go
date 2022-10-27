@@ -105,6 +105,7 @@ type swSchema struct {
 	Description string       `json:"description,omitempty" yaml:"description,omitempty"`
 
 	OneOf []swSchema `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	AllOf []swSchema `json:"allOf,omitempty" yaml:"allOf,omitempty"`
 
 	AdditionalProperties interface{} `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 }
