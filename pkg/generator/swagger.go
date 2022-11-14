@@ -31,8 +31,6 @@ const (
 type swagger struct {
 	*Transport
 
-	deepLevel int
-
 	schemas    swSchemas
 	aliasTypes map[string]int
 	knownTypes map[string]int
@@ -45,7 +43,6 @@ func newSwagger(tr *Transport) (doc *swagger) {
 		schemas:    make(swSchemas),
 		aliasTypes: make(map[string]int),
 		knownTypes: make(map[string]int),
-		deepLevel:  tr.tags.ValueInt(tagSwaggerDeep, 3),
 	}
 	return
 }

@@ -66,6 +66,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		if format := varTags.Value(tagFormat); format != "" {
 			schema.Format = format
 		}
+		if enums := varTags.Value(tagEnums); enums != "" {
+			schema.Enum = strings.Split(enums, ",")
+		}
 		if newType := varTags.Value(tagType); newType != "" {
 			schema.Type = newType
 			return
@@ -102,10 +105,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 		var allOf swSchema
 		if len(inlined) != 0 {
-			for _, inline := range inlined {
-				allOf.AllOf = append(allOf.AllOf, inline)
-			}
-			allOf.AllOf = append(allOf.AllOf, schema)
+			allOf.AllOf = append(allOf.AllOf, append(inlined, schema)...)
 			schema = allOf
 		}
 	case types.TName:

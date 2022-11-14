@@ -28,6 +28,7 @@ const (
 	tagTag           = "tags"
 	tagTests         = "tests"
 	tagTrace         = "trace"
+	tagEnums         = "enums"
 	tagFormat        = "format"
 	tagSummary       = "summary"
 	tagHandler       = "handler"
@@ -49,7 +50,6 @@ const (
 	tagPackageJSON   = "packageJSON"
 	tagPackageUUID   = "uuidPackage"
 	tagSwaggerTags   = "swaggerTags"
-	tagSwaggerDeep   = "swaggerDeep"
 	tagLogSkip       = "log-skip"
 )
 
