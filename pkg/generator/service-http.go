@@ -66,7 +66,7 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 				}
 				if method.tags.Contains(tagHandler) {
 					bg.Id("route").Dot(utils.ToCamel(method.httpMethod())).Call(Lit(method.httpPath()), Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
-						Return().Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("svc")),
+						Return().Qual(method.handlerQual()).Call(Id(_ctx_), Id("http").Dot("base")),
 					))
 					continue
 				}
