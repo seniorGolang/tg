@@ -96,11 +96,11 @@ func (tr *Transport) errorJsonRPC() Code {
 
 func (tr *Transport) jsonrpcResponsesTypeFunc() Code {
 
-	return Type().Id("jsonrpcResponses").Op("[]").Id("baseJsonRPC").
+	return Type().Id("jsonrpcResponses").Op("[]").Op("*").Id("baseJsonRPC").
 		Line().Func().Params(Id("responses").Op("*").Id("jsonrpcResponses")).Id("append").Params(Id("response").Op("*").Id("baseJsonRPC")).Block(
 		If(Id("response").Op("==").Nil()).Block(Return()),
 		If(Id("response").Dot("ID").Op("!=").Nil()).Block(
-			Op("*").Id("responses").Op("=").Append(Op("*").Id("responses"), Op("*").Id("response")),
+			Op("*").Id("responses").Op("=").Append(Op("*").Id("responses"), Id("response")),
 		),
 	)
 }
