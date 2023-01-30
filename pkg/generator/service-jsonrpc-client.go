@@ -5,12 +5,11 @@ package generator
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"path/filepath"
 
 	. "github.com/dave/jennifer/jen"
-
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
@@ -26,102 +25,141 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 
-	srcFile.Line().Type().Id("Client" + svc.Name).Struct(
-		Op("*").Id("ClientJsonRPC"),
-	).Line()
-
+	srcFile.Line().Type().Id("Client" + svc.Name).StructFunc(func(sg *Group) {
+		sg.Op("*").Id("ClientJsonRPC")
+	}).Line()
 	for _, method := range svc.methods {
-
 		if method.tags.Contains(tagMethodHTTP) {
 			continue
 		}
 		srcFile.Type().Id("ret" + svc.Name + method.Name).Func().Params(funcDefinitionParams(ctx, method.Results))
 	}
-
 	for _, method := range svc.methods {
-
 		if method.tags.Contains(tagMethodHTTP) {
 			continue
 		}
-		srcFile.Line().Add(svc.jsonrpcClientRequestFunc(ctx, method))
-		srcFile.Line().Add(svc.jsonrpcClientMethodFunc(ctx, method))
+		srcFile.Line().Add(svc.jsonrpcClientMethodFunc(ctx, method, outDir))
+		srcFile.Line().Add(svc.jsonrpcClientRequestFunc(ctx, method, outDir))
 	}
-
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-jsonrpc.go"))
 }
 
-func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method) Code {
+func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method, outDir string) Code {
 
-	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).Id("Req"+method.Name).Params(Id("ret").Id("ret"+svc.Name+method.Name), funcDefinitionParams(ctx, method.argsWithoutContext())).Params(Id("request").Id("baseJsonRPC")).Block(
+	return Func().
+		Params(Id("cli").Op("*").Id("Client" + svc.Name)).
+		Id(method.Name).
+		Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).BlockFunc(func(bg *Group) {
 
-		Line().Id("request").Op("=").Id("baseJsonRPC").Values(Dict{
-			Id("Version"): Id("Version"),
-			Id("Method"):  Lit(svc.lcName() + "." + method.lcName()),
-			Id("Params"): Id("request" + svc.Name + method.Name).Values(DictFunc(func(d Dict) {
-				for _, arg := range method.argsWithoutContext() {
-					d[Id(utils.ToCamel(arg.Name))] = Id(arg.Name)
-				}
-			})),
-		}),
-
-		Var().Err().Error(),
-		Var().Id("response").Id(method.responseStructName()),
-
-		Line().If(Id("ret").Op("!=").Nil()).Block(
-			Id("request").Dot("retHandler").Op("=").Func().Params(Id("jsonrpcResponse").Id("baseJsonRPC")).Block(
-				If(Id("jsonrpcResponse").Dot("Error").Op("!=").Nil()).Block(
-					Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("jsonrpcResponse").Dot("Error")),
-					Id("ret").CallFunc(func(cg *Group) {
-						for _, ret := range method.resultsWithoutError() {
-							cg.Id("response").Dot(utils.ToCamel(ret.Name))
-						}
-						cg.Err()
-					}),
-					Return(),
-				),
-				Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("jsonrpcResponse").Dot("Result"), Op("&").Id("response")),
-				Id("ret").CallFunc(func(cg *Group) {
-					for _, ret := range method.resultsWithoutError() {
-						cg.Id("response").Dot(utils.ToCamel(ret.Name))
-					}
-					cg.Err()
-				}),
-			),
-			Id("request").Dot("ID").Op("=").Op("[]").Byte().Call(Lit(`"`).Op("+").Qual(packageUUID, "New").Call().Dot("String").Call().Op("+").Lit(`"`)),
-		),
-		Return(),
-	)
+		bg.Line()
+		bg.Id("request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
+			for idx, arg := range method.fieldsArgument() {
+				dict[Id(utils.ToCamel(arg.Name))] = Id(method.argsWithoutContext()[idx].Name)
+			}
+		}))
+		bg.Var().Id("response").Id(method.responseStructName())
+		bg.Var().Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC")
+		if svc.tr.tags.IsSet(tagClientFallback) {
+			bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request"))
+			bg.List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request"))
+			bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
+			bg.If(Id("cli").Dot(svc.lccName() + "Fallback").Op("!=").Nil()).Block(
+				Id("fallbackCheck").Op("=").Id("cli").Dot(svc.lccName() + "Fallback").Dot(method.Name),
+			)
+			bg.If(Err().Op("=").
+				Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Err(), Id("cacheKey"), Id("fallbackCheck"), Id("rpcResponse"), Op("&").Id("response")).
+				Op(";").Err().Op("!=").Nil()).Block(
+				Return(),
+			)
+		} else {
+			bg.If(List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request")).Op(";").Err().Op("!=").Nil()).Block(
+				Return(),
+			)
+			bg.Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response"))
+		}
+		bg.ReturnFunc(func(rg *Group) {
+			for _, ret := range method.resultsWithoutError() {
+				rg.Id("response").Dot(utils.ToCamel(ret.Name))
+			}
+			rg.Err()
+		})
+	})
 }
 
-func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method) Code {
+func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method, outDir string) Code {
 
-	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).Block(
+	ctxCode := Id("_").Qual(packageContext, "Context")
+	if svc.tr.tags.IsSet(tagClientFallback) {
+		ctxCode = Id(_ctx_).Qual(packageContext, "Context")
+	}
+	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).
+		Id("Req"+method.Name).
+		Params(ctxCode, Id("callback").Id("ret"+svc.Name+method.Name), funcDefinitionParams(ctx, method.argsWithoutContext())).
+		Params(Id("request").Id("RequestRPC")).BlockFunc(func(bg *Group) {
 
-		Line().Id("retHandler").Op(":=").Func().ParamsFunc(func(pg *Group) {
-			for _, ret := range method.Results {
-				pg.Id("_" + ret.Name).Add(fieldType(context.Background(), ret.Type, true))
-			}
-		}).BlockFunc(func(bg *Group) {
-			for _, ret := range method.Results {
-				bg.Id(ret.Name).Op("=").Id("_" + ret.Name)
-			}
-		}),
-
-		If(Id("blockErr").Op(":=").Id("cli").Dot("Batch").Call(Id(_ctx_), Id("cli").Dot("Req"+method.Name).CallFunc(func(cg *Group) {
-			cg.Id("retHandler")
-			for _, arg := range method.argsWithoutContext() {
-
-				argCode := Id(arg.Name)
-
-				if types.IsEllipsis(arg.Type) {
-					argCode.Op("...")
+		bg.Line()
+		bg.Id("request").Op("=").Id("RequestRPC").Values(Dict{
+			Id("rpcRequest"): Op("&").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "RequestRPC").Values(Dict{
+				Id("ID"):      Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "NewID").Call(),
+				Id("JSONRPC"): Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "Version"),
+				Id("Method"):  Lit(svc.lcName() + "." + method.lcName()),
+				Id("Params"): Id(method.requestStructName()).Values(DictFunc(func(dg Dict) {
+					for idx, arg := range method.fieldsArgument() {
+						dg[Id(utils.ToCamel(arg.Name))] = Id(method.argsWithoutContext()[idx].Name)
+					}
+				})),
+			}),
+		})
+		bg.If(Id("callback").Op("!=").Nil()).Block(
+			Var().Id("response").Id(method.responseStructName()),
+			Id("request").Dot("retHandler").Op("=").Func().Params(
+				Err().Error(),
+				Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"),
+			).BlockFunc(func(bg *Group) {
+				if svc.tr.tags.IsSet(tagClientFallback) {
+					bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request").Dot("rpcRequest").Dot("Params"))
+					bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
+					bg.If(Id("cli").Dot(svc.lccName() + "Fallback").Op("!=").Nil()).Block(
+						Id("fallbackCheck").Op("=").Id("cli").Dot(svc.lccName() + "Fallback").Dot(method.Name),
+					)
+				} else {
+					bg.If(Err().Op("==").Nil()).Block(
+						Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response")),
+					)
 				}
-				cg.Add(argCode)
-			}
-		})).Op(";").Id("blockErr").Op("!=").Nil()).Block(
-			Err().Op("=").Id("blockErr"),
-			Return(),
-		),
-		Return(),
-	)
+				bg.Id("callback").CallFunc(func(cg *Group) {
+					for _, ret := range method.fieldsResult() {
+						cg.Id("response").Dot(utils.ToCamel(ret.Name))
+					}
+					if svc.tr.tags.IsSet(tagClientFallback) {
+						cg.Id("cli").Dot("proceedResponse").Call(
+							Id(_ctx_),
+							Err(),
+							Id("cacheKey"),
+							Id("fallbackCheck"),
+							Id("rpcResponse"),
+							Op("&").Id("response"),
+						)
+					} else {
+						cg.Err()
+					}
+				})
+			}),
+		)
+		bg.Return()
+	})
+}
+
+func (svc *service) renderClientFallbackError(outDir string) (err error) {
+
+	srcFile := newSrc(filepath.Base(outDir))
+	srcFile.PackageComment(doNotEdit)
+
+	srcFile.Type().Id(svc.lccName() + "Fallback").InterfaceFunc(func(ig *Group) {
+		for _, method := range svc.methods {
+			ig.Id(method.Name).Params(Err().Error()).Bool()
+		}
+	})
+	fmt.Println(path.Join(outDir, svc.lcName()+"-fallback.go"))
+	return srcFile.Save(path.Join(outDir, svc.lcName()+"-fallback.go"))
 }

@@ -25,9 +25,6 @@ type method struct {
 	svc  *service
 	tags tags.DocTags
 
-	uploadVars   map[string]string
-	downloadVars map[string]string
-
 	argFields    []types.StructField
 	resultFields []types.StructField
 
@@ -70,62 +67,6 @@ func (m *method) requestStructName() string {
 
 func (m *method) responseStructName() string {
 	return "response" + m.svc.Name + m.Name
-}
-
-func (m *method) isUploadVar(varName string) bool {
-	_, found := m.uploadVarsMap()[varName]
-	return found
-}
-
-func (m *method) isDownloadVar(varName string) bool { // nolint
-	_, found := m.downloadVarsMap()[varName]
-	return found
-}
-
-func (m *method) uploadVarsMap() (headers map[string]string) {
-
-	if m.uploadVars != nil {
-		return m.uploadVars
-	}
-
-	m.uploadVars = make(map[string]string)
-
-	if uploadVars := m.tags.Value(tagUploadVars); uploadVars != "" {
-
-		uploadPairs := strings.Split(uploadVars, ",")
-
-		for _, pair := range uploadPairs {
-			if pairTokens := strings.Split(pair, "|"); len(pairTokens) == 2 {
-				arg := strings.TrimSpace(pairTokens[0])
-				upload := strings.TrimSpace(pairTokens[1])
-				m.uploadVars[arg] = upload
-			}
-		}
-	}
-	return m.uploadVars
-}
-
-func (m *method) downloadVarsMap() (headers map[string]string) {
-
-	if m.downloadVars != nil {
-		return m.downloadVars
-	}
-
-	m.downloadVars = make(map[string]string)
-
-	if uploadVars := m.tags.Value(tagDownloadVars); uploadVars != "" {
-
-		downloadPairs := strings.Split(uploadVars, ",")
-
-		for _, pair := range downloadPairs {
-			if pairTokens := strings.Split(pair, "|"); len(pairTokens) == 2 {
-				arg := strings.TrimSpace(pairTokens[0])
-				upload := strings.TrimSpace(pairTokens[1])
-				m.downloadVars[arg] = upload
-			}
-		}
-	}
-	return m.downloadVars
 }
 
 func (m *method) httpPath(withoutPrefix ...bool) string {
@@ -201,38 +142,10 @@ func (m *method) arguments() (vars []types.StructField) {
 		_, inArgs := m.argParamMap()[arg.Name]
 		_, inHeader := m.varHeaderMap()[arg.Name]
 		_, inCookie := m.varCookieMap()[arg.Name]
-		_, inUpload := m.uploadVarsMap()[arg.Name]
-
-		if !inArgs && !inPath && !inHeader && !inCookie && !inUpload {
-
-			if m.isUploadVar(arg.Name) {
-				m.tags.Set(arg.Name+".type", "file")
-				m.tags.Set(arg.Name+".format", "byte")
-			}
-			vars = append(vars, arg)
-		}
-	}
-	return
-}
-
-func (m *method) argumentsWithUploads() (vars []types.StructField) {
-
-	argsAll := m.fieldsArgument()
-
-	for _, arg := range argsAll {
-
-		_, inPath := m.argPathMap()[arg.Name]
-		_, inArgs := m.argParamMap()[arg.Name]
-		_, inHeader := m.varHeaderMap()[arg.Name]
-		_, inCookie := m.varCookieMap()[arg.Name]
 
 		if !inArgs && !inPath && !inHeader && !inCookie {
 
-			if m.isUploadVar(arg.Name) {
-				m.tags.Set(arg.Name+".type", "string")
-				m.tags.Set(arg.Name+".format", "binary")
-			}
-			if jsonTags, _ := arg.Tags["json"]; len(jsonTags) == 0 { // nolint
+			if jsonTags := arg.Tags["json"]; len(jsonTags) == 0 {
 				if arg.Tags == nil {
 					arg.Tags = map[string][]string{"json": {arg.Name}}
 				} else {
@@ -254,9 +167,8 @@ func (m *method) results() (vars []types.StructField) {
 
 		_, inHeader := m.varHeaderMap()[arg.Name]
 		_, inCookie := m.varCookieMap()[arg.Name]
-		_, inDownload := m.downloadVarsMap()[arg.Name]
 
-		if !inHeader && !inCookie && !inDownload {
+		if !inHeader && !inCookie {
 			arg.Tags = map[string][]string{"json": {arg.Name}}
 			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)

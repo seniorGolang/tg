@@ -4,6 +4,7 @@
 package generator
 
 import (
+	"fmt"
 	"path"
 	"path/filepath"
 
@@ -12,47 +13,48 @@ import (
 
 func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 
+	if err = pkgCopyTo("jsonrpc", outDir); err != nil {
+		return err
+	}
+	if tr.tags.IsSet(tagClientFallback) {
+		if err = pkgCopyTo("cb", outDir); err != nil {
+			return err
+		}
+		if err = pkgCopyTo("hasher", outDir); err != nil {
+			return err
+		}
+	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
-
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportAlias(packageOpentracing, "otg")
-	srcFile.ImportAlias(packageUUID, "goUUID")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
-	srcFile.Line().Add(tr.jsonrpcConstants(true))
-
-	srcFile.Line().Add(tr.idJsonRPC())
-	srcFile.Type().Id("ErrorDecoder").Func().Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Error())
-	srcFile.Line().Add(tr.baseJsonRPC(true))
-	srcFile.Line().Add(tr.errorJsonRPC())
-	srcFile.Line().Add(tr.jsonrpcClientStructFunc())
-	srcFile.Line().Add(tr.jsonrpcBatchTypeFunc())
-
-	srcFile.Line().Func().Id("New").Params(Id("name").String(), Id("log").Qual(packageZeroLog, "Logger"), Id("url").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPC")).Block(
-
-		Id("cli").Op("=").Op("&").Id("ClientJsonRPC").Values(Dict{
-			Id("name"):         Id("name"),
-			Id("log"):          Id("log"),
-			Id("url"):          Id("url"),
-			Id("errorDecoder"): Id("defaultErrorDecoder"),
-		}),
-
-		Line().For(List(Id("_"), Id("opt")).Op(":=").Range().Id("opts")).Block(
-			Id("opt").Call(Id("cli")),
-		),
-		Return(),
-	)
-
-	var hasTrace bool
+	srcFile.Line().Add(tr.jsonrpcClientStructFunc(outDir))
+	srcFile.Line().Func().Id("New").Params(Id("endpoint").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPC")).BlockFunc(
+		func(bg *Group) {
+			bg.Line()
+			bg.List(Id("hostname"), Id("_")).Op(":=").Qual(packageOS, "Hostname").Call()
+			bg.Id("cli").Op("=").Op("&").Id("ClientJsonRPC").Values(DictFunc(func(dict Dict) {
+				if tr.tags.IsSet(tagClientFallback) {
+					dict[Id("fallbackTTL")] = Qual(packageTime, "Hour").Op("*").Lit(24)
+				}
+				dict[Id("name")] = Id("hostname").Op("+").Lit("_").Op("+").Lit(tr.module.Module.Mod.String())
+				dict[Id("errorDecoder")] = Id("defaultErrorDecoder")
+			}))
+			bg.Id("cli").Dot("applyOpts").Call(Id("opts"))
+			bg.Id("cli").Dot("rpc").Op("=").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "NewClient").Call(Id("endpoint"), Id("cli").Dot("rpcOpts").Op("..."))
+			if tr.tags.IsSet(tagClientFallback) {
+				bg.Id("cli").Dot("cb").Op("=").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "NewCircuitBreaker").Call(Lit(tr.module.Module.Mod.String()), Id("cli").Dot("cbCfg"))
+			}
+			bg.Return()
+		})
 	for _, name := range tr.serviceKeys() {
 		svc := tr.services[name]
-		if svc.tags.IsSet(tagTrace) {
-			hasTrace = true
-		}
 		if svc.tags.Contains(tagServerJsonRPC) {
 			srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id(svc.Name).Params().Params(Op("*").Id("Client" + svc.Name)).Block(
 				Return(Op("&").Id("Client" + svc.Name).Values(Dict{
@@ -61,117 +63,81 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 			)
 		}
 	}
-	srcFile.Line().Func().Id("defaultErrorDecoder").Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Err().Error()).Block(
-		Line().Var().Id("jsonrpcError").Id("errorJsonRPC"),
-		If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("errData"), Op("&").Id("jsonrpcError")).Op(";").Err().Op("!=").Nil()).Block(
-			Return(),
-		),
-		Return(Id("jsonrpcError")),
-	)
-	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("Batch").
-		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("...").Id("baseJsonRPC")).Params(Err().Error()).BlockFunc(func(pg *Group) {
-		if hasTrace {
-			pg.Id("span").Op(":=").Id("extractSpan").Call(Id("cli").Dot("log"), Id(_ctx_), Id("cli").Dot("name"))
-			pg.Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("span"), Id("requests").Op("...")))
-		} else {
-			pg.Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("requests").Op("...")))
-		}
-	})
-	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("BatchFunc").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("batchFunc").Func().
-		Params(Id("requests").Op("*").Id("Batch"))).Params(Err().Error()).BlockFunc(func(pg *Group) {
-		pg.Var().Id("requests").Id("Batch")
-		pg.Id("batchFunc").Call(Op("&").Id("requests"))
-		if hasTrace {
-			pg.Id("span").Op(":=").Id("extractSpan").Call(Id("cli").Dot("log"), Id(_ctx_), Id("cli").Dot("name"))
-			pg.Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("span"), Id("requests").Op("...")))
-		} else {
-			pg.Return(Id("cli").Dot("jsonrpcCall").Call(Id(_ctx_), Id("cli").Dot("log"), Id("requests").Op("...")))
-		}
-	})
-	srcFile.Line().Add(tr.jsonrpcClientCallFunc(hasTrace))
+	if tr.tags.IsSet(tagClientFallback) {
+		srcFile.Line().Add(tr.jsonrpcClientProceedResponseFunc(outDir))
+	}
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
 
-func (tr *Transport) jsonrpcClientStructFunc() Code {
+func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 
-	return Type().Id("ClientJsonRPC").Struct(
-		Id("url").String(),
-		Id("name").String(),
-		Id("insecure").Bool(),
-		Id("log").Qual(packageZeroLog, "Logger"),
-		Id("headers").Op("[]").String(),
-		Line().Id("errorDecoder").Id("ErrorDecoder"),
-	)
-}
+	return Func().
+		Params(Id("cli").Op("*").Id("ClientJsonRPC")).
+		Id("proceedResponse").
+		Params(
+			Id(_ctx_).Qual(packageContext, "Context"),
+			Id("httpErr").Error(),
+			Id("cacheKey").Uint64(),
+			Id("fallbackCheck").Func().Params(Error()).Bool(),
+			Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"),
+			Id("methodResponse").Interface(),
+		).Params(Err().Error()).BlockFunc(func(bg *Group) {
 
-func (tr *Transport) jsonrpcClientCallFunc(hasTrace bool) Code {
-
-	return Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("jsonrpcCall").
-		ParamsFunc(func(pg *Group) {
-			pg.Id(_ctx_).Qual(packageContext, "Context")
-			pg.Id("log").Qual(packageZeroLog, "Logger")
-			if hasTrace {
-				pg.Id("span").Qual(packageOpentracing, "Span")
-			}
-			pg.Id("requests").Op("...").Id("baseJsonRPC")
-		}).Params(Err().Error()).BlockFunc(func(bg *Group) {
-		if hasTrace {
-			bg.Defer().Id("span").Dot("Finish").Call()
-		}
-		bg.Id("agent").Op(":=").Qual(packageFiber, "AcquireAgent").Call()
-		bg.Id("req").Op(":=").Id("agent").Dot("Request").Call()
-		bg.Id("resp").Op(":=").Qual(packageFiber, "AcquireResponse").Call()
-		bg.Id("agent").Dot("SetResponse").Call(Id("resp"))
-		bg.Defer().Qual(packageFiber, "ReleaseResponse").Call(Id("resp"))
-
-		bg.Line().Id("req").Dot("SetRequestURI").Call(Id("cli").Dot("url"))
-		bg.Id("agent").Dot("ContentType").Call(Id("contentTypeJson"))
-		bg.Id("req").Dot("Header").Dot("SetMethod").Call(Qual(packageFiber, "MethodPost"))
-		bg.If(Err().Op("=").Id("agent").Dot("Parse").Call().Op(";").Err().Op("!=").Nil()).Block(
-			Return(),
-		)
-		bg.If(Id("cli").Dot("insecure")).Block(
-			Id("agent").Op("=").Id("agent").Dot("InsecureSkipVerify").Call(),
-		)
-		bg.For(List(Id("_"), Id("header")).Op(":=").Range().Id("cli").Dot("headers")).Block(
-			If(List(Id("value"), Id("ok")).Op(":=").Id(_ctx_).Dot("Value").Call(Id("header")).Op(".(").String().Op(")")).Op(";").Id("ok").Block(
-				Id("req").Dot("Header").Dot("Set").Call(Id("header"), Id("value")),
-			),
-		)
-		bg.If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "NewEncoder").Call(Id("req").Dot("BodyWriter").Call()).Dot("Encode").Call(Id("requests")).Op(";").Err().Op("!=").Nil()).Block(
-			Return(),
-		)
-		if hasTrace {
-			bg.Id("injectSpan").Call(Id("log"), Id("span"), Id("req"))
-		}
-		bg.If(Err().Op("=").Id("agent").Dot("Do").Call(Id("req"), Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
-			Return(),
-		)
-		bg.Id("responseMap").Op(":=").Make(Map(String()).Func().Params(Id("baseJsonRPC")))
-		bg.For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
-
-			If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-				Id("responseMap").Op("[").String().Call(Id("request").Dot("ID")).Op("]").Op("=").Id("request").Dot("retHandler"),
-			),
-		)
-		bg.Var().Id("responses").Op("[]").Id("baseJsonRPC")
-		bg.If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("resp").Dot("Body").Call(), Op("&").Id("responses")).Op(";").Err().Op("!=").Nil()).Block(
-			Id("cli").Dot("log").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Str").Call(Lit("response"), String().Call(Id("resp").Dot("Body").Call())).Dot("Msg").Call(Lit("unmarshal response error")),
-			Return(),
-		)
-		bg.For(List(Id("_"), Id("response")).Op(":=").Range().Id("responses")).Block(
-			If(List(Id("handler"), Id("found")).Op(":=").Id("responseMap").Op("[").String().Call(Id("response").Dot("ID")).Op("]").Op(";").Id("found")).Block(
-				Id("handler").Call(Id("response")),
-			),
-		)
+		bg.Line()
+		bg.Err().Op("=").Id("cli").Dot("cb").Dot("Execute").CallFunc(func(cg *Group) {
+			cg.Func().Params().Params(Err().Error()).Block(
+				If(Id("httpErr").Op("!=").Nil()).Block(
+					Return(Id("httpErr")),
+				),
+				Return(Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("methodResponse"))),
+			)
+			cg.Id("cb").Dot("IsSuccessful").Call(
+				Func().Params(Err().Error()).Params(Id("success").Bool()).Block(
+					If(Id("fallbackCheck").Op("!=").Nil()).Block(
+						Return(Id("fallbackCheck")).Call(Err()),
+					),
+					If(Id("success").Op("=").Err().Op("==").Nil().Op(";").Id("success")).Block(
+						If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
+							Id("_").Op("=").Id("cli").Dot("cache").
+								Dot("SetTTL").Call(Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Id("methodResponse"), Id("cli").Dot("fallbackTTL")),
+						),
+					),
+					Return(),
+				),
+			)
+			cg.Id("cb").Dot("Fallback").Call(
+				Func().Params().Params(Err().Error()).Block(
+					If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
+						List(Id("_"), Id("_"), Err()).Op("=").Id("cli").Dot("cache").Dot("GetTTL").Call(
+							Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Op("&").Id("methodResponse"),
+						),
+					),
+					Return(),
+				),
+			)
+		})
 		bg.Return()
 	})
 }
 
-func (tr *Transport) jsonrpcBatchTypeFunc() Code {
-	return Type().Id("Batch").Op("[]").Id("baseJsonRPC").
-		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("Append").Params(Id("request").Id("baseJsonRPC")).Block(
-		Op("*").Id("batch").Op("=").Append(Op("*").Id("batch"), Id("request"))).
-		Line().Func().Params(Id("batch").Op("*").Id("Batch")).Id("ToArray").Params().Params(Op("[]").Id("baseJsonRPC")).Block(
-		Return(Op("*").Id("batch")))
+func (tr *Transport) jsonrpcClientStructFunc(outDir string) Code {
+
+	return Type().Id("ClientJsonRPC").StructFunc(func(sg *Group) {
+		sg.Id("name").String()
+		sg.Line().Id("rpc").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ClientRPC")
+		sg.Id("rpcOpts").Op("[]").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Option")
+		if tr.tags.IsSet(tagClientFallback) {
+			sg.Line().Id("cache").Id("cache")
+			sg.Line().Id("cbCfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")
+			sg.Id("cb").Op("*").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "CircuitBreaker")
+			sg.Line()
+			sg.Line().Id("fallbackTTL").Qual(packageTime, "Duration")
+			for _, svc := range tr.services {
+				if svc.isJsonRPC() {
+					sg.Id(svc.lccName() + "Fallback").Id(svc.lccName() + "Fallback")
+				}
+			}
+		}
+		sg.Line().Id("errorDecoder").Id("ErrorDecoder")
+	})
 }

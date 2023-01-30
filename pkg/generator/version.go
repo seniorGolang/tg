@@ -10,16 +10,17 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (tr *Transport) renderVersion(outDir string) (err error) {
+func (tr *Transport) renderVersion(outDir string, isServer bool) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.Const().Id("VersionTg").Op("=").Lit(tr.version)
 
-	srcFile.Line().Add(Func().Params(Id("srv").Op("*").Id("Server")).Id("VersionTg").Params().Params(String()).Block(
-		Return(Id("VersionTg")),
-	))
-
+	if isServer {
+		srcFile.Line().Add(Func().Params(Id("srv").Op("*").Id("Server")).Id("VersionTg").Params().Params(String()).Block(
+			Return(Id("VersionTg")),
+		))
+	}
 	return srcFile.Save(path.Join(outDir, "version.go"))
 }

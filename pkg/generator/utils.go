@@ -126,7 +126,7 @@ func fieldType(ctx context.Context, field types.Type, allowEllipsis bool) *State
 		switch f := field.(type) {
 		case types.TImport:
 			if f.Import != nil {
-				if srcFile, ok := ctx.Value("code").(srcFile); ok {
+				if srcFile, ok := ctx.Value("code").(goFile); ok {
 					srcFile.ImportName(f.Import.Package, f.Import.Base.Name)
 					c.Qual(f.Import.Package, "")
 				} else {

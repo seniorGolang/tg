@@ -18,7 +18,7 @@ import (
 
 func PkgModPath(pkgName string) string {
 
-	modPath, _ := goModPath(".")
+	modPath, _ := GoModPath(".")
 	modInfo := parseMod(modPath)
 	pkgTokens := strings.Split(pkgName, "/")
 	for i := 0; i < len(pkgTokens); i++ {
@@ -63,7 +63,7 @@ func parseMod(modPath string) (pkgPath map[string]string) {
 }
 
 // empty if no go.mod, GO111MODULE=off or go without go modules support
-func goModPath(root string) (string, error) {
+func GoModPath(root string) (string, error) {
 
 	var stdout []byte
 	var err error

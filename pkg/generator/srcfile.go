@@ -9,18 +9,18 @@ import (
 	"github.com/dave/jennifer/jen"
 )
 
-type srcFile struct {
+type goFile struct {
 	*jen.File
 	filepath string
 }
 
-func newSrc(pkgName string) srcFile {
-	return srcFile{
+func newSrc(pkgName string) goFile {
+	return goFile{
 		File: jen.NewFile(pkgName),
 	}
 }
 
-func (src *srcFile) Save(filepath string) (err error) {
+func (src *goFile) Save(filepath string) (err error) {
 
 	src.filepath = filepath
 	if err = src.File.Save(src.filepath); err != nil {
@@ -33,7 +33,7 @@ func (src *srcFile) Save(filepath string) (err error) {
 	return
 }
 
-func (src srcFile) goImports() (err error) {
+func (src *goFile) goImports() (err error) {
 
 	var execPath string
 	if execPath, err = exec.LookPath("goimports"); err != nil {

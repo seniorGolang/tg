@@ -17,8 +17,7 @@ func (tr *Transport) renderClientTracer(outDir string) (err error) {
 
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
-	srcFile.ImportName(packageJaegerLog, "log")
-	srcFile.ImportName(packageZeroLog, "zerolog")
+	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 
 	srcFile.Line().Add(tr.extractSpanClientFunc())
@@ -29,13 +28,13 @@ func (tr *Transport) renderClientTracer(outDir string) (err error) {
 
 func (tr *Transport) extractSpanClientFunc() Code {
 
-	return Func().Id("extractSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id(_ctx_).Qual(packageContext, "Context"), Id("opName").String()).Params(Id("span").Qual(packageOpentracing, "Span")).Block(
+	return Func().Id("extractSpan").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("opName").String()).Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 
 		Line().Var().Id("opts").Op("[]").Qual(packageOpentracing, "StartSpanOption"),
 		Id("span").Op("=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
 
 		Line().If(Id("span").Op("==").Nil()).Block(
-			Id("log").Dot("Debug").Call().Dot("Msg").Call(Lit("context does not contain span")),
+			Qual(packageZeroLogLog, "Ctx").Call(Id("ctx")).Dot("Debug").Call().Dot("Msg").Call(Lit("context does not contain span")),
 		).Else().Block(
 			Id("opts").Op("=").Append(Id("opts"), Qual(packageOpentracing, "ChildOf").Call(Id("span").Dot("Context").Call())),
 		),
@@ -46,7 +45,7 @@ func (tr *Transport) extractSpanClientFunc() Code {
 }
 
 func (tr *Transport) injectSpanClientFunc() Code {
-	return Func().Id("injectSpan").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFiber, "Request")).Params().Block(
+	return Func().Id("injectSpan").Params(Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFiber, "Request")).Params().Block(
 		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
 			Dot("Inject").Call(

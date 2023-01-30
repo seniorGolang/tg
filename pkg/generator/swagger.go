@@ -86,7 +86,7 @@ func (doc *swagger) render(outFilePath string) (err error) {
 			}
 			successCode := method.tags.ValueInt(tagHttpSuccess, fasthttp.StatusOK)
 
-			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.argumentsWithUploads())
+			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.arguments())
 			doc.registerStruct(method.responseStructName(), service.pkgPath, method.tags, method.results())
 
 			var parameters []swParameter
@@ -184,9 +184,9 @@ func (doc *swagger) render(outFilePath string) (err error) {
 				}
 				requestContentType := contentJSON
 				responseContentType := contentJSON
-				if method.tags.Contains(tagUploadVars) {
-					requestContentType = contentMultipart
-				}
+				// if method.tags.Contains(tagUploadVars) {
+				// 	requestContentType = contentMultipart
+				// }
 				httpMethod := &swOperation{
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),

@@ -29,7 +29,7 @@ func (tr *Transport) renderHeader(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "header.go"))
 }
 
-func (tr *Transport) renderHeaderTypes(srcFile srcFile) {
+func (tr *Transport) renderHeaderTypes(srcFile goFile) {
 
 	srcFile.Line().Type().Id("Header").Struct(
 		Id("SpanKey").String(),
@@ -44,7 +44,7 @@ func (tr *Transport) renderHeaderTypes(srcFile srcFile) {
 		Line().Type().Id("HeaderHandler").Func().Params(Id("value").String()).Params(Id("Header"))
 }
 
-func (tr *Transport) renderHeaderHandler(srcFile srcFile) {
+func (tr *Transport) renderHeaderHandler(srcFile goFile) {
 
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).
 		Id("headersHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Error()).BlockFunc(func(g *Group) {
@@ -76,7 +76,7 @@ func (tr *Transport) renderHeaderHandler(srcFile srcFile) {
 	})
 }
 
-func (tr *Transport) renderHeaderValue(srcFile srcFile) {
+func (tr *Transport) renderHeaderValue(srcFile goFile) {
 
 	srcFile.Line().Func().Id("headerValue").Params(Id("src").Interface()).Params(Id("value").String()).Block(
 		Line(),
@@ -90,7 +90,7 @@ func (tr *Transport) renderHeaderValue(srcFile srcFile) {
 	)
 }
 
-func (tr *Transport) renderHeaderValueInterface(srcFile srcFile) {
+func (tr *Transport) renderHeaderValueInterface(srcFile goFile) {
 
 	srcFile.Line().Type().Id("iHeaderValue").Interface(
 		Id("Header").Params().Params(String()),

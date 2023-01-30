@@ -145,17 +145,17 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
-		for uploadVar, uploadKey := range method.uploadVarsMap() {
-			bg.If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
-				}
-				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
-			})
-		}
+		// for uploadVar, uploadKey := range method.uploadVarsMap() {
+		// 	bg.If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+		// 		ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
+		// 		if svc.tags.IsSet(tagTrace) {
+		// 			ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+		// 			ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
+		// 		}
+		// 		ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
+		// 		ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
+		// 	})
+		// }
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
 			bg.Return().Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("svc"), callParamNames("request", method.argsWithoutContext())))
 		} else {

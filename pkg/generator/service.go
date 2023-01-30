@@ -72,6 +72,9 @@ func (svc *service) renderClient(outDir string) (err error) {
 			return
 		}
 		err = svc.renderClientJsonRPC(outDir)
+		if svc.tr.tags.IsSet(tagClientFallback) {
+			showError(svc.log, svc.renderClientFallbackError(outDir), "renderFallback")
+		}
 	}
 	return
 }

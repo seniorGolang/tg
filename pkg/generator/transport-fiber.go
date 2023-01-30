@@ -28,7 +28,7 @@ func (tr *Transport) renderFiber(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, "fiber.go"))
 }
 
-func (tr *Transport) renderFiberLogger(srcFile srcFile) {
+func (tr *Transport) renderFiberLogger(srcFile goFile) {
 
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("setLogger").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
 		Id(_ctx_).Dot("SetUserContext").Call(Id("srv").Dot("log").Dot("WithContext").Call(Id(_ctx_).Dot("UserContext").Call())),
@@ -41,7 +41,7 @@ func (tr *Transport) renderFiberLogger(srcFile srcFile) {
 //			ctx.SetUserContext(logger.WithContext(ctx.UserContext()))
 //		}
 
-func (tr *Transport) logLevelHandler(srcFile srcFile) {
+func (tr *Transport) logLevelHandler(srcFile goFile) {
 
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("logLevelHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
 
@@ -58,7 +58,7 @@ func (tr *Transport) logLevelHandler(srcFile srcFile) {
 	)
 }
 
-func (tr *Transport) renderFiberRecover(srcFile srcFile) {
+func (tr *Transport) renderFiberRecover(srcFile goFile) {
 
 	srcFile.Line().Func().Id("recoverHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(
 		Defer().Func().Params().Block(

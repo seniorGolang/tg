@@ -112,13 +112,11 @@ func (tr *Transport) idJsonRPC() Code {
 func (tr *Transport) jsonrpcConstants(exportErrors bool) Code {
 
 	export := func(name string, export bool) string {
-
 		if export {
 			name = utils.ToCamel(name)
 		}
 		return name
 	}
-
 	return Const().Op("(").
 		Line().Id("defaultMaxBatchSize").Op("=").Lit(100).
 		Line().Id("defaultMaxParallelBatch").Op("=").Lit(10).
@@ -137,6 +135,16 @@ func (tr *Transport) jsonrpcConstants(exportErrors bool) Code {
 		Line().Id(export("invalidParamsError", exportErrors)).Op("=").Lit(-32602).
 		Line().Comment("InternalError defines a server error").
 		Line().Id(export("internalError", exportErrors)).Op("=").Lit(-32603).
+		Op(")")
+}
+
+func (tr *Transport) jsonrpcClientConstants() Code {
+
+	return Const().Op("(").
+		Line().Comment("Version defines the version of the JSON RPC implementation").
+		Line().Id("Version").Op("=").Lit("2.0").
+		Line().Comment("contentTypeJson defines the content type to be served").
+		Line().Id("contentTypeJson").Op("=").Lit("application/json").
 		Op(")")
 }
 
