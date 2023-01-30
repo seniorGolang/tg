@@ -15,13 +15,15 @@ func (tr *Transport) renderClientError(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
+	srcFile.ImportName(packageStdJSON, "json")
+
 	srcFile.Add(tr.errorJsonRPC())
 
-	srcFile.Line().Type().Id("ErrorDecoder").Func().Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Error())
+	srcFile.Line().Type().Id("ErrorDecoder").Func().Params(Id("errData").Qual(packageStdJSON, "RawMessage")).Params(Error())
 
-	srcFile.Line().Func().Id("defaultErrorDecoder").Params(Id("errData").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "RawMessage")).Params(Err().Error()).Block(
+	srcFile.Line().Func().Id("defaultErrorDecoder").Params(Id("errData").Qual(packageStdJSON, "RawMessage")).Params(Err().Error()).Block(
 		Line().Var().Id("jsonrpcError").Id("errorJsonRPC"),
-		If(Err().Op("=").Qual(tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("errData"), Op("&").Id("jsonrpcError")).Op(";").Err().Op("!=").Nil()).Block(
+		If(Err().Op("=").Qual(packageStdJSON, "Unmarshal").Call(Id("errData"), Op("&").Id("jsonrpcError")).Op(";").Err().Op("!=").Nil()).Block(
 			Return(),
 		),
 		Return(Id("jsonrpcError")),

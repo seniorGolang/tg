@@ -6,7 +6,10 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
+
+	"github.com/seniorGolang/tg/v2/pkg/mod"
 )
 
 //go:embed pkg/*
@@ -37,13 +40,10 @@ func pkgCopyTo(pkg, dst string) (err error) {
 
 func (tr *Transport) pkgPath(dir string) (pkgPath string) {
 
-	var pathItems []string
-	elements := strings.Split(dir, "/")
-	for _, element := range elements {
-		if strings.Contains(element, ".") {
-			continue
-		}
-		pathItems = append(pathItems, element)
+	var pkgDir string
+	dirAbs, _ := filepath.Abs(dir)
+	if modPath, err := mod.GoModPath(dir); err == nil {
+		pkgDir = strings.TrimPrefix(dirAbs, filepath.Dir(modPath))
 	}
-	return strings.Join(append([]string{tr.module.Module.Mod.String()}, pathItems...), "/")
+	return tr.module.Module.Mod.String() + pkgDir
 }

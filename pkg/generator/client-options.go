@@ -16,6 +16,11 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
+	srcFile.ImportName(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "cb")
+	srcFile.ImportName(fmt.Sprintf("%s/cache", tr.pkgPath(outDir)), "cache")
+	srcFile.ImportName(fmt.Sprintf("%s/hasher", tr.pkgPath(outDir)), "hasher")
+	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "jsonrpc")
+
 	srcFile.Line().Type().Id("Option").Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))
 
 	srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id("applyOpts").Params(Id("opts").Op("[]").Id("Option")).Block(
