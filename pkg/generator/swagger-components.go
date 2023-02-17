@@ -123,7 +123,8 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		}
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			schema.Ref = fmt.Sprintf("#/components/schemas/%s", doc.toSchemaName(vType.Next.String(), vType.Import.Package))
+			schemaName = doc.toSchemaName(vType.Next.String(), vType.Import.Package)
+			schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
 			if _, found = doc.schemas[schemaName]; found {
 				return
 			}

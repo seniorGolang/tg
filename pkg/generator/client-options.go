@@ -45,6 +45,13 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 				Id("cli").Dot("fallbackTTL").Op("=").Id("ttl"),
 			),
 		)
+		for _, svc := range tr.services {
+			srcFile.Line().Func().Id("Fallback" + svc.Name + "Err").Params(Id("fallback").Id("fallback" + svc.Name)).Params(Id("Option")).Block(
+				Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+					Id("cli").Dot("fallback" + svc.Name).Op("=").Id("fallback"),
+				),
+			)
+		}
 	}
 	srcFile.Line().Func().Id("Headers").Params(Id("headers").Op("...").Interface()).Params(Id("Option")).Block(
 		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(

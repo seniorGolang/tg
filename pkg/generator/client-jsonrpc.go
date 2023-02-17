@@ -138,7 +138,7 @@ func (tr *Transport) jsonrpcClientStructFunc(outDir string) Code {
 			sg.Line().Id("fallbackTTL").Qual(packageTime, "Duration")
 			for _, svc := range tr.services {
 				if svc.isJsonRPC() {
-					sg.Id(svc.lccName() + "Fallback").Id(svc.lccName() + "Fallback")
+					sg.Id("fallback" + svc.Name).Id("fallback" + svc.Name)
 				}
 			}
 		}

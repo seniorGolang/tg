@@ -67,8 +67,8 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 			bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request"))
 			bg.List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request"))
 			bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
-			bg.If(Id("cli").Dot(svc.lccName() + "Fallback").Op("!=").Nil()).Block(
-				Id("fallbackCheck").Op("=").Id("cli").Dot(svc.lccName() + "Fallback").Dot(method.Name),
+			bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
+				Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
 			)
 			bg.If(Err().Op("=").
 				Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Err(), Id("cacheKey"), Id("fallbackCheck"), Id("rpcResponse"), Op("&").Id("response")).
@@ -123,8 +123,8 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 				if svc.tr.tags.IsSet(tagClientFallback) {
 					bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request").Dot("rpcRequest").Dot("Params"))
 					bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
-					bg.If(Id("cli").Dot(svc.lccName() + "Fallback").Op("!=").Nil()).Block(
-						Id("fallbackCheck").Op("=").Id("cli").Dot(svc.lccName() + "Fallback").Dot(method.Name),
+					bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
+						Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
 					)
 				} else {
 					bg.If(Err().Op("==").Nil()).Block(
@@ -159,7 +159,7 @@ func (svc *service) renderClientFallbackError(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.Type().Id(svc.lccName() + "Fallback").InterfaceFunc(func(ig *Group) {
+	srcFile.Type().Id("fallback" + svc.Name).InterfaceFunc(func(ig *Group) {
 		for _, method := range svc.methods {
 			ig.Id(method.Name).Params(Err().Error()).Bool()
 		}
