@@ -164,6 +164,5 @@ func (svc *service) renderClientFallbackError(outDir string) (err error) {
 			ig.Id(method.Name).Params(Err().Error()).Bool()
 		}
 	})
-	fmt.Println(path.Join(outDir, svc.lcName()+"-fallback.go"))
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-fallback.go"))
 }
