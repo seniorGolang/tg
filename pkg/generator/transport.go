@@ -37,8 +37,6 @@ const (
 	tagHandler        = "handler"
 	tagExample        = "example"
 	tagMetrics        = "metrics"
-	tagUploadVars     = "http-upload"
-	tagDownloadVars   = "http-download"
 	tagHttpArg        = "http-args"
 	tagHttpPath       = "http-path"
 	tagDeprecated     = "deprecated"
