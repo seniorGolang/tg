@@ -34,7 +34,7 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("errorDecoder").Op("=").Id("decoder"),
 		),
 	)
-	if tr.tags.IsSet(tagClientFallback) {
+	if !tr.tags.IsSet(tagDisableClientFallback) {
 		srcFile.Line().Func().Id("Cache").Params(Id("cache").Id("cache")).Params(Id("Option")).Block(
 			Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
 				Id("cli").Dot("cache").Op("=").Id("cache"),

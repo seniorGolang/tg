@@ -138,16 +138,6 @@ func (tr *Transport) jsonrpcConstants(exportErrors bool) Code {
 		Op(")")
 }
 
-func (tr *Transport) jsonrpcClientConstants() Code {
-
-	return Const().Op("(").
-		Line().Comment("Version defines the version of the JSON RPC implementation").
-		Line().Id("Version").Op("=").Lit("2.0").
-		Line().Comment("contentTypeJson defines the content type to be served").
-		Line().Id("contentTypeJson").Op("=").Lit("application/json").
-		Op(")")
-}
-
 func (tr *Transport) singleBatchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doSingleBatch").

@@ -63,7 +63,7 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 		}))
 		bg.Var().Id("response").Id(method.responseStructName())
 		bg.Var().Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC")
-		if svc.tr.tags.IsSet(tagClientFallback) {
+		if !svc.tr.tags.IsSet(tagDisableClientFallback) {
 			bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request"))
 			bg.List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request"))
 			bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
@@ -93,7 +93,7 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method, outDir string) Code {
 
 	ctxCode := Id("_").Qual(packageContext, "Context")
-	if svc.tr.tags.IsSet(tagClientFallback) {
+	if !svc.tr.tags.IsSet(tagDisableClientFallback) {
 		ctxCode = Id(_ctx_).Qual(packageContext, "Context")
 	}
 	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).
@@ -120,7 +120,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 				Err().Error(),
 				Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"),
 			).BlockFunc(func(bg *Group) {
-				if svc.tr.tags.IsSet(tagClientFallback) {
+				if !svc.tr.tags.IsSet(tagDisableClientFallback) {
 					bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "Hash").Call(Id("request").Dot("rpcRequest").Dot("Params"))
 					bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
 					bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
@@ -135,7 +135,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 					for _, ret := range method.fieldsResult() {
 						cg.Id("response").Dot(utils.ToCamel(ret.Name))
 					}
-					if svc.tr.tags.IsSet(tagClientFallback) {
+					if !svc.tr.tags.IsSet(tagDisableClientFallback) {
 						cg.Id("cli").Dot("proceedResponse").Call(
 							Id(_ctx_),
 							Err(),
