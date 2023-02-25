@@ -28,7 +28,7 @@ require (
 	github.com/valyala/fasthttp v1.20.0
 	github.com/vetcher/go-astra v1.2.0
 	golang.org/x/mod v0.4.1
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
