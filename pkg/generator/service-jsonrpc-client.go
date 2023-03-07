@@ -70,6 +70,13 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 			bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
 				Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
 			)
+			bg.If(Id("rpcResponse").Op("!=").Nil().Op("&&").Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
+				If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
+					Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
+				).Else().Block(
+					Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+				),
+			)
 			bg.If(Err().Op("=").
 				Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Err(), Id("cacheKey"), Id("fallbackCheck"), Id("rpcResponse"), Op("&").Id("response")).
 				Op(";").Err().Op("!=").Nil()).Block(
@@ -78,6 +85,16 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 		} else {
 			bg.If(List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request")).Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
+			)
+			bg.If(Id("rpcResponse").Op("!=").Nil().Op("&&").Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
+				If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
+					If(Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()).Op(";").Err().Op("!=").Nil()).
+						Block(Return()).
+						Else().Block(
+						Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+						Return(),
+					),
+				),
 			)
 			bg.Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response"))
 		}

@@ -11,6 +11,11 @@ type RPCError struct {
 	Data    json.RawMessage `json:"data,omitempty"`
 }
 
+func (e *RPCError) Raw() (data json.RawMessage) {
+	data, _ = json.Marshal(e)
+	return
+}
+
 func (e *RPCError) Error() string {
 	return strconv.Itoa(e.Code) + ": " + e.Message
 }

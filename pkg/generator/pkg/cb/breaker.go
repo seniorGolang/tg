@@ -104,7 +104,7 @@ func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) 
 	successful := isSuccessful(err)
 	if !successful && values.fallback != nil {
 		if fallBackErr := values.fallback(); fallBackErr == nil {
-			return nil
+			return
 		}
 	}
 	cb.afterRequest(generation, successful)
