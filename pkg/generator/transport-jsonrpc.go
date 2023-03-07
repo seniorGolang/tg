@@ -144,7 +144,9 @@ func (tr *Transport) singleBatchFunc() Code {
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
-			bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
+			if tr.hasTrace() {
+				bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
+			}
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
 			if tr.hasTrace() {
@@ -156,15 +158,6 @@ func (tr *Transport) singleBatchFunc() Code {
 				bg.Defer().Id("span").Dot("Finish").Call()
 				bg.Id("methodCtx").Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id("methodCtx"), Id("span"))
 			}
-			bg.Defer().Func().Params().Block(
-				If(Id("r").Op(":=").Recover().Op(";").Id("r").Op("!=").Nil()).Block(
-					Err().Op(":=").Qual(packageErrors, "New").Call(Lit("call method panic")),
-					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-						Id("response").Op("=").Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("invalidRequestError"), Lit("panic on method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Err()),
-					),
-					Qual(packageZeroLogLog, "Ctx").Call(Id("methodCtx")).Dot("Error").Call().Dot("Stack").Call().Dot("Err").Call(Err()).Dot("Msg").Call(Lit("panic occurred")),
-				),
-			).Call()
 			bg.Switch(Id("method")).BlockFunc(
 				func(sg *Group) {
 					for _, serviceName := range tr.serviceKeys() {
