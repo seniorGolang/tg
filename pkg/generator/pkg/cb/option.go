@@ -3,7 +3,7 @@ package cb
 type Option func(ops *options)
 
 type options struct {
-	fallback     func() (err error)
+	fallback     func(err error) error
 	isSuccessful func(err error) (success bool)
 }
 
@@ -21,7 +21,7 @@ func IsSuccessful(isSuccessful func(err error) (success bool)) Option {
 	}
 }
 
-func Fallback(fallback func() (err error)) Option {
+func Fallback(fallback func(err error) error) Option {
 	return func(ops *options) {
 		ops.fallback = fallback
 	}

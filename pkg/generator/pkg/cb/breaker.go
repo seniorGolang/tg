@@ -83,7 +83,7 @@ func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) 
 	values := prepareOpts(opts)
 	if generation, err = cb.beforeRequest(); err != nil {
 		if err == ErrOpenState && values.fallback != nil {
-			if fallBackErr := values.fallback(); fallBackErr == nil {
+			if fallBackErr := values.fallback(err); fallBackErr == nil {
 				return nil
 			}
 		}
@@ -103,9 +103,7 @@ func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) 
 	}
 	successful := isSuccessful(err)
 	if !successful && values.fallback != nil {
-		if fallBackErr := values.fallback(); fallBackErr == nil {
-			return
-		}
+		err = values.fallback(err)
 	}
 	cb.afterRequest(generation, successful)
 	return

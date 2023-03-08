@@ -110,13 +110,13 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 				),
 			)
 			cg.Id("cb").Dot("Fallback").Call(
-				Func().Params().Params(Err().Error()).Block(
+				Func().Params(Err().Error()).Params(Error()).Block(
 					If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
 						List(Id("_"), Id("_"), Err()).Op("=").Id("cli").Dot("cache").Dot("GetTTL").Call(
 							Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Op("&").Id("methodResponse"),
 						),
 					),
-					Return(),
+					Return(Err()),
 				),
 			)
 		})
