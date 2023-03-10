@@ -34,25 +34,23 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("errorDecoder").Op("=").Id("decoder"),
 		),
 	)
-	if !tr.tags.IsSet(tagDisableClientFallback) {
-		srcFile.Line().Func().Id("Cache").Params(Id("cache").Id("cache")).Params(Id("Option")).Block(
-			Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
-				Id("cli").Dot("cache").Op("=").Id("cache"),
-			),
-		)
-		srcFile.Line().Func().Id("FallbackTTL").Params(Id("ttl").Qual(packageTime, "Duration")).Params(Id("Option")).Block(
-			Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
-				Id("cli").Dot("fallbackTTL").Op("=").Id("ttl"),
-			),
-		)
-		for _, svc := range tr.services {
-			if svc.isJsonRPC() {
-				srcFile.Line().Func().Id("Fallback" + svc.Name + "Err").Params(Id("fallback").Id("fallback" + svc.Name)).Params(Id("Option")).Block(
-					Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
-						Id("cli").Dot("fallback" + svc.Name).Op("=").Id("fallback"),
-					),
-				)
-			}
+	srcFile.Line().Func().Id("Cache").Params(Id("cache").Id("cache")).Params(Id("Option")).Block(
+		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+			Id("cli").Dot("cache").Op("=").Id("cache"),
+		),
+	)
+	srcFile.Line().Func().Id("FallbackTTL").Params(Id("ttl").Qual(packageTime, "Duration")).Params(Id("Option")).Block(
+		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+			Id("cli").Dot("fallbackTTL").Op("=").Id("ttl"),
+		),
+	)
+	for _, svc := range tr.services {
+		if svc.isJsonRPC() {
+			srcFile.Line().Func().Id("Fallback" + svc.Name + "Err").Params(Id("fallback").Id("fallback" + svc.Name)).Params(Id("Option")).Block(
+				Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+					Id("cli").Dot("fallback" + svc.Name).Op("=").Id("fallback"),
+				),
+			)
 		}
 	}
 	srcFile.Line().Func().Id("Headers").Params(Id("headers").Op("...").Interface()).Params(Id("Option")).Block(

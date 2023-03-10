@@ -16,13 +16,11 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 	if err = pkgCopyTo("jsonrpc", outDir); err != nil {
 		return err
 	}
-	if !tr.tags.IsSet(tagDisableClientFallback) {
-		if err = pkgCopyTo("cb", outDir); err != nil {
-			return err
-		}
-		if err = pkgCopyTo("hasher", outDir); err != nil {
-			return err
-		}
+	if err = pkgCopyTo("cb", outDir); err != nil {
+		return err
+	}
+	if err = pkgCopyTo("hasher", outDir); err != nil {
+		return err
 	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -44,17 +42,13 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 			bg.Line()
 			bg.List(Id("hostname"), Id("_")).Op(":=").Qual(packageOS, "Hostname").Call()
 			bg.Id("cli").Op("=").Op("&").Id("ClientJsonRPC").Values(DictFunc(func(dict Dict) {
-				if !tr.tags.IsSet(tagDisableClientFallback) {
-					dict[Id("fallbackTTL")] = Qual(packageTime, "Hour").Op("*").Lit(24)
-				}
+				dict[Id("fallbackTTL")] = Qual(packageTime, "Hour").Op("*").Lit(24)
 				dict[Id("name")] = Id("hostname").Op("+").Lit("_").Op("+").Lit(tr.module.Module.Mod.String())
 				dict[Id("errorDecoder")] = Id("defaultErrorDecoder")
 			}))
 			bg.Id("cli").Dot("applyOpts").Call(Id("opts"))
 			bg.Id("cli").Dot("rpc").Op("=").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "NewClient").Call(Id("endpoint"), Id("cli").Dot("rpcOpts").Op("..."))
-			if !tr.tags.IsSet(tagDisableClientFallback) {
-				bg.Id("cli").Dot("cb").Op("=").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "NewCircuitBreaker").Call(Lit(tr.module.Module.Mod.String()), Id("cli").Dot("cbCfg"))
-			}
+			bg.Id("cli").Dot("cb").Op("=").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "NewCircuitBreaker").Call(Lit(tr.module.Module.Mod.String()), Id("cli").Dot("cbCfg"))
 			bg.Return()
 		})
 	for _, name := range tr.serviceKeys() {
@@ -67,9 +61,7 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 			)
 		}
 	}
-	if !tr.tags.IsSet(tagDisableClientFallback) {
-		srcFile.Line().Add(tr.jsonrpcClientProceedResponseFunc(outDir))
-	}
+	srcFile.Line().Add(tr.jsonrpcClientProceedResponseFunc(outDir))
 	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
 }
 
@@ -130,16 +122,14 @@ func (tr *Transport) jsonrpcClientStructFunc(outDir string) Code {
 		sg.Id("name").String()
 		sg.Line().Id("rpc").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ClientRPC")
 		sg.Id("rpcOpts").Op("[]").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Option")
-		if !tr.tags.IsSet(tagDisableClientFallback) {
-			sg.Line().Id("cache").Id("cache")
-			sg.Line().Id("cbCfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")
-			sg.Id("cb").Op("*").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "CircuitBreaker")
-			sg.Line()
-			sg.Line().Id("fallbackTTL").Qual(packageTime, "Duration")
-			for _, svc := range tr.services {
-				if svc.isJsonRPC() {
-					sg.Id("fallback" + svc.Name).Id("fallback" + svc.Name)
-				}
+		sg.Line().Id("cache").Id("cache")
+		sg.Line().Id("cbCfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")
+		sg.Id("cb").Op("*").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "CircuitBreaker")
+		sg.Line()
+		sg.Line().Id("fallbackTTL").Qual(packageTime, "Duration")
+		for _, svc := range tr.services {
+			if svc.isJsonRPC() {
+				sg.Id("fallback" + svc.Name).Id("fallback" + svc.Name)
 			}
 		}
 		sg.Line().Id("errorDecoder").Id("ErrorDecoder")
