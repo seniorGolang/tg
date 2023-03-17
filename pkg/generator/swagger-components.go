@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/seniorGolang/tg/v2/pkg/astra"
 
@@ -310,7 +311,21 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 			inline = tagValues[1] == "inline"
 		}
 	}
+	if isLowerStart(fieldInfo.Variable.Name) {
+		value = "-"
+	}
 	return
+}
+
+func isLowerStart(s string) bool {
+
+	for _, r := range s {
+		if unicode.IsLower(r) && unicode.IsLetter(r) {
+			return true
+		}
+		break
+	}
+	return false
 }
 
 func (doc *swagger) knownCount(typeName string) int {
