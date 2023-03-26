@@ -301,9 +301,6 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 	if fieldInfo.Variable.Name == "" {
 		fieldInfo.Variable.Name = fieldInfo.Type.String()
 	}
-	// if fieldInfo.Variable.Name[:1] != strings.ToUpper(fieldInfo.Variable.Name[:1]) {
-	// 	return "-", false
-	// }
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 { // nolint
 		value = tagValues[0]
@@ -323,7 +320,6 @@ func isLowerStart(s string) bool {
 		if unicode.IsLower(r) && unicode.IsLetter(r) {
 			return true
 		}
-		break
 	}
 	return false
 }

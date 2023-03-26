@@ -211,6 +211,15 @@ func (svc *service) batchFunc() Code {
 				Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Nil(), Id("invalidRequestError"), Lit("batch size exceeded"), Nil())),
 				Return(),
 			)
+			bg.If(Qual(packageStrings, "EqualFold").Call(Id(_ctx_).Dot("Get").Call(Lit(syncHeader)), Lit("true"))).Block(
+				For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
+					Id("response").Op(":=").Id("http").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
+					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
+						Id("responses").Dot("append").Call(Id("response")),
+					),
+				),
+				Return(),
+			)
 			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
 			bg.Id("batchSize").Op(":=").Id("http").Dot("maxParallelBatch")
 			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(

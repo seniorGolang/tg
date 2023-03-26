@@ -18,16 +18,19 @@ import (
 
 func (svc *service) renderLogger(outDir string) (err error) {
 
+	if err = pkgCopyTo("viewer", outDir); err != nil {
+		return err
+	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
-	srcFile.ImportName(packageViewer, "viewer")
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageGoKitMetrics, "metrics")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
+	srcFile.ImportName(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "viewer")
 
 	srcFile.Type().Id("logger" + svc.Name).Struct(
 		Id(_next_).Qual(svc.pkgPath, svc.Name),
@@ -36,7 +39,7 @@ func (svc *service) renderLogger(outDir string) (err error) {
 	srcFile.Line().Add(svc.loggerMiddleware())
 
 	for _, method := range svc.methods {
-		srcFile.Line().Func().Params(Id("m").Id("logger" + svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).BlockFunc(svc.loggerFuncBody(method))
+		srcFile.Line().Func().Params(Id("m").Id("logger" + svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).BlockFunc(svc.loggerFuncBody(method, outDir))
 	}
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-logger.go"))
 }
@@ -52,7 +55,7 @@ func (svc *service) loggerMiddleware() Code {
 	)
 }
 
-func (svc *service) loggerFuncBody(method *method) func(g *Group) {
+func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group) {
 
 	return func(g *Group) {
 		g.Id("logger").Op(":=").Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_)).Dot("With").Call().
@@ -65,7 +68,7 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
 				params := method.argsWithoutContext()
 				params = removeSkippedFields(params, skipFields)
-				d[Lit("request")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
+				d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
 				printResult := true
 				for _, field := range skipFields {
 					if strings.TrimSpace(field) == "response" {
@@ -75,7 +78,7 @@ func (svc *service) loggerFuncBody(method *method) func(g *Group) {
 				}
 				returns := method.resultsWithoutError()
 				if printResult {
-					d[Lit("response")] = Qual(packageViewer, "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
+					d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
 				}
 				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call()
 			}))

@@ -4,6 +4,7 @@
 package generator
 
 const (
+	syncHeader                   = "X-Sync-On"
 	packageOS                    = "os"
 	packageIO                    = "io"
 	_ctx_                        = "ctx"
@@ -28,7 +29,6 @@ const (
 	packageGoKitMetrics          = "github.com/go-kit/kit/metrics"
 	packageGoKitEndpoint         = "github.com/go-kit/kit/endpoint"
 	packageOpenZipkin            = "github.com/openzipkin/zipkin-go"
-	packageViewer                = "github.com/seniorGolang/dumper/viewer"
 	packageJaegerMetrics         = "github.com/uber/jaeger-lib/metrics"
 	packageJaegerClient          = "github.com/uber/jaeger-client-go"
 	packageJaegerLog             = "github.com/uber/jaeger-client-go/log"
