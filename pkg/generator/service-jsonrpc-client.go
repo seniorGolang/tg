@@ -36,7 +36,7 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 		if method.tags.Contains(tagMethodHTTP) {
 			continue
 		}
-		srcFile.Type().Id("ret" + svc.Name + method.Name).Func().Params(funcDefinitionParams(ctx, method.Results))
+		srcFile.Type().Id("ret" + svc.Name + method.Name).Op("=").Func().Params(funcDefinitionParams(ctx, method.Results))
 	}
 	for _, method := range svc.methods {
 		if method.tags.Contains(tagMethodHTTP) {
@@ -121,6 +121,13 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 				bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
 				bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
 					Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
+				)
+				bg.If(Id("rpcResponse").Op("!=").Nil().Op("&&").Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
+					If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
+						Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
+					).Else().Block(
+						Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+					),
 				)
 				bg.Id("callback").CallFunc(func(cg *Group) {
 					for _, ret := range method.fieldsResult() {
