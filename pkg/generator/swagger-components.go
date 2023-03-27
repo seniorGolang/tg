@@ -320,6 +320,7 @@ func isLowerStart(s string) bool {
 		if unicode.IsLower(r) && unicode.IsLetter(r) {
 			return true
 		}
+		break
 	}
 	return false
 }
