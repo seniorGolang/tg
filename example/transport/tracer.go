@@ -2,10 +2,6 @@
 package transport
 
 import (
-	"net/http"
-	"os"
-	"strings"
-
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -17,6 +13,9 @@ import (
 	"github.com/uber/jaeger-client-go/config"
 	jaegerLog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"
+	"net/http"
+	"os"
+	"strings"
 )
 
 func (srv *Server) TraceJaeger(serviceName string) *Server {

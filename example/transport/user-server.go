@@ -3,7 +3,6 @@ package transport
 
 import (
 	"context"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 )
@@ -11,7 +10,6 @@ import (
 type serverUser struct {
 	svc            interfaces.User
 	getUser        UserGetUser
-	uploadFile     UserUploadFile
 	customResponse UserCustomResponse
 	customHandler  UserCustomHandler
 }
@@ -19,7 +17,6 @@ type serverUser struct {
 type MiddlewareSetUser interface {
 	Wrap(m MiddlewareUser)
 	WrapGetUser(m MiddlewareUserGetUser)
-	WrapUploadFile(m MiddlewareUserUploadFile)
 	WrapCustomResponse(m MiddlewareUserCustomResponse)
 	WrapCustomHandler(m MiddlewareUserCustomHandler)
 
@@ -34,24 +31,18 @@ func newServerUser(svc interfaces.User) *serverUser {
 		customResponse: svc.CustomResponse,
 		getUser:        svc.GetUser,
 		svc:            svc,
-		uploadFile:     svc.UploadFile,
 	}
 }
 
 func (srv *serverUser) Wrap(m MiddlewareUser) {
 	srv.svc = m(srv.svc)
 	srv.getUser = srv.svc.GetUser
-	srv.uploadFile = srv.svc.UploadFile
 	srv.customResponse = srv.svc.CustomResponse
 	srv.customHandler = srv.svc.CustomHandler
 }
 
 func (srv *serverUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 	return srv.getUser(ctx, cookie, userAgent)
-}
-
-func (srv *serverUser) UploadFile(ctx context.Context, fileBytes []byte) (err error) {
-	return srv.uploadFile(ctx, fileBytes)
 }
 
 func (srv *serverUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
@@ -64,10 +55,6 @@ func (srv *serverUser) CustomHandler(ctx context.Context, arg0 int, arg1 string,
 
 func (srv *serverUser) WrapGetUser(m MiddlewareUserGetUser) {
 	srv.getUser = m(srv.getUser)
-}
-
-func (srv *serverUser) WrapUploadFile(m MiddlewareUserUploadFile) {
-	srv.uploadFile = m(srv.uploadFile)
 }
 
 func (srv *serverUser) WrapCustomResponse(m MiddlewareUserCustomResponse) {

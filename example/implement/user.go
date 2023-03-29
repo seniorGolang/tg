@@ -25,10 +25,6 @@ func (svc *UserService) GetUser(ctx context.Context, cookie, userAgent string) (
 	return
 }
 
-func (svc *UserService) UploadFile(ctx context.Context, fileBytes []byte) (err error) {
-	panic("implement me")
-}
-
 func (svc *UserService) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	panic("implement me")
 }

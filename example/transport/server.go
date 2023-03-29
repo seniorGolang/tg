@@ -2,12 +2,11 @@
 package transport
 
 import (
-	"io"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"io"
 )
 
 type Server struct {
@@ -23,10 +22,12 @@ type Server struct {
 
 	reporterCloser io.Closer
 
+	maxBatchSize     int
 	maxParallelBatch int
-	httpExampleRPC   *httpExampleRPC
-	httpUser         *httpUser
-	headerHandlers   map[string]HeaderHandler
+
+	httpExampleRPC *httpExampleRPC
+	httpUser       *httpUser
+	headerHandlers map[string]HeaderHandler
 }
 
 func New(log zerolog.Logger, options ...Option) (srv *Server) {
@@ -35,6 +36,7 @@ func New(log zerolog.Logger, options ...Option) (srv *Server) {
 		config:           fiber.Config{DisableStartupMessage: true},
 		headerHandlers:   make(map[string]HeaderHandler),
 		log:              log,
+		maxBatchSize:     defaultMaxBatchSize,
 		maxParallelBatch: defaultMaxParallelBatch,
 	}
 	for _, option := range options {
@@ -117,10 +119,10 @@ func (srv *Server) WithMetrics() *Server {
 	return srv
 }
 
-func (srv Server) ExampleRPC() *httpExampleRPC {
+func (srv *Server) ExampleRPC() *httpExampleRPC {
 	return srv.httpExampleRPC
 }
 
-func (srv Server) User() *httpUser {
+func (srv *Server) User() *httpUser {
 	return srv.httpUser
 }

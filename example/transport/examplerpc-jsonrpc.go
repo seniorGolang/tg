@@ -2,16 +2,13 @@
 package transport
 
 import (
-	"strconv"
-	"strings"
-	"sync"
-
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"strconv"
+	"strings"
+	"sync"
 )
 
 func (http *httpExampleRPC) serveTest(ctx *fiber.Ctx) (err error) {
@@ -63,7 +60,11 @@ func (http *httpExampleRPC) test(ctx *fiber.Ctx, requestBase baseJsonRPC) (respo
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err)
 		span.SetTag("errData", toString(err))
-		return makeErrorResponseJsonRPC(requestBase.ID, internalError, err.Error(), err)
+		code := internalError
+		if errCoder, ok := err.(withErrorCode); ok {
+			code = errCoder.Code()
+		}
+		return makeErrorResponseJsonRPC(requestBase.ID, code, err.Error(), err)
 	}
 	responseBase = &baseJsonRPC{
 		ID:      requestBase.ID,
@@ -110,7 +111,11 @@ func (http *httpExampleRPC) test2(ctx *fiber.Ctx, requestBase baseJsonRPC) (resp
 		ext.Error.Set(span, true)
 		span.SetTag("msg", err)
 		span.SetTag("errData", toString(err))
-		return makeErrorResponseJsonRPC(requestBase.ID, internalError, err.Error(), err)
+		code := internalError
+		if errCoder, ok := err.(withErrorCode); ok {
+			code = errCoder.Code()
+		}
+		return makeErrorResponseJsonRPC(requestBase.ID, code, err.Error(), err)
 	}
 	responseBase = &baseJsonRPC{
 		ID:      requestBase.ID,
@@ -125,8 +130,7 @@ func (http *httpExampleRPC) test2(ctx *fiber.Ctx, requestBase baseJsonRPC) (resp
 }
 func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {
 
-	methodCtx := ctx.UserContext()
-	span := otg.SpanFromContext(methodCtx)
+	span := otg.SpanFromContext(ctx.UserContext())
 	span.SetTag("method", methodName)
 
 	methodHTTP := ctx.Method()
@@ -160,12 +164,26 @@ func (http *httpExampleRPC) serveMethod(ctx *fiber.Ctx, methodName string, metho
 }
 func (http *httpExampleRPC) doBatch(ctx *fiber.Ctx, requests []baseJsonRPC) (responses jsonrpcResponses) {
 
+	if len(requests) > http.maxBatchSize {
+		responses.append(makeErrorResponseJsonRPC(nil, invalidRequestError, "batch size exceeded", nil))
+		return
+	}
+	if strings.EqualFold(ctx.Get("X-Sync-On"), "true") {
+		for _, request := range requests {
+			response := http.doSingleBatch(ctx, request)
+			if request.ID != nil {
+				responses.append(response)
+			}
+		}
+		return
+	}
 	var wg sync.WaitGroup
 	batchSize := http.maxParallelBatch
 	if len(requests) < batchSize {
 		batchSize = len(requests)
 	}
 	callCh := make(chan baseJsonRPC, batchSize)
+	responses = make(jsonrpcResponses, 0, len(requests))
 	for i := 0; i < batchSize; i++ {
 		wg.Add(1)
 		go func() {
@@ -189,8 +207,7 @@ func (http *httpExampleRPC) serveBatch(ctx *fiber.Ctx) (err error) {
 
 	var single bool
 	var requests []baseJsonRPC
-	methodCtx := ctx.UserContext()
-	batchSpan := otg.SpanFromContext(methodCtx)
+	batchSpan := otg.SpanFromContext(ctx.UserContext())
 	methodHTTP := ctx.Method()
 	if methodHTTP != fiber.MethodPost {
 		ext.Error.Set(batchSpan, true)
@@ -225,15 +242,6 @@ func (http *httpExampleRPC) doSingleBatch(ctx *fiber.Ctx, request baseJsonRPC) (
 	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
 	defer span.Finish()
 	methodContext = otg.ContextWithSpan(ctx.UserContext(), span)
-	defer func() {
-		if r := recover(); r != nil {
-			err := errors.New("call method panic")
-			if request.ID != nil {
-				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
-			}
-			log.Ctx(methodContext).Error().Stack().Err(err).Msg("panic occurred")
-		}
-	}()
 	switch method {
 	case "test":
 		return http.test(ctx, request)

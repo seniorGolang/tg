@@ -12,13 +12,6 @@ type responseUserGetUser struct {
 	User *types.User `json:"user"`
 }
 
-type requestUserUploadFile struct {
-	FileBytes []byte `json:"fileBytes"`
-}
-
-// Formal exchange type, please do not delete.
-type responseUserUploadFile struct{}
-
 type requestUserCustomResponse struct {
 	Arg0 int           `json:"arg0"`
 	Arg1 string        `json:"arg1"`

@@ -3,12 +3,12 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
 type httpExampleRPC struct {
 	errorHandler     ErrorHandler
+	maxBatchSize     int
 	maxParallelBatch int
 	svc              *serverExampleRPC
 	base             interfaces.ExampleRPC
@@ -23,7 +23,7 @@ func NewExampleRPC(svcExampleRPC interfaces.ExampleRPC) (srv *httpExampleRPC) {
 	return
 }
 
-func (http httpExampleRPC) Service() MiddlewareSetExampleRPC {
+func (http *httpExampleRPC) Service() MiddlewareSetExampleRPC {
 	return http.svc
 }
 

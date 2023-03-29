@@ -4,12 +4,10 @@ package transport
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/go-kit/kit/metrics"
-
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
+	"time"
 )
 
 type metricsUser struct {
@@ -39,19 +37,6 @@ func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent strin
 	m.requestCountAll.With("method", "getUser").Add(1)
 
 	return m.next.GetUser(ctx, cookie, userAgent)
-}
-
-func (m metricsUser) UploadFile(ctx context.Context, fileBytes []byte) (err error) {
-
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "uploadFile", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	defer m.requestCount.With("method", "uploadFile", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "uploadFile").Add(1)
-
-	return m.next.UploadFile(ctx, fileBytes)
 }
 
 func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {

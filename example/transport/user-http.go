@@ -3,13 +3,13 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-
-	"github.com/seniorGolang/tg/v2/example/implement"
+	implement "github.com/seniorGolang/tg/v2/example/implement"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 )
 
 type httpUser struct {
 	errorHandler     ErrorHandler
+	maxBatchSize     int
 	maxParallelBatch int
 	svc              *serverUser
 	base             interfaces.User
@@ -24,7 +24,7 @@ func NewUser(svcUser interfaces.User) (srv *httpUser) {
 	return
 }
 
-func (http httpUser) Service() MiddlewareSetUser {
+func (http *httpUser) Service() MiddlewareSetUser {
 	return http.svc
 }
 
@@ -50,9 +50,8 @@ func (http *httpUser) WithErrorHandler(handler ErrorHandler) *httpUser {
 
 func (http *httpUser) SetRoutes(route *fiber.App) {
 	route.Get("/api/v1/api/v2/user/info", http.serveGetUser)
-	route.Post("/api/v1/api/v2/user/file", http.serveUploadFile)
 	route.Patch("/api/v1/api/v2/user/custom/response", http.serveCustomResponse)
 	route.Delete("/api/v1/api/v2/user/custom", func(ctx *fiber.Ctx) (err error) {
-		return implement.CustomHandler(ctx, http.svc)
+		return implement.CustomHandler(ctx, http.base)
 	})
 }

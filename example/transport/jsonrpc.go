@@ -2,18 +2,16 @@
 package transport
 
 import (
-	"strings"
-	"sync"
-
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"strings"
+	"sync"
 )
 
 const (
+	defaultMaxBatchSize     = 100
 	defaultMaxParallelBatch = 10
 	// Version defines the version of the JSON RPC implementation
 	Version = "2.0"
@@ -53,14 +51,14 @@ func (err errorJsonRPC) Error() string {
 	return err.Message
 }
 
-type jsonrpcResponses []baseJsonRPC
+type jsonrpcResponses []*baseJsonRPC
 
 func (responses *jsonrpcResponses) append(response *baseJsonRPC) {
 	if response == nil {
 		return
 	}
 	if response.ID != nil {
-		*responses = append(*responses, *response)
+		*responses = append(*responses, response)
 	}
 }
 func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
@@ -95,12 +93,26 @@ func (srv *Server) serveBatch(ctx *fiber.Ctx) (err error) {
 }
 func (srv *Server) doBatch(ctx *fiber.Ctx, requests []baseJsonRPC) (responses jsonrpcResponses) {
 
+	if len(requests) > srv.maxBatchSize {
+		responses.append(makeErrorResponseJsonRPC(nil, invalidRequestError, "batch size exceeded", nil))
+		return
+	}
+	if strings.EqualFold(ctx.Get("X-Sync-On"), "true") {
+		for _, request := range requests {
+			response := srv.doSingleBatch(ctx, request)
+			if request.ID != nil {
+				responses.append(response)
+			}
+		}
+		return
+	}
 	var wg sync.WaitGroup
 	batchSize := srv.maxParallelBatch
 	if len(requests) < batchSize {
 		batchSize = len(requests)
 	}
 	callCh := make(chan baseJsonRPC, batchSize)
+	responses = make(jsonrpcResponses, 0, len(requests))
 	for i := 0; i < batchSize; i++ {
 		wg.Add(1)
 		go func() {
@@ -129,15 +141,6 @@ func (srv *Server) doSingleBatch(ctx *fiber.Ctx, request baseJsonRPC) (response 
 	span := otg.StartSpan(request.Method, otg.ChildOf(batchSpan.Context()))
 	defer span.Finish()
 	methodCtx = otg.ContextWithSpan(methodCtx, span)
-	defer func() {
-		if r := recover(); r != nil {
-			err := errors.New("call method panic")
-			if request.ID != nil {
-				response = makeErrorResponseJsonRPC(request.ID, invalidRequestError, "panic on method '"+methodNameOrigin+"'", err)
-			}
-			log.Ctx(methodCtx).Error().Stack().Err(err).Msg("panic occurred")
-		}
-	}()
 	switch method {
 	case "examplerpc.test":
 		return srv.httpExampleRPC.test(ctx, request)

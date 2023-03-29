@@ -22,15 +22,6 @@ type User interface {
 	// @tg 401=github.com/seniorGolang/tg/v2/example/error:ErrorType
 	GetUser(ctx context.Context, cookie, userAgent string) (user *types.User, err error)
 
-	// @tg summary=`Загрузка аватара пользователя`
-	// @tg desc=`Загрузка файла`
-	// @tg http-method=POST
-	// @tg uploadTo=fileBytes
-	// @tg http-path=/user/file
-	// @tg http-upload=fileBytes|fileBytes
-	// @tg 400=-
-	UploadFile(ctx context.Context, fileBytes []byte) (err error)
-
 	// @tg summary=`Метод со сторонним обработчиком ответа`
 	// @tg http-method=PATCH
 	// @tg http-path=/user/custom/response

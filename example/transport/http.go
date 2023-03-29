@@ -2,10 +2,9 @@
 package transport
 
 import (
-	"io/ioutil"
-	"mime/multipart"
-
 	"github.com/gofiber/fiber/v2"
+	"io"
+	"mime/multipart"
 )
 
 type cookieType interface {
@@ -22,5 +21,5 @@ func uploadFile(ctx *fiber.Ctx, key string) (data []byte, err error) {
 		return
 	}
 	defer file.Close()
-	return ioutil.ReadAll(file)
+	return io.ReadAll(file)
 }

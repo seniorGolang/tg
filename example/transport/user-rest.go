@@ -3,13 +3,11 @@ package transport
 
 import (
 	"context"
-
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/seniorGolang/json"
-
-	"github.com/seniorGolang/tg/v2/example/implement"
+	implement "github.com/seniorGolang/tg/v2/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {
@@ -53,50 +51,6 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 
 	var response responseUserGetUser
 	if response, err = http.getUser(ctx.UserContext(), request); err == nil {
-		return sendResponse(ctx, response)
-	}
-	if errCoder, ok := err.(withErrorCode); ok {
-		ctx.Status(errCoder.Code())
-	} else {
-		ctx.Status(fiber.StatusInternalServerError)
-	}
-	return sendResponse(ctx, err)
-}
-func (http *httpUser) uploadFile(ctx context.Context, request requestUserUploadFile) (response responseUserUploadFile, err error) {
-
-	span := otg.SpanFromContext(ctx)
-	span.SetTag("method", "uploadFile")
-
-	err = http.svc.UploadFile(ctx, request.FileBytes)
-	if err != nil {
-		if http.errorHandler != nil {
-			err = http.errorHandler(err)
-		}
-		errData := toString(err)
-		ext.Error.Set(span, true)
-		span.SetTag("msg", err.Error())
-		if errData != "{}" {
-			span.SetTag("errData", errData)
-		}
-	}
-	return
-}
-func (http *httpUser) serveUploadFile(ctx *fiber.Ctx) (err error) {
-
-	span := otg.SpanFromContext(ctx.UserContext())
-	span.SetTag("method", "uploadFile")
-
-	var request requestUserUploadFile
-
-	if request.FileBytes, err = uploadFile(ctx, "fileBytes"); err != nil {
-		ctx.Status(fiber.StatusBadRequest)
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "upload file 'fileBytes' error: "+err.Error())
-		ctx.Status(fiber.StatusBadRequest)
-		return sendResponse(ctx, "upload file 'fileBytes' error: "+err.Error())
-	}
-	var response responseUserUploadFile
-	if response, err = http.uploadFile(ctx.UserContext(), request); err == nil {
 		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {

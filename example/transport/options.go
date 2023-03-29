@@ -2,10 +2,9 @@
 package transport
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
+	uuid "github.com/google/uuid"
+	"time"
 )
 
 type ServiceRoute interface {
@@ -28,6 +27,7 @@ func ExampleRPC(svc *httpExampleRPC) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
 			srv.httpExampleRPC = svc
+			svc.maxBatchSize = srv.maxBatchSize
 			svc.maxParallelBatch = srv.maxParallelBatch
 			svc.SetRoutes(srv.Fiber())
 		}
@@ -38,6 +38,7 @@ func User(svc *httpUser) Option {
 	return func(srv *Server) {
 		if srv.srvHTTP != nil {
 			srv.httpUser = svc
+			svc.maxBatchSize = srv.maxBatchSize
 			svc.maxParallelBatch = srv.maxParallelBatch
 			svc.SetRoutes(srv.Fiber())
 		}
@@ -63,7 +64,13 @@ func MaxBodySize(max int) Option {
 	}
 }
 
-func BatchSizeJsonRPC(size int) Option {
+func MaxBatchSize(size int) Option {
+	return func(srv *Server) {
+		srv.maxBatchSize = size
+	}
+}
+
+func MaxBatchWorkers(size int) Option {
 	return func(srv *Server) {
 		srv.maxParallelBatch = size
 	}

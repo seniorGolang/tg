@@ -3,11 +3,10 @@ package transport
 
 import (
 	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log "github.com/rs/zerolog/log"
 )
 
 const logLevelHeader = "X-Log-Level"
