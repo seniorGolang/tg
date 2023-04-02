@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.18"
+	Version    = "v2.3.19"
 	BuildStamp = time.Now().String()
 )
 
@@ -250,8 +250,14 @@ func cmdClient(c *cli.Context) (err error) {
 			return
 		}
 	}
-	if c.Bool("js") {
+
+	if c.String("outPackage") != "" {
 		if err = tr.RenderPackageNPM(c.String("outPath"), c.String("outPackage")); err != nil {
+			return
+		}
+	}
+	if c.Bool("js") {
+		if err = tr.RenderClientJS(c.String("outPath")); err != nil {
 			return
 		}
 	}
