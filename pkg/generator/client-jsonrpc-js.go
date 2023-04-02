@@ -1,9 +1,11 @@
 package generator
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/seniorGolang/tg/v2/pkg/astra/types"
@@ -29,6 +31,46 @@ func newClientJS(tr *Transport) (js *clientJS) {
 		typeDef:    make(map[string]typeDefJs),
 	}
 	return
+}
+
+func (tr *Transport) RenderPackageNPM(outJs, outPkg string) (err error) {
+
+	type npmPackage struct {
+		Name          string   `json:"name"`
+		Version       string   `json:"version"`
+		Description   string   `json:"description"`
+		Main          string   `json:"main"`
+		Files         []string `json:"files"`
+		Private       bool     `json:"private"`
+		PublishConfig struct {
+			Registry string `json:"registry"`
+		} `json:"publishConfig"`
+		Author  string `json:"author"`
+		License string `json:"license"`
+	}
+	modPath, _ := filepath.Abs(tr.modPath)
+	jsPath, _ := filepath.Abs(path.Join(outJs, "jsonrpc-client.js"))
+	jsPath = strings.TrimPrefix(jsPath, strings.TrimSuffix(modPath, "/go.mod"))
+	data := npmPackage{
+		Name:        tr.tags.Value(tagNameNPM),
+		Version:     tr.tags.Value(tagAppVersion, "v1.0.0"),
+		Description: tr.tags.Value(tagDesc),
+		Main:        jsPath,
+		Files:       []string{jsPath},
+		Private:     tr.tags.ValueBool(tagPrivateNPM),
+		PublishConfig: struct {
+			Registry string `json:"registry"`
+		}{
+			Registry: tr.tags.Value(tagRegistryNPM),
+		},
+		Author:  tr.tags.Value(tagAuthor),
+		License: tr.tags.Value(tagLicense),
+	}
+	var bytes []byte
+	if bytes, err = json.MarshalIndent(data, "", "    "); err != nil {
+		return
+	}
+	return os.WriteFile(path.Join(outPkg, "package.json"), bytes, 0600)
 }
 
 func (js *clientJS) render(outDir string) (err error) {

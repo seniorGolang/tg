@@ -52,11 +52,22 @@ const (
 	tagPackageUUID   = "uuidPackage"
 	tagSwaggerTags   = "swaggerTags"
 	tagLogSkip       = "log-skip"
+
+	tagTitle       = "title"
+	tagNameNPM     = "npmName"
+	tagServers     = "servers"
+	tagSecurity    = "security"
+	tagAppVersion  = "version"
+	tagAuthor      = "author"
+	tagLicense     = "license"
+	tagPrivateNPM  = "npmPrivate"
+	tagRegistryNPM = "npmRegistry"
 )
 
 type Transport struct {
 	hasJsonRPC bool
 	version    string
+	modPath    string
 	tags       tags.DocTags
 	module     *modfile.File
 	log        logrus.FieldLogger
@@ -204,12 +215,11 @@ func showError(log logrus.FieldLogger, err error, msg string) {
 
 func (tr *Transport) goMod(svcDir string) (err error) {
 
-	var modPath string
-	if modPath, err = mod.GoModPath(svcDir); err != nil {
+	if tr.modPath, err = mod.GoModPath(svcDir); err != nil {
 		return err
 	}
 	var fileBytes []byte
-	if fileBytes, err = os.ReadFile(modPath); err != nil {
+	if fileBytes, err = os.ReadFile(tr.modPath); err != nil {
 		return
 	}
 	tr.module, err = modfile.Parse("go.mod", fileBytes, nil)

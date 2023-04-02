@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.17"
+	Version    = "v2.3.18"
 	BuildStamp = time.Now().String()
 )
 
@@ -159,6 +159,11 @@ func main() {
 					Value: "./pkg/clients",
 					Usage: "path to output clients",
 				},
+				&cli.StringFlag{
+					Name:  "outPackage",
+					Value: ".",
+					Usage: "path to output package NPM",
+				},
 				&cli.BoolFlag{
 					Name:  "go",
 					Value: false,
@@ -246,7 +251,7 @@ func cmdClient(c *cli.Context) (err error) {
 		}
 	}
 	if c.Bool("js") {
-		if err = tr.RenderClientJS(c.String("outPath")); err != nil {
+		if err = tr.RenderPackageNPM(c.String("outPath"), c.String("outPackage")); err != nil {
 			return
 		}
 	}

@@ -133,9 +133,21 @@ func (tags DocTags) ValueInt(tagName string, defValue ...int) (value int) {
 	if len(defValue) != 0 {
 		value = defValue[0]
 	}
-
 	if textValue, found := tags[tagName]; found {
 		if newValue, err := strconv.Atoi(textValue); err == nil {
+			return newValue
+		}
+	}
+	return
+}
+
+func (tags DocTags) ValueBool(tagName string, defValue ...bool) (value bool) {
+
+	if len(defValue) != 0 {
+		value = defValue[0]
+	}
+	if textValue, found := tags[tagName]; found {
+		if newValue, err := strconv.ParseBool(textValue); err == nil {
 			return newValue
 		}
 	}

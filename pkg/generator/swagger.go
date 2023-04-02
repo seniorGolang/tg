@@ -55,18 +55,18 @@ func (doc *swagger) render(outFilePath string) (err error) {
 
 	var swaggerDoc swObject
 	swaggerDoc.OpenAPI = "3.0.0"
-	swaggerDoc.Info.Title = doc.tags.Value("title")
-	swaggerDoc.Info.Version = doc.tags.Value("version")
-	swaggerDoc.Info.Description = doc.tags.Value("description")
+	swaggerDoc.Info.Title = doc.tags.Value(tagTitle)
+	swaggerDoc.Info.Version = doc.tags.Value(tagAppVersion)
+	swaggerDoc.Info.Description = doc.tags.Value(tagDesc)
 	swaggerDoc.Paths = make(map[string]swPath)
-	tagSecurities := strings.Split(doc.tags.Value("security"), "|")
+	tagSecurities := strings.Split(doc.tags.Value(tagSecurity), "|")
 	for _, tagSecurity := range tagSecurities {
 		if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
 			swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
 			swaggerDoc.Components.SecuritySchemes.BearerAuth = swBearerAuth{Type: "http", Scheme: tagSecurity}
 		}
 	}
-	tagServers := strings.Split(doc.tags.Value("servers"), "|")
+	tagServers := strings.Split(doc.tags.Value(tagServers), "|")
 	for _, tagServer := range tagServers {
 		var serverDesc string
 		serverValues := strings.Split(tagServer, ";")
