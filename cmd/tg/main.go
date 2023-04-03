@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.19"
+	Version    = "v2.3.20"
 	BuildStamp = time.Now().String()
 )
 
@@ -161,7 +161,6 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "outPackage",
-					Value: ".",
 					Usage: "path to output package NPM",
 				},
 				&cli.BoolFlag{
