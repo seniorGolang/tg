@@ -39,6 +39,11 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("cache").Op("=").Id("cache"),
 		),
 	)
+	srcFile.Line().Func().Id("CircuitBreaker").Params(Id("cfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")).Params(Id("Option")).Block(
+		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+			Id("cli").Dot("cbCfg").Op("=").Id("cfg"),
+		),
+	)
 	srcFile.Line().Func().Id("FallbackTTL").Params(Id("ttl").Qual(packageTime, "Duration")).Params(Id("Option")).Block(
 		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
 			Id("cli").Dot("fallbackTTL").Op("=").Id("ttl"),
