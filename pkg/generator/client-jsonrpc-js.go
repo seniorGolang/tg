@@ -33,6 +33,10 @@ func newClientJS(tr *Transport) (js *clientJS) {
 	return
 }
 
+// "scripts": {
+//    "test": "echo 'No tests to run'"
+// },
+
 func (tr *Transport) RenderPackageNPM(outJs, outPkg string) (err error) {
 
 	type npmPackage struct {
@@ -45,6 +49,9 @@ func (tr *Transport) RenderPackageNPM(outJs, outPkg string) (err error) {
 		PublishConfig struct {
 			Registry string `json:"registry"`
 		} `json:"publishConfig"`
+		Scripts struct {
+			Test string `json:"test"`
+		} `json:"scripts"`
 		Author  string `json:"author"`
 		License string `json:"license"`
 	}
@@ -62,6 +69,11 @@ func (tr *Transport) RenderPackageNPM(outJs, outPkg string) (err error) {
 			Registry string `json:"registry"`
 		}{
 			Registry: tr.tags.Value(tagRegistryNPM),
+		},
+		Scripts: struct {
+			Test string `json:"test"`
+		}{
+			Test: "echo 'No tests to run'",
 		},
 		Author:  tr.tags.Value(tagAuthor),
 		License: tr.tags.Value(tagLicense),
