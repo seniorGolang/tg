@@ -23,7 +23,8 @@ func (app *azure) render(appName, routePrefix, outFilePath, logLevel string, ena
 
 	outFilePath, _ = filepath.Abs(outFilePath)
 
-	for svcName, svc := range app.services {
+	for _, svcName := range app.serviceKeys() {
+		svc := app.services[svcName]
 		for _, svcMethod := range svc.methods {
 			route := svcMethod.httpPath(false)
 			if svcMethod.isJsonRPC() {

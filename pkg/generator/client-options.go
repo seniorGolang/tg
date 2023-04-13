@@ -49,7 +49,8 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("fallbackTTL").Op("=").Id("ttl"),
 		),
 	)
-	for _, svc := range tr.services {
+	for _, svcName := range tr.serviceKeys() {
+		svc := tr.services[svcName]
 		if svc.isJsonRPC() {
 			srcFile.Line().Func().Id("Fallback" + svc.Name + "Err").Params(Id("fallback").Id("fallback" + svc.Name)).Params(Id("Option")).Block(
 				Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
