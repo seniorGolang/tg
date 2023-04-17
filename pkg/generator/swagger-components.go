@@ -308,7 +308,7 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 			inline = tagValues[1] == "inline"
 		}
 	}
-	if isLowerStart(fieldInfo.Variable.Name) {
+	if isLowerStart(fieldInfo.Variable.Name) && !inline {
 		value = "-"
 	}
 	return
