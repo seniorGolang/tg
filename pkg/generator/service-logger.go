@@ -55,6 +55,25 @@ func (svc *service) loggerMiddleware() Code {
 	)
 }
 
+// defer func(begin time.Time) {
+//		logHandle := func(event *zerolog.Event) {
+//			event.Dur("took", time.Since(begin)).
+//				Str("response", viewer.Sprintf("%+v", responseABACV2CheckAccess{Decision: decision})).
+//				Str("request", viewer.Sprintf("%+v", requestABACV2CheckAccess{
+//					Attributes: attributes,
+//					FeatureKey: featureKey,
+//					Key:        key,
+//					Scope:      scope,
+//					UserID:     userID,
+//				}))
+//		}
+//		if err != nil {
+//			logger.Error().Err(err).Func(logHandle).Msg("call checkAccess")
+//			return
+//		}
+//		logger.Info().Func(logHandle).Msg("call checkAccess")
+//	}(time.Now())
+
 func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group) {
 
 	return func(g *Group) {
@@ -63,30 +82,33 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
 			Dot("Logger").Call()
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
-			g.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
-
-				skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
-				params := method.argsWithoutContext()
-				params = removeSkippedFields(params, skipFields)
-				d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
-				printResult := true
-				for _, field := range skipFields {
-					if strings.TrimSpace(field) == "response" {
-						printResult = false
-						break
+			g.Id("logHandle").Op(":=").Func().Params(Id("event").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
+				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
+					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
+					params := method.argsWithoutContext()
+					params = removeSkippedFields(params, skipFields)
+					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
+					printResult := true
+					for _, field := range skipFields {
+						if strings.TrimSpace(field) == "response" {
+							printResult = false
+							break
+						}
 					}
-				}
-				returns := method.resultsWithoutError()
-				if printResult {
-					d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
-				}
-				d[Lit("took")] = Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call()
-			}))
+					returns := method.resultsWithoutError()
+					if printResult {
+						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
+					}
+				}))
+				// .Func(logHandle)
+				fg.Id("event").Dot("Fields").Call(Id("fields")).
+					Dot("Str").Call(Lit("took"), Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call())
+			})
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
-				g.Id("logger").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+				g.Id("logger").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Func").Call(Id("logHandle")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 				g.Return()
 			})
-			g.Id("logger").Dot("Info").Call().Dot("Fields").Call(Id("fields")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
+			g.Id("logger").Dot("Info").Call().Dot("Func").Call(Id("logHandle")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
 
 		}).Call(Qual(packageTime, "Now").Call())
 		g.Return().Id("m").Dot(_next_).Dot(method.Name).Call(paramNames(method.Args))
