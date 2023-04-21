@@ -55,25 +55,6 @@ func (svc *service) loggerMiddleware() Code {
 	)
 }
 
-// defer func(begin time.Time) {
-//		logHandle := func(event *zerolog.Event) {
-//			event.Dur("took", time.Since(begin)).
-//				Str("response", viewer.Sprintf("%+v", responseABACV2CheckAccess{Decision: decision})).
-//				Str("request", viewer.Sprintf("%+v", requestABACV2CheckAccess{
-//					Attributes: attributes,
-//					FeatureKey: featureKey,
-//					Key:        key,
-//					Scope:      scope,
-//					UserID:     userID,
-//				}))
-//		}
-//		if err != nil {
-//			logger.Error().Err(err).Func(logHandle).Msg("call checkAccess")
-//			return
-//		}
-//		logger.Info().Func(logHandle).Msg("call checkAccess")
-//	}(time.Now())
-
 func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group) {
 
 	return func(g *Group) {
@@ -82,7 +63,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
 			Dot("Logger").Call()
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
-			g.Id("logHandle").Op(":=").Func().Params(Id("event").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
+			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
 					params := method.argsWithoutContext()
@@ -101,7 +82,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 					}
 				}))
 				// .Func(logHandle)
-				fg.Id("event").Dot("Fields").Call(Id("fields")).
+				fg.Id("ev").Dot("Fields").Call(Id("fields")).
 					Dot("Str").Call(Lit("took"), Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call())
 			})
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
