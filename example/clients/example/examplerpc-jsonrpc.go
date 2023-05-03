@@ -3,56 +3,136 @@ package example
 
 import (
 	"context"
-	"encoding/json"
-
-	uuid "github.com/satori/go.uuid"
+	"fmt"
+	"github.com/seniorGolang/tg/v2/example/clients/example/hasher"
+	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
 )
 
 type ClientExampleRPC struct {
 	*ClientJsonRPC
 }
 
-type retExampleRPCTest func(ret1 int, ret2 string, err error)
+type retExampleRPCTest = func(ret1 int, ret2 string, err error)
+type retExampleRPCTest2 = func(ret1 int, ret2 string, err error)
 
-func (cli *ClientExampleRPC) ReqTest(ret retExampleRPCTest, arg0 int, arg1 string, opts ...interface{}) (request baseJsonRPC) {
+func (cli *ClientExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	request = baseJsonRPC{
-		Method: "examplerpc.test",
+	request := requestExampleRPCTest{
+		Arg0: arg0,
+		Arg1: arg1,
+		Opts: opts,
+	}
+	var response responseExampleRPCTest
+	var rpcResponse *jsonrpc.ResponseRPC
+	cacheKey, _ := hasher.Hash(request)
+	rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test", request)
+	var fallbackCheck func(error) bool
+	if cli.fallbackExampleRPC != nil {
+		fallbackCheck = cli.fallbackExampleRPC.Test
+	}
+	if rpcResponse != nil && rpcResponse.Error != nil {
+		if cli.errorDecoder != nil {
+			err = cli.errorDecoder(rpcResponse.Error.Raw())
+		} else {
+			err = fmt.Errorf(rpcResponse.Error.Message)
+		}
+	}
+	if err = cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response); err != nil {
+		return
+	}
+	return response.Ret1, response.Ret2, err
+}
+
+func (cli *ClientExampleRPC) ReqTest(ctx context.Context, callback retExampleRPCTest, arg0 int, arg1 string, opts ...interface{}) (request RequestRPC) {
+
+	request = RequestRPC{rpcRequest: &jsonrpc.RequestRPC{
+		ID:      jsonrpc.NewID(),
+		JSONRPC: jsonrpc.Version,
+		Method:  "examplerpc.test",
 		Params: requestExampleRPCTest{
 			Arg0: arg0,
 			Arg1: arg1,
 			Opts: opts,
 		},
-		Version: Version,
-	}
-	var err error
-	var response responseExampleRPCTest
-
-	if ret != nil {
-		request.retHandler = func(jsonrpcResponse baseJsonRPC) {
-			if jsonrpcResponse.Error != nil {
-				err = cli.errorDecoder(jsonrpcResponse.Error)
-				ret(response.Ret1, response.Ret2, err)
-				return
+	}}
+	if callback != nil {
+		var response responseExampleRPCTest
+		request.retHandler = func(err error, rpcResponse *jsonrpc.ResponseRPC) {
+			cacheKey, _ := hasher.Hash(request.rpcRequest.Params)
+			var fallbackCheck func(error) bool
+			if cli.fallbackExampleRPC != nil {
+				fallbackCheck = cli.fallbackExampleRPC.Test
 			}
-			err = json.Unmarshal(jsonrpcResponse.Result, &response)
-			ret(response.Ret1, response.Ret2, err)
+			if rpcResponse != nil && rpcResponse.Error != nil {
+				if cli.errorDecoder != nil {
+					err = cli.errorDecoder(rpcResponse.Error.Raw())
+				} else {
+					err = fmt.Errorf(rpcResponse.Error.Message)
+				}
+			}
+			callback(response.Ret1, response.Ret2, cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response))
 		}
-		request.ID = []byte("\"" + uuid.NewV4().String() + "\"")
 	}
 	return
 }
 
-func (cli *ClientExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
+func (cli *ClientExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	retHandler := func(_ret1 int, _ret2 string, _err error) {
-		ret1 = _ret1
-		ret2 = _ret2
-		err = _err
+	request := requestExampleRPCTest2{
+		Arg0: arg0,
+		Arg1: arg1,
+		Opts: opts,
 	}
-	if blockErr := cli.Batch(ctx, cli.ReqTest(retHandler, arg0, arg1, opts...)); blockErr != nil {
-		err = blockErr
+	var response responseExampleRPCTest2
+	var rpcResponse *jsonrpc.ResponseRPC
+	cacheKey, _ := hasher.Hash(request)
+	rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test2", request)
+	var fallbackCheck func(error) bool
+	if cli.fallbackExampleRPC != nil {
+		fallbackCheck = cli.fallbackExampleRPC.Test2
+	}
+	if rpcResponse != nil && rpcResponse.Error != nil {
+		if cli.errorDecoder != nil {
+			err = cli.errorDecoder(rpcResponse.Error.Raw())
+		} else {
+			err = fmt.Errorf(rpcResponse.Error.Message)
+		}
+	}
+	if err = cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response); err != nil {
 		return
+	}
+	return response.Ret1, response.Ret2, err
+}
+
+func (cli *ClientExampleRPC) ReqTest2(ctx context.Context, callback retExampleRPCTest2, arg0 int, arg1 string, opts ...interface{}) (request RequestRPC) {
+
+	request = RequestRPC{rpcRequest: &jsonrpc.RequestRPC{
+		ID:      jsonrpc.NewID(),
+		JSONRPC: jsonrpc.Version,
+		Method:  "examplerpc.test2",
+		Params: requestExampleRPCTest2{
+			Arg0: arg0,
+			Arg1: arg1,
+			Opts: opts,
+		},
+	}}
+	if callback != nil {
+		var response responseExampleRPCTest2
+		request.retHandler = func(err error, rpcResponse *jsonrpc.ResponseRPC) {
+			cacheKey, _ := hasher.Hash(request.rpcRequest.Params)
+			var fallbackCheck func(error) bool
+			if cli.fallbackExampleRPC != nil {
+				fallbackCheck = cli.fallbackExampleRPC.Test2
+			}
+			if rpcResponse != nil && rpcResponse.Error != nil {
+				if cli.errorDecoder != nil {
+					err = cli.errorDecoder(rpcResponse.Error.Raw())
+				} else {
+					err = fmt.Errorf(rpcResponse.Error.Message)
+				}
+			}
+			callback(response.Ret1, response.Ret2, cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response))
+		}
 	}
 	return
 }

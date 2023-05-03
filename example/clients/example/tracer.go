@@ -3,21 +3,20 @@ package example
 
 import (
 	"context"
+	"github.com/gofiber/fiber/v2"
+	otg "github.com/opentracing/opentracing-go"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"strings"
-
-	otg "github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
-	"github.com/valyala/fasthttp"
 )
 
-func extractSpan(log logrus.FieldLogger, ctx context.Context, opName string) (span otg.Span) {
+func extractSpan(ctx context.Context, opName string) (span otg.Span) {
 
 	var opts []otg.StartSpanOption
 	span = otg.SpanFromContext(ctx)
 
 	if span == nil {
-		log.Debug("context does not contain span")
+		log.Ctx(ctx).Debug().Msg("context does not contain span")
 	} else {
 		opts = append(opts, otg.ChildOf(span.Context()))
 	}
@@ -26,14 +25,11 @@ func extractSpan(log logrus.FieldLogger, ctx context.Context, opName string) (sp
 	return
 }
 
-func injectSpan(log logrus.FieldLogger, span otg.Span, request *fasthttp.Request) {
-
+func injectSpan(span otg.Span, request *fiber.Request) {
 	headers := make(http.Header)
-
 	if err := otg.GlobalTracer().Inject(span.Context(), otg.HTTPHeaders, otg.HTTPHeadersCarrier(headers)); err != nil {
-		log.WithError(err).Warning("inject span to HTTP headers")
+		log.Warn().Err(err).Msg("inject span to HTTP headers")
 	}
-
 	for key, values := range headers {
 		request.Header.Set(key, strings.Join(values, ";"))
 	}

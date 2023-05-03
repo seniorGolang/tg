@@ -1,7 +1,6 @@
 openapi: 3.0.0
 info:
     title: Example API
-    description: A service which provide Example API
     version: 0.0.0
 servers:
     - url: http://example.test

@@ -3,6 +3,7 @@ package transport
 
 import (
 	"context"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/transport/viewer"
@@ -22,23 +23,25 @@ func loggerMiddlewareExampleRPC() MiddlewareExampleRPC {
 func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 	logger := log.Ctx(ctx).With().Str("service", "ExampleRPC").Str("method", "test").Logger()
 	defer func(begin time.Time) {
-		fields := map[string]interface{}{
-			"request": viewer.Sprintf("%+v", requestExampleRPCTest{
-				Arg0: arg0,
-				Arg1: arg1,
-				Opts: opts,
-			}),
-			"response": viewer.Sprintf("%+v", responseExampleRPCTest{
-				Ret1: ret1,
-				Ret2: ret2,
-			}),
-			"took": time.Since(begin).String(),
+		logHandle := func(ev *zerolog.Event) {
+			fields := map[string]interface{}{
+				"request": viewer.Sprintf("%+v", requestExampleRPCTest{
+					Arg0: arg0,
+					Arg1: arg1,
+					Opts: opts,
+				}),
+				"response": viewer.Sprintf("%+v", responseExampleRPCTest{
+					Ret1: ret1,
+					Ret2: ret2,
+				}),
+			}
+			ev.Fields(fields).Str("took", time.Since(begin).String())
 		}
 		if err != nil {
-			logger.Error().Err(err).Fields(fields).Msg("call test")
+			logger.Error().Err(err).Func(logHandle).Msg("call test")
 			return
 		}
-		logger.Info().Fields(fields).Msg("call test")
+		logger.Info().Func(logHandle).Msg("call test")
 	}(time.Now())
 	return m.next.Test(ctx, arg0, arg1, opts...)
 }
@@ -46,23 +49,25 @@ func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts 
 func (m loggerExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 	logger := log.Ctx(ctx).With().Str("service", "ExampleRPC").Str("method", "test2").Logger()
 	defer func(begin time.Time) {
-		fields := map[string]interface{}{
-			"request": viewer.Sprintf("%+v", requestExampleRPCTest2{
-				Arg0: arg0,
-				Arg1: arg1,
-				Opts: opts,
-			}),
-			"response": viewer.Sprintf("%+v", responseExampleRPCTest2{
-				Ret1: ret1,
-				Ret2: ret2,
-			}),
-			"took": time.Since(begin).String(),
+		logHandle := func(ev *zerolog.Event) {
+			fields := map[string]interface{}{
+				"request": viewer.Sprintf("%+v", requestExampleRPCTest2{
+					Arg0: arg0,
+					Arg1: arg1,
+					Opts: opts,
+				}),
+				"response": viewer.Sprintf("%+v", responseExampleRPCTest2{
+					Ret1: ret1,
+					Ret2: ret2,
+				}),
+			}
+			ev.Fields(fields).Str("took", time.Since(begin).String())
 		}
 		if err != nil {
-			logger.Error().Err(err).Fields(fields).Msg("call test2")
+			logger.Error().Err(err).Func(logHandle).Msg("call test2")
 			return
 		}
-		logger.Info().Fields(fields).Msg("call test2")
+		logger.Info().Func(logHandle).Msg("call test2")
 	}(time.Now())
 	return m.next.Test2(ctx, arg0, arg1, opts...)
 }
