@@ -74,7 +74,7 @@ func prometheusCounterRequestCountAll() (code *Statement) {
 
 func prometheusSummaryRequestCount() (code *Statement) {
 
-	return Var().Id("RequestLatency").Op("=").Qual(packageKitPrometheus, "NewSummaryFrom").Call(Qual(packageStdPrometheus, "SummaryOpts").Values(
+	return Var().Id("RequestLatency").Op("=").Qual(packageKitPrometheus, "NewHistogramFrom").Call(Qual(packageStdPrometheus, "HistogramOpts").Values(
 		DictFunc(func(d Dict) {
 			d[Id("Name")] = Lit("latency_microseconds")
 			d[Id("Namespace")] = Lit("service")
