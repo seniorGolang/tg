@@ -54,8 +54,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 	var found bool
 	schemaName := doc.toSchemaName(typeName, pkgPath)
 	if _, found = doc.schemas[schemaName]; found {
-		schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
-		return
+		return doc.toSchema(typeName, pkgPath)
 	}
 	if len(varTags) > 0 {
 		schema.Description = varTags.Value(tagDesc)
@@ -119,13 +118,11 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 				doc.knownInc(schemaName)
 				doc.schemas[schemaName] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
 			}
-			schemaName = doc.toSchemaName(vType.TypeName, pkgPath)
-			schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+			return doc.toSchema(vType.TypeName, pkgPath)
 		}
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			schemaName = doc.toSchemaName(vType.Next.String(), vType.Import.Package)
-			schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+			schema = doc.toSchema(vType.Next.String(), vType.Import.Package)
 			if _, found = doc.schemas[schemaName]; found {
 				return
 			}
@@ -137,9 +134,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Items = &itemSchema
 	case types.TPointer:
 		if _, found = doc.schemas[schemaName]; found {
-			return doc.schemas[schemaName]
+			schema.OneOf = append(schema.OneOf, doc.schemas[schemaName], swSchema{Type: "null"})
+			return
 		}
-		schema = doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags)
+		schema.OneOf = append(schema.OneOf, doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags), swSchema{Type: "null"})
 	case types.TInterface:
 		schema.Type = "object"
 		schema.Nullable = true
@@ -149,13 +147,28 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 	return
 }
 
-func (doc *swagger) toSchemaName(typeName, pkgPath string) string {
+func (doc *swagger) toSchemaName(typeName, pkgPath string) (schemaName string) {
 
+	schemaName = strings.TrimPrefix(typeName, "*")
+	if !strings.Contains(schemaName, ".") {
+		schemaName = fmt.Sprintf("%s.%s", filepath.Base(pkgPath), schemaName)
+	}
+	return
+}
+
+func (doc *swagger) toSchema(typeName, pkgPath string) (schema swSchema) {
+
+	isPointer := strings.HasPrefix(typeName, "*")
 	schemaName := strings.TrimPrefix(typeName, "*")
 	if !strings.Contains(schemaName, ".") {
 		schemaName = fmt.Sprintf("%s.%s", filepath.Base(pkgPath), schemaName)
 	}
-	return schemaName
+	if isPointer {
+		schema.OneOf = append(schema.OneOf, swSchema{Ref: fmt.Sprintf("#/components/schemas/%s", schemaName)}, swSchema{Type: "null"})
+		return
+	}
+	schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
+	return
 }
 
 func (doc *swagger) searchType(pkg, name string) (retType types.Type) {
