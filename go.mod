@@ -19,7 +19,6 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rogpeppe/go-internal v1.9.0
 	github.com/rs/zerolog v1.29.0
-	github.com/satori/go.uuid v1.2.0
 	github.com/seniorGolang/json v1.2.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
