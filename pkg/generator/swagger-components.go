@@ -100,7 +100,11 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.Properties[fieldName] = embed
 					continue
 				}
-				inlined = append(inlined, swSchema{Ref: embed.Ref})
+				if embed.Ref != "" {
+					inlined = append(inlined, swSchema{Ref: embed.Ref})
+				} else if len(embed.AllOf) != 0 {
+					inlined = append(inlined, embed.AllOf...)
+				}
 			}
 		}
 		var allOf swSchema
@@ -126,7 +130,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			if _, found = doc.schemas[schemaName]; found {
 				return
 			}
-			doc.schemas[schemaName] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
+			doc.schemas[schemaName] = doc.walkVariable(vType.Next.String(), vType.Import.Package, nextType, varTags)
 		}
 	case types.TEllipsis:
 		schema.Type = "array"
