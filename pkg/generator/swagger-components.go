@@ -102,7 +102,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 				}
 				if len(embed.AllOf) != 0 {
 					inlined = append(inlined, embed.AllOf...)
-				} else if len(embed.AllOf) != 0 {
+				} else {
 					inlined = append(inlined, swSchema{Ref: embed.Ref})
 				}
 			}
