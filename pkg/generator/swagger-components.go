@@ -22,7 +22,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) {
+func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) (structType types.Struct) {
 
 	if len(fields) == 0 {
 		doc.schemas[name] = swSchema{Type: "object"}
@@ -31,7 +31,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	if doc.schemas == nil {
 		doc.schemas = make(swSchemas)
 	}
-	structType := types.Struct{
+	structType = types.Struct{
 		Base: types.Base{Name: name, Docs: mTags.ToDocs()},
 	}
 	for _, field := range fields {
@@ -39,6 +39,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 		structType.Fields = append(structType.Fields, field)
 	}
 	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
+	return
 }
 
 func (doc *swagger) registerComponents(typeName, pkgPath string, varType types.Type) { // nolint

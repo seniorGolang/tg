@@ -547,6 +547,9 @@ func (m *method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes
 				if list := strings.Split(value, "|"); len(list) > 0 {
 					for _, item := range list {
 						if tokens := strings.Split(item, ":"); len(tokens) == 2 {
+							if tokens[1] == "inline" {
+								tokens[1] = ",inline"
+							}
 							field.Tags[tokens[0]] = strings.Split(tokens[1], ",")
 						}
 					}

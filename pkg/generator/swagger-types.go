@@ -87,8 +87,8 @@ type swSchemas map[string]swSchema
 type swProperties map[string]swSchema
 
 type swComponents struct {
-	Schemas         swSchemas         `json:"schemas,omitempty" yaml:"schemas,omitempty"`
-	SecuritySchemes swSecuritySchemes `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
+	Schemas         swSchemas          `json:"schemas,omitempty" yaml:"schemas,omitempty"`
+	SecuritySchemes *swSecuritySchemes `json:"securitySchemes,omitempty" yaml:"securitySchemes,omitempty"`
 }
 
 type swSchema struct {

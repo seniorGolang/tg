@@ -20,11 +20,7 @@ import (
 )
 
 const (
-	contentJSON      = "application/json"
-	contentMultipart = "multipart/form-data"
-)
-
-const (
+	contentJSON          = "application/json"
 	bearerSecuritySchema = "bearer"
 )
 
@@ -59,11 +55,17 @@ func (doc *swagger) render(outFilePath string, interfaces ...string) (err error)
 	swaggerDoc.Info.Version = doc.tags.Value(tagAppVersion)
 	swaggerDoc.Info.Description = doc.tags.Value(tagDesc)
 	swaggerDoc.Paths = make(map[string]swPath)
-	tagSecurities := strings.Split(doc.tags.Value(tagSecurity), "|")
-	for _, tagSecurity := range tagSecurities {
-		if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
-			swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
-			swaggerDoc.Components.SecuritySchemes.BearerAuth = swBearerAuth{Type: "http", Scheme: tagSecurity}
+	if doc.tags.IsSet(tagSecurity) {
+		for _, tagSecurity := range strings.Split(doc.tags.Value(tagSecurity), "|") {
+			if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
+				swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
+				swaggerDoc.Components.SecuritySchemes = &swSecuritySchemes{
+					BearerAuth: swBearerAuth{
+						Type:   "http",
+						Scheme: "tagSecurity",
+					},
+				}
+			}
 		}
 	}
 	tagServers := strings.Split(doc.tags.Value(tagServers), "|")
@@ -136,6 +138,15 @@ services:
 					}
 				}
 			}
+			for argName, queryName := range method.argParamMap() {
+				if arg := method.argByName(argName); arg != nil {
+					parameters = append(parameters, swParameter{
+						In:     "query",
+						Name:   queryName,
+						Schema: doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
+					})
+				}
+			}
 			for argName, cookieName := range method.varCookieMap() {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
@@ -191,11 +202,8 @@ services:
 				if !found {
 					swaggerDoc.Paths[method.httpPath()] = swPath{}
 				}
-				requestContentType := contentJSON
-				responseContentType := contentJSON
-				// if method.tags.Contains(tagUploadVars) {
-				// 	requestContentType = contentMultipart
-				// }
+				requestContentType := method.tags.Value(tagRequestContentType, contentJSON)
+				responseContentType := method.tags.Value(tagResponseContentType, contentJSON)
 				httpMethod := &swOperation{
 					Summary:     method.tags.Value(tagSummary),
 					Description: method.tags.Value(tagDesc),
@@ -294,18 +302,6 @@ func (doc *swagger) fillErrors(responses swResponses, tags tags.DocTags) {
 
 func (doc *swagger) clearContent(content swContent) swContent {
 
-	for mime, media := range content {
-
-		if media.Schema.Type == "object" && len(media.Schema.Properties) == 0 {
-			delete(content, mime)
-		}
-
-		if media.Schema.Ref != "" {
-			if schema, found := doc.schemas[strings.TrimPrefix(media.Schema.Ref, "#/components/schemas/")]; !found || len(schema.Properties) == 0 {
-				delete(content, mime)
-			}
-		}
-	}
 	if len(content) == 0 {
 		return nil
 	}
