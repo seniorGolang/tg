@@ -66,9 +66,9 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
-					params := method.argsWithoutContext()
-					params = removeSkippedFields(params, skipFields)
-					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, params)))
+					params := method.argsFieldsWithoutContext()
+					originParams := removeSkippedFields(method.argsWithoutContext(), skipFields)
+					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, originParams)))
 					printResult := true
 					for _, field := range skipFields {
 						if strings.TrimSpace(field) == "response" {
@@ -76,9 +76,10 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 							break
 						}
 					}
-					returns := method.resultsWithoutError()
+					returns := method.resultFieldsWithoutError()
+					originReturns := method.resultsWithoutError()
 					if printResult {
-						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, returns)))
+						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
 					}
 				}))
 				// .Func(logHandle)

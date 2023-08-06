@@ -99,17 +99,27 @@ func nestedType(field types.Type, pkg string, path []string) (nested types.Type)
 
 func structField(ctx context.Context, field types.StructField) *Statement {
 
-	s := Id(utils.ToCamel(field.Name))
-
-	s.Add(fieldType(ctx, field.Variable.Type, false))
-
+	var isInlined bool
 	tags := map[string]string{"json": field.Name}
-
 	for tag, values := range field.Tags {
+		if tag == "json" {
+			for _, value := range values {
+				if value == "inline" {
+					isInlined = true
+				}
+			}
+		}
 		tags[tag] = strings.Join(values, ",")
 	}
-	s.Tag(tags)
-
+	var s *Statement
+	if isInlined {
+		s = fieldType(ctx, field.Variable.Type, false)
+		s.Tag(map[string]string{"json": ",inline"})
+	} else {
+		s = Id(utils.ToCamel(field.Name))
+		s.Add(fieldType(ctx, field.Variable.Type, false))
+		s.Tag(tags)
+	}
 	if types.IsEllipsis(field.Variable.Type) {
 		s.Comment("This field was defined with ellipsis (...).")
 	}

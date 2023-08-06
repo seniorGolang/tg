@@ -48,14 +48,14 @@ func (svc *service) httpMethodFunc(method *method) Code {
 				bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
 			}
 			bg.ListFunc(func(lg *Group) {
-				for _, ret := range method.resultsWithoutError() {
+				for _, ret := range method.resultFieldsWithoutError() {
 					lg.Id("response").Dot(utils.ToCamel(ret.Name))
 				}
 				lg.Err()
 
 			}).Op("=").Id("http").Dot("svc").Dot(method.Name).CallFunc(func(cg *Group) {
 				cg.Id(_ctx_)
-				for _, arg := range method.argsWithoutContext() {
+				for _, arg := range method.argsFieldsWithoutContext() {
 					argCode := Id("request").Dot(utils.ToCamel(arg.Name))
 					if types.IsEllipsis(arg.Type) {
 						argCode.Op("...")
@@ -95,7 +95,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Lit(successCode))
 		}
 		if len(method.arguments()) != 0 {
-			bg.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id(_ctx_).Dot("Request").Call().Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+			bg.If(Err().Op("=").Id(_ctx_).Dot("BodyParser").Call(Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
 					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -145,17 +145,6 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
-		// for uploadVar, uploadKey := range method.uploadVarsMap() {
-		// 	bg.If(List(Id("request").Dot(utils.ToCamel(uploadVar)), Err()).Op("=").Id("uploadFile").Call(Id(_ctx_), Lit(uploadKey)).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-		// 		ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-		// 		if svc.tags.IsSet(tagTrace) {
-		// 			ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-		// 			ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
-		// 		}
-		// 		ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-		// 		ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("upload file '"+uploadVar+"' error: ").Op("+").Err().Dot("Error").Call())
-		// 	})
-		// }
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
 			bg.Return().Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("svc"), callParamNames("request", method.argsWithoutContext())))
 		} else {
@@ -177,6 +166,10 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				if len(*ex) > 2 {
 					bf.If(Err().Op("==").Nil()).Block(ex)
 				}
+				bf.Var().Id("iResponse").Interface().Op("=").Id("response")
+				bf.If(List(Id("redirect"), Id("ok")).Op(":=").Id("iResponse").Op(".").Call(Id("withRedirect")).Op(";").Id("ok")).Block(
+					Return().Id(_ctx_).Dot("Redirect").Call(Id("redirect").Dot("RedirectTo").Call()),
+				)
 				bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
 			})
 			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(

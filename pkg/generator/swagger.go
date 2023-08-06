@@ -47,7 +47,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 	return
 }
 
-func (doc *swagger) render(outFilePath string) (err error) {
+func (doc *swagger) render(outFilePath string, interfaces ...string) (err error) {
 
 	if err = os.MkdirAll(filepath.Dir(outFilePath), 0777); err != nil {
 		return
@@ -76,7 +76,16 @@ func (doc *swagger) render(outFilePath string) (err error) {
 		}
 		swaggerDoc.Servers = append(swaggerDoc.Servers, swServer{URL: serverValues[0], Description: serverDesc})
 	}
+services:
 	for _, serviceName := range doc.serviceKeys() {
+
+		if len(interfaces) != 0 {
+			for _, name := range interfaces {
+				if serviceName != name {
+					continue services
+				}
+			}
+		}
 		service := doc.services[serviceName]
 		serviceTags := strings.Split(service.tags.Value(tagSwaggerTags, service.Name), ",")
 		doc.log.WithField("module", "swagger").Infof("service %s append jsonRPC methods", serviceTags)

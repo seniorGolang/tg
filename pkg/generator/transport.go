@@ -114,8 +114,8 @@ func (tr *Transport) RenderAzure(appName, routePrefix, outDir, logLevel string, 
 	return newAzure(tr).render(appName, routePrefix, outDir, logLevel, enableHealth)
 }
 
-func (tr *Transport) RenderSwagger(outDir string) (err error) {
-	return newSwagger(tr).render(outDir)
+func (tr *Transport) RenderSwagger(outDir string, interfaces ...string) (err error) {
+	return newSwagger(tr).render(outDir, interfaces...)
 }
 
 func (tr *Transport) serviceKeys() (keys []string) {
@@ -169,6 +169,7 @@ func (tr *Transport) RenderServer(outDir string) (err error) {
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
+	showError(tr.log, tr.renderRedirect(outDir), "renderRedirect")
 	showError(tr.log, tr.renderVersion(outDir, false), "renderVersion")
 	if hasMetric {
 		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")

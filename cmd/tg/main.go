@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.35"
+	Version    = "v2.3.37"
 	BuildStamp = time.Now().String()
 )
 
@@ -322,7 +322,7 @@ func cmdSwagger(c *cli.Context) (err error) {
 	if c.String("outFile") != "" {
 		outPath = c.String("outFile")
 	}
-	if err = tr.RenderSwagger(outPath); err == nil {
+	if err = tr.RenderSwagger(outPath, c.StringSlice("iface")...); err == nil {
 		if c.String("redoc") != "" {
 			var output []byte
 			log.Infof("write to %s", c.String("redoc"))

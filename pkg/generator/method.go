@@ -437,11 +437,33 @@ func (m *method) fieldsArgument() []types.StructField {
 	return m.argFields
 }
 
-func (m *method) resultsWithoutError() []types.Variable {
+func (m *method) resultsWithoutError() (vars []types.Variable) {
+
 	if isErrorLast(m.Results) {
 		return m.Results[:len(m.Results)-1]
 	}
 	return m.Results
+}
+
+func (m *method) resultFieldsWithoutError() (vars []types.Variable) {
+
+	var resultVars []types.Variable
+	if isErrorLast(m.Results) {
+		resultVars = m.Results[:len(m.Results)-1]
+	} else {
+		resultVars = m.Results
+	}
+	for _, v := range resultVars {
+		if m.isInlined(&v) {
+			switch vType := v.Type.(type) {
+			case types.TImport:
+				vars = append(vars, types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next})
+				continue
+			}
+		}
+		vars = append(vars, v)
+	}
+	return
 }
 
 func (m *method) argsWithoutContext() (args []types.Variable) {
@@ -450,6 +472,27 @@ func (m *method) argsWithoutContext() (args []types.Variable) {
 		return m.Args[1:]
 	}
 	return m.Args
+}
+
+func (m *method) argsFieldsWithoutContext() (vars []types.Variable) {
+
+	var argVars []types.Variable
+	if isContextFirst(m.Args) {
+		argVars = m.Args[1:]
+	} else {
+		argVars = m.Args
+	}
+	for _, v := range argVars {
+		if m.isInlined(&v) {
+			switch vType := v.Type.(type) {
+			case types.TImport:
+				vars = append(vars, types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next})
+				continue
+			}
+		}
+		vars = append(vars, v)
+	}
+	return
 }
 
 func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *Statement, errStatement *Statement) *Statement {
@@ -511,6 +554,28 @@ func (m *method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes
 			}
 		}
 		fields = append(fields, field)
+	}
+	return
+}
+
+func (m *method) isInlined(field *types.Variable) (isInlined bool) {
+
+	for key, value := range m.tags.Sub(field.Name) {
+		if key == tagTag {
+			if list := strings.Split(value, "|"); len(list) > 0 {
+				for _, item := range list {
+					if tokens := strings.Split(item, ":"); len(tokens) == 2 {
+						if tokens[0] == "json" {
+							for _, json := range strings.Split(tokens[1], ",") {
+								if json == "inline" {
+									return true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	return
 }

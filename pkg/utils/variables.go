@@ -14,7 +14,6 @@ func DictByNormalVariables(fields []types.Variable, normals []types.Variable) Di
 	if len(fields) != len(normals) {
 		panic("len of fields and normals not the same")
 	}
-
 	return DictFunc(func(d Dict) {
 		for i, field := range fields {
 			d[structFieldName(&field)] = Id(ToLowerCamel(normals[i].Name))
@@ -23,5 +22,19 @@ func DictByNormalVariables(fields []types.Variable, normals []types.Variable) Di
 }
 
 func structFieldName(field *types.Variable) *Statement {
+
+	var isInlined bool
+	// for tag, values := range field.(*types.StructField).Tags {
+	// 	if tag == "json" {
+	// 		for _, value := range values {
+	// 			if value == "inline" {
+	// 				isInlined = true
+	// 			}
+	// 		}
+	// 	}
+	// }
+	if isInlined {
+		return Id(ToCamel(field.Name))
+	}
 	return Id(ToCamel(field.Name))
 }
