@@ -56,13 +56,13 @@ func (doc *swagger) render(outFilePath string, interfaces ...string) (err error)
 	swaggerDoc.Info.Description = doc.tags.Value(tagDesc)
 	swaggerDoc.Paths = make(map[string]swPath)
 	if doc.tags.IsSet(tagSecurity) {
-		for _, tagSecurity := range strings.Split(doc.tags.Value(tagSecurity), "|") {
-			if strings.EqualFold(tagSecurity, bearerSecuritySchema) {
+		for _, security := range strings.Split(doc.tags.Value(tagSecurity), "|") {
+			if strings.EqualFold(security, bearerSecuritySchema) {
 				swaggerDoc.Security = append(swaggerDoc.Security, swSecurity{BearerAuth: []interface{}{}})
 				swaggerDoc.Components.SecuritySchemes = &swSecuritySchemes{
 					BearerAuth: swBearerAuth{
 						Type:   "http",
-						Scheme: "tagSecurity",
+						Scheme: security,
 					},
 				}
 			}
