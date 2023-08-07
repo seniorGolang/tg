@@ -139,10 +139,10 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Items = &itemSchema
 	case types.TPointer:
 		if _, found = doc.schemas[schemaName]; found {
-			schema.OneOf = append(schema.OneOf, doc.schemas[schemaName], swSchema{Type: "null"})
+			schema.OneOf = append(schema.OneOf, doc.schemas[schemaName], swSchema{Nullable: true})
 			return
 		}
-		schema.OneOf = append(schema.OneOf, doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags), swSchema{Type: "null"})
+		schema.OneOf = append(schema.OneOf, doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags), swSchema{Nullable: true})
 	case types.TInterface:
 		schema.Type = "object"
 		schema.Nullable = true
@@ -169,7 +169,7 @@ func (doc *swagger) toSchema(typeName, pkgPath string) (schema swSchema) {
 		schemaName = fmt.Sprintf("%s.%s", filepath.Base(pkgPath), schemaName)
 	}
 	if isPointer {
-		schema.OneOf = append(schema.OneOf, swSchema{Ref: fmt.Sprintf("#/components/schemas/%s", schemaName)}, swSchema{Type: "null"})
+		schema.OneOf = append(schema.OneOf, swSchema{Ref: fmt.Sprintf("#/components/schemas/%s", schemaName)}, swSchema{Nullable: true})
 		return
 	}
 	schema.Ref = fmt.Sprintf("#/components/schemas/%s", schemaName)
