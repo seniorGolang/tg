@@ -22,19 +22,5 @@ func DictByNormalVariables(fields []types.Variable, normals []types.Variable) Di
 }
 
 func structFieldName(field *types.Variable) *Statement {
-
-	var isInlined bool
-	// for tag, values := range field.(*types.StructField).Tags {
-	// 	if tag == "json" {
-	// 		for _, value := range values {
-	// 			if value == "inline" {
-	// 				isInlined = true
-	// 			}
-	// 		}
-	// 	}
-	// }
-	if isInlined {
-		return Id(ToCamel(field.Name))
-	}
 	return Id(ToCamel(field.Name))
 }
