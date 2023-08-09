@@ -100,7 +100,7 @@ func nestedType(field types.Type, pkg string, path []string) (nested types.Type)
 func structField(ctx context.Context, field types.StructField) *Statement {
 
 	var isInlined bool
-	tags := map[string]string{"json": field.Name}
+	tags := map[string]string{"json": fmt.Sprintf("%s,omitempty", field.Name)}
 	for tag, values := range field.Tags {
 		if tag == "json" {
 			for _, value := range values {
