@@ -32,9 +32,13 @@ func (svc *service) exchange(ctx context.Context, name string, params []types.St
 	if len(params) == 0 {
 		return Comment("Formal exchange type, please do not delete.").Line().Type().Id(name).Struct()
 	}
+	template := "%s,omitempty"
+	if svc.tags.IsSet(tagDisableOmitEmpty) {
+		template = "%s"
+	}
 	return Type().Id(name).StructFunc(func(g *Group) {
 		for _, param := range params {
-			g.Add(structField(ctx, param))
+			g.Add(structField(ctx, param, template))
 		}
 	})
 }
