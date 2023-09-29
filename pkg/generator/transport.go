@@ -4,9 +4,11 @@
 package generator
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -77,15 +79,27 @@ type Transport struct {
 	services   map[string]*service
 }
 
-func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Option) (tr Transport, err error) {
+func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...string) (tr Transport, err error) {
 
 	tr.log = log
 	tr.version = version
+	var files []os.DirEntry
 	tr.services = make(map[string]*service)
+	var include, exclude []string
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface, "!") {
+			exclude = append(exclude, strings.TrimPrefix(iface, "!"))
+			continue
+		}
+		include = append(include, iface)
+	}
+	if len(include) != 0 && len(exclude) != 0 {
+		err = fmt.Errorf("include and exclude cannot be set at same time")
+		return
+	}
 	if err = tr.goMod(svcDir); err != nil {
 		return
 	}
-	var files []os.DirEntry
 	if files, err = os.ReadDir(svcDir); err != nil {
 		return
 	}
@@ -101,8 +115,20 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, options ...Opt
 		}
 		tr.tags = tr.tags.Merge(tags.ParseTags(serviceAst.Docs))
 		for _, iface := range serviceAst.Interfaces {
+			if len(include) != 0 {
+				if !slices.Contains(include, iface.Name) {
+					log.WithField("iface", iface.Name).Info("skip")
+					continue
+				}
+			}
+			if len(exclude) != 0 {
+				if slices.Contains(exclude, iface.Name) {
+					log.WithField("iface", iface.Name).Info("skip")
+					continue
+				}
+			}
 			if len(tags.ParseTags(iface.Docs)) != 0 {
-				service := newService(log, &tr, filePath, iface, options...)
+				service := newService(log, &tr, filePath, iface)
 				tr.services[iface.Name] = service
 				if service.tags.Contains(tagServerJsonRPC) {
 					tr.hasJsonRPC = true

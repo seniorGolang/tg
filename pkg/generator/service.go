@@ -26,11 +26,10 @@ type service struct {
 	tr      *Transport
 	tags    tags.DocTags
 
-	testsPath      string
-	implementsPath string
+	testsPath string
 }
 
-func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface types.Interface, options ...Option) (svc *service) {
+func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface types.Interface) (svc *service) {
 
 	svc = &service{
 		tr:        tr,
@@ -38,15 +37,9 @@ func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface ty
 		Interface: iface,
 		tags:      tags.ParseTags(iface.Docs),
 	}
-
-	for _, option := range options {
-		option(svc)
-	}
-
 	for _, method := range iface.Methods {
 		svc.methods = append(svc.methods, newMethod(log, svc, method))
 	}
-
 	absPath, _ := filepath.Abs(filepath.Dir(filePath))
 	svc.pkgPath, _ = utils.GetPkgPath(filepath.Dir(filePath), true)
 	svc.pkgPath = path.Join(svc.pkgPath, path.Dir(strings.TrimPrefix(filePath, absPath)))

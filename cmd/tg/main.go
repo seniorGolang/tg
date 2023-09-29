@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.43"
+	Version    = "v2.3.44"
 	BuildStamp = time.Now().String()
 )
 
@@ -107,6 +107,10 @@ func main() {
 					Value: "./pkg/someService/service",
 					Usage: "path to services package",
 				},
+				&cli.StringSliceFlag{
+					Name:  "ifaces",
+					Usage: "included interfaces",
+				},
 				&cli.StringFlag{
 					Name:  "out",
 					Usage: "path to output folder",
@@ -163,6 +167,10 @@ func main() {
 					Name:  "outPackage",
 					Usage: "path to output package NPM",
 				},
+				&cli.StringSliceFlag{
+					Name:  "ifaces",
+					Usage: "included interfaces",
+				},
 				&cli.BoolFlag{
 					Name:  "go",
 					Value: false,
@@ -198,8 +206,8 @@ func main() {
 					Usage: "path to output folder",
 				},
 				&cli.StringSliceFlag{
-					Name:  "iface",
-					Usage: "interfaces included to swagger",
+					Name:  "ifaces",
+					Usage: "included interfaces",
 				},
 				&cli.StringFlag{
 					Name:  "redoc",
@@ -207,7 +215,7 @@ func main() {
 				},
 			},
 
-			UsageText:   "tg swagger --iface firstIface --iface secondIface",
+			UsageText:   "tg swagger --include firstIface --exclude secondIface",
 			Description: "generate swagger documentation by interfaces",
 		},
 	}
@@ -241,7 +249,7 @@ func cmdClient(c *cli.Context) (err error) {
 		}
 	}()
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, Version, c.String("services")); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services"), c.StringSlice("ifaces")...); err != nil {
 		return
 	}
 	if c.Bool("go") {
@@ -275,12 +283,8 @@ func cmdTransport(c *cli.Context) (err error) {
 			log.Info("done")
 		}
 	}()
-	opts := []generator.Option{
-		generator.WithTests(c.String("tests")),
-		generator.WithImplements(c.String("implements")),
-	}
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, Version, c.String("services"), opts...); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services"), c.StringSlice("ifaces")...); err != nil {
 		return
 	}
 	outPath, _ := path.Split(c.String("services"))
@@ -322,7 +326,7 @@ func cmdSwagger(c *cli.Context) (err error) {
 	if c.String("outFile") != "" {
 		outPath = c.String("outFile")
 	}
-	if err = tr.RenderSwagger(outPath, c.StringSlice("iface")...); err == nil {
+	if err = tr.RenderSwagger(outPath, c.StringSlice("ifaces")...); err == nil {
 		if c.String("redoc") != "" {
 			var output []byte
 			log.Infof("write to %s", c.String("redoc"))

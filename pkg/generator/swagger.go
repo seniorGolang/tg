@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -43,8 +44,20 @@ func newSwagger(tr *Transport) (doc *swagger) {
 	return
 }
 
-func (doc *swagger) render(outFilePath string, interfaces ...string) (err error) {
+func (doc *swagger) render(outFilePath string, ifaces ...string) (err error) {
 
+	var include, exclude []string
+	for _, iface := range ifaces {
+		if strings.HasPrefix(iface, "!") {
+			exclude = append(exclude, strings.TrimPrefix(iface, "!"))
+			continue
+		}
+		include = append(include, iface)
+	}
+	if len(include) != 0 && len(exclude) != 0 {
+		err = fmt.Errorf("include and exclude cannot be set at same time")
+		return
+	}
 	if err = os.MkdirAll(filepath.Dir(outFilePath), 0777); err != nil {
 		return
 	}
@@ -80,12 +93,16 @@ func (doc *swagger) render(outFilePath string, interfaces ...string) (err error)
 	}
 services:
 	for _, serviceName := range doc.serviceKeys() {
-
-		if len(interfaces) != 0 {
-			for _, name := range interfaces {
-				if serviceName != name {
-					continue services
-				}
+		if len(include) != 0 {
+			if !slices.Contains(include, serviceName) {
+				doc.log.WithField("iface", serviceName).Info("skip")
+				continue services
+			}
+		}
+		if len(exclude) != 0 {
+			if slices.Contains(exclude, serviceName) {
+				doc.log.WithField("iface", serviceName).Info("skip")
+				continue services
 			}
 		}
 		service := doc.services[serviceName]

@@ -38,9 +38,9 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 }
 
 func (tr *Transport) serveMetricsFunc() Code {
-	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("address").String()).Block(
+	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("path").String(), Id("address").String()).Block(
 		Id("srvMetrics").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),
-		Id("srvMetrics").Dot("All").Call(Lit("/"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
+		Id("srvMetrics").Dot("All").Call(Id("path"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
 		Go().Func().Params().Block(
 			Err().Op(":=").Id("srvMetrics").Dot("Listen").Call(Id("address")),
 			Id("ExitOnError").Call(Id("log"), Err(), Lit("serve metrics on ").Op("+").Id("address")),
