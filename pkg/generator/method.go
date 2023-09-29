@@ -455,7 +455,11 @@ func (m *method) resultFieldsWithoutError() (vars []types.Variable) {
 	}
 	for _, v := range resultVars {
 		if m.isInlined(&v) {
+		nextTick:
 			switch vType := v.Type.(type) {
+			case types.TPointer:
+				v = types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next}
+				goto nextTick
 			case types.TImport:
 				vars = append(vars, types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next})
 				continue
