@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.44"
+	Version    = "v2.3.45"
 	BuildStamp = time.Now().String()
 )
 
@@ -317,7 +317,7 @@ func cmdSwagger(c *cli.Context) (err error) {
 	}()
 
 	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, Version, c.String("services")); err != nil {
+	if tr, err = generator.NewTransport(log, Version, c.String("services"), c.StringSlice("ifaces")...); err != nil {
 		return
 	}
 
