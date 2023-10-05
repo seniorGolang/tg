@@ -76,12 +76,9 @@ func (svc *service) render(outDir string) (err error) {
 	showError(svc.log, svc.renderServer(outDir), "renderServer")
 	showError(svc.log, svc.renderExchange(outDir), "renderExchange")
 	showError(svc.log, svc.renderMiddleware(outDir), "renderMiddleware")
-	// showError(svc.log, svc.renderImplement(svc.implementsPath), "renderImplement")
-
 	if svc.tags.Contains(tagTests) {
 		showError(svc.log, svc.renderTest(svc.testsPath), "renderTest")
 	}
-
 	if svc.tags.Contains(tagTrace) {
 		showError(svc.log, svc.renderTrace(outDir), "renderTrace")
 	}
