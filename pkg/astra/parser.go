@@ -7,8 +7,10 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -120,6 +122,8 @@ var (
 	mx                    sync.Mutex
 )
 
+var versionRE = regexp.MustCompile(`\/v\d+`)
+
 func constructAliasName(spec *ast.ImportSpec) string {
 	if spec.Name != nil {
 		return spec.Name.Name
@@ -131,12 +135,23 @@ func constructAliasName(spec *ast.ImportSpec) string {
 	if ok {
 		return name
 	}
-	for _, p := range []string{build.Default.GOROOT, "vendor", build.Default.GOPATH} {
-		name = findPackageName(p, importPath)
+
+	cutPath := versionRE.ReplaceAllString(importPath, "")
+	haveVersion := cutPath != importPath
+	if !haveVersion {
+		lastIndex := strings.LastIndex(importPath, "/")
+		if lastIndex != -1 {
+			cutPath = importPath[:lastIndex]
+		}
+	}
+
+	for _, p := range []string{build.Default.GOROOT, "vendor", build.Default.GOPATH, build.Default.GOROOT + "/pkg/mod/", build.Default.GOPATH + "/pkg/mod/"} {
+		name = findPackageName(p, cutPath, haveVersion)
 		if name != "" {
 			break
 		}
 	}
+
 	if name == "" {
 		name = constructAliasNameString(spec.Path.Value)
 	}
@@ -155,9 +170,27 @@ func constructAliasNameString(str string) string {
 	return name
 }
 
-func findPackageName(src, path string) string {
+var pkgRE = regexp.MustCompile(`\w+\@v\d+\.\d+\.\d+$`)
+
+func findPackageName(src, path string, version bool) string {
 	for _, gopath := range strings.Split(src, ":") {
-		pkgs, err := parser.ParseDir(token.NewFileSet(), filepath.Join(gopath, path), nil, parser.PackageClauseOnly)
+
+		srcDir := filepath.Join(gopath, path)
+		err := filepath.Walk(filepath.Join(gopath, path), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Проверяем, удовлетворяет ли текущий путь паттерну.
+			if pkgRE.MatchString(path) && info.IsDir() {
+				srcDir = path
+				return filepath.SkipAll
+			}
+
+			return nil
+		})
+
+		pkgs, err := parser.ParseDir(token.NewFileSet(), srcDir, nil, parser.PackageClauseOnly)
 		if err != nil {
 			continue
 		}

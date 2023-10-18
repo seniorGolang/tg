@@ -36,7 +36,7 @@ func (svc *service) renderTrace(outDir string) (err error) {
 	for _, method := range svc.methods {
 		srcFile.Line().Func().Params(Id("svc").Id("trace"+svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).Block(
 
-			Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
+			Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call()),
 			Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.Name)),
 
 			Return(Id("svc").Dot("next").Dot(method.Name).CallFunc(func(cg *Group) {

@@ -58,7 +58,7 @@ func (svc *service) loggerMiddleware() Code {
 func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group) {
 
 	return func(g *Group) {
-		g.Id("logger").Op(":=").Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_)).Dot("With").Call().
+		g.Id("logger").Op(":=").Qual(packageZeroLogLog, "Ctx").Call(Id(_ctx_).Dot("UserContext").Call()).Dot("With").Call().
 			Dot("Str").Call(Lit("service"), Lit(svc.Name)).
 			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
 			Dot("Logger").Call()

@@ -48,8 +48,7 @@ func isContextFirst(fields []types.Variable) bool {
 	}
 	name := types.TypeName(fields[0].Type)
 	return name != nil &&
-		types.TypeImport(fields[0].Type) != nil &&
-		types.TypeImport(fields[0].Type).Package == packageContext && *name == "Context"
+		types.TypeImport(fields[0].Type) != nil && (types.TypeImport(fields[0].Type).Package == packageContext && *name == "Context" || types.TypeImport(fields[0].Type).Package == packageFiber && *name == "Ctx")
 }
 
 func isErrorLast(fields []types.Variable) bool {

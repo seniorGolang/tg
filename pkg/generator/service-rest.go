@@ -39,12 +39,23 @@ func (svc *service) renderREST(outDir string) (err error) {
 
 func (svc *service) httpMethodFunc(method *method) Code {
 
-	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id(method.lccName()).Params(Id(_ctx_).Qual(packageContext, "Context"), Id("request").Id(method.requestStructName())).
-		Params(Id("response").Id(method.responseStructName()), Err().Error()).
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id(method.lccName()).Params(
+		ListFunc(func(lg *Group) {
+			lg.Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")
+			if len(method.arguments()) != 0 {
+				lg.Id("request").Id(method.requestStructName())
+			}
+		})).
+		Params(ListFunc(func(lg *Group) {
+			if len(method.results()) != 0 {
+				lg.Id("response").Id(method.responseStructName())
+			}
+			lg.Err().Error()
+		})).
 		BlockFunc(func(bg *Group) {
 			bg.Line()
 			if svc.tags.IsSet(tagTrace) {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
+				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
 				bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
 			}
 			bg.ListFunc(func(lg *Group) {
@@ -77,7 +88,7 @@ func (svc *service) httpMethodFunc(method *method) Code {
 				}
 			})
 			bg.Return()
-		})
+		}).Line()
 }
 
 func (svc *service) httpServeMethodFunc(method *method) Code {
@@ -90,11 +101,12 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
 			bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
 		}
-		bg.Var().Id("request").Id(method.requestStructName())
+
 		if successCode := method.tags.ValueInt(tagHttpSuccess, 0); successCode != 0 {
 			bg.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Lit(successCode))
 		}
 		if len(method.arguments()) != 0 {
+			bg.Var().Id("request").Id(method.requestStructName())
 			bg.If(Err().Op("=").Id(_ctx_).Dot("BodyParser").Call(Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				if svc.tags.IsSet(tagTrace) {
 					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
@@ -148,30 +160,42 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		if responseMethod := method.tags.Value(tagHttpResponse, ""); responseMethod != "" {
 			bg.Return().Add(toID(responseMethod).Call(Id(_ctx_), Id("http").Dot("svc"), callParamNames("request", method.argsWithoutContext())))
 		} else {
-			bg.Var().Id("response").Id(method.responseStructName())
-			bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id(_ctx_).Dot("UserContext").Call(), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
-				ex := Line()
-				if len(method.retCookieMap()) > 0 {
-					for retName := range method.retCookieMap() {
-						if ret := method.resultByName(retName); ret != nil {
-							ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
-								Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
-								Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
-								Id(_ctx_).Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
-							)
+			if len(method.results()) == 0 {
+				bg.If().List(Err()).Op("=").Id("http").Dot(method.lccName()).Call(ListFunc(func(lg *Group) {
+					lg.Id(_ctx_)
+					if len(method.arguments()) != 0 {
+						lg.Id("request")
+					}
+				})).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
+					bf.Return().Nil()
+				})
+			} else {
+				bg.Var().Id("response").Id(method.responseStructName())
+				bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id(_ctx_), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
+					ex := Line()
+					if len(method.retCookieMap()) > 0 {
+						for retName := range method.retCookieMap() {
+							if ret := method.resultByName(retName); ret != nil {
+								ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
+									Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
+									Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
+									Id(_ctx_).Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
+								)
+							}
 						}
 					}
-				}
-				ex.Add(method.httpRetHeaders())
-				if len(*ex) > 2 {
-					bf.If(Err().Op("==").Nil()).Block(ex)
-				}
-				bf.Var().Id("iResponse").Interface().Op("=").Id("response")
-				bf.If(List(Id("redirect"), Id("ok")).Op(":=").Id("iResponse").Op(".").Call(Id("withRedirect")).Op(";").Id("ok")).Block(
-					Return().Id(_ctx_).Dot("Redirect").Call(Id("redirect").Dot("RedirectTo").Call()),
-				)
-				bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
-			})
+					ex.Add(method.httpRetHeaders())
+					if len(*ex) > 2 {
+						bf.If(Err().Op("==").Nil()).Block(ex)
+					}
+					bf.Var().Id("iResponse").Interface().Op("=").Id("response")
+					bf.If(List(Id("redirect"), Id("ok")).Op(":=").Id("iResponse").Op(".").Call(Id("withRedirect")).Op(";").Id("ok")).Block(
+						Return().Id(_ctx_).Dot("Redirect").Call(Id("redirect").Dot("RedirectTo").Call()),
+					)
+					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
+				})
+
+			}
 			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
 				Id(_ctx_).Dot("Status").Call(Id("errCoder").Dot("Code").Call()),
 			).Else().Block(
