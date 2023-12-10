@@ -52,6 +52,7 @@ func (o Option) check(what Option) bool {
 
 // Parses ast.File and return all top-level declarations.
 func ParseAstFile(file *ast.File, options ...Option) (*types.File, error) {
+
 	opt := concatOptions(options)
 	f := &types.File{
 		Base: types.Base{
@@ -106,6 +107,7 @@ func parseComments(group *ast.CommentGroup, o Option) (comments []string) {
 }
 
 func parseTopLevelDeclarations(decls []ast.Decl, file *types.File, opt Option) error {
+
 	for i := range decls {
 		err := parseDeclaration(decls[i], file, opt)
 		if err != nil {
@@ -169,6 +171,7 @@ func findPackageName(src, path string) string {
 }
 
 func parseDeclaration(decl ast.Decl, file *types.File, opt Option) error {
+
 	switch d := decl.(type) {
 	case *ast.GenDecl:
 		switch d.Tok {
@@ -205,7 +208,7 @@ func parseDeclaration(decl ast.Decl, file *types.File, opt Option) error {
 			if opt.check(IgnoreConstants) {
 				return nil
 			}
-			consts, err := parseVariables(d, file, opt)
+			consts, err := parseConstant(d, file, opt)
 			if err != nil {
 				return fmt.Errorf("parse constants %d:%d error: %v", d.Lparen, d.Rparen, err)
 			}
@@ -307,14 +310,72 @@ func parseReceiver(list *ast.FieldList, file *types.File, opt Option) (*types.Va
 	return nil, fmt.Errorf("reciever not found for %d:%d", list.Pos(), list.End())
 }
 
+func parseConstant(decl *ast.GenDecl, file *types.File, opt Option) (constants []types.Constant, err error) {
+
+	iotaMark := false
+	var valType types.Type
+	var iotaList *types.Constant
+	for i := range decl.Specs {
+		spec := decl.Specs[i].(*ast.ValueSpec)
+		if len(spec.Values) > 0 && len(spec.Values) != len(spec.Names) {
+			return nil, fmt.Errorf("amount of variables and their values not same %d:%d", spec.Pos(), spec.End())
+		}
+		for idx, name := range spec.Names {
+			variable := types.Constant{
+				Base: types.Base{
+					Name: name.Name,
+					Docs: parseCommentFromSources(opt, decl.Doc, spec.Doc, spec.Comment),
+				},
+			}
+			if spec.Type != nil {
+				valType, iotaMark, err = parseByType(spec.Type, file, opt)
+				if err != nil {
+					return nil, fmt.Errorf("can't parse type: %v", err)
+				}
+				if len(spec.Values) > idx {
+					_, _, iotaMark, err = parseByValue(spec.Values[idx], file, opt)
+					if err != nil {
+						return nil, fmt.Errorf("can't parse type: %v", err)
+					}
+				}
+			} else if iotaMark {
+			} else if len(spec.Values) > idx {
+				variable.Value, valType, iotaMark, err = parseByValue(spec.Values[idx], file, opt)
+				if err != nil {
+					return nil, fmt.Errorf("can't parse type: %v", err)
+				}
+			} else {
+				return nil, fmt.Errorf("can't parse type: %d:%d", spec.Pos(), spec.End())
+			}
+			if iotaMark {
+				if iotaList == nil {
+					iotaList = &variable
+				}
+				variable.Type = valType
+				variable.Iota = iotaMark
+				iotaList.Constants = append(iotaList.Constants, variable)
+				continue
+			} else {
+				variable.Type = valType
+				constants = append(constants, variable)
+			}
+		}
+	}
+	if iotaList != nil {
+		constants = append(constants, *iotaList)
+	}
+	return
+}
+
 func parseVariables(decl *ast.GenDecl, file *types.File, opt Option) (vars []types.Variable, err error) {
+
 	iotaMark := false
 	for i := range decl.Specs {
 		spec := decl.Specs[i].(*ast.ValueSpec)
 		if len(spec.Values) > 0 && len(spec.Values) != len(spec.Names) {
 			return nil, fmt.Errorf("amount of variables and their values not same %d:%d", spec.Pos(), spec.End())
 		}
-		for i, name := range spec.Names {
+		for idx, name := range spec.Names {
 			variable := types.Variable{
 				Base: types.Base{
 					Name: name.Name,
@@ -332,15 +393,14 @@ func parseVariables(decl *ast.GenDecl, file *types.File, opt Option) (vars []typ
 				}
 			} else if iotaMark {
 				valType = iotaType
-			} else if i < len(spec.Values) {
-				valType, iotaMark, err = parseByValue(spec.Values[i], file, opt)
+			} else if len(spec.Values) > idx {
+				_, valType, iotaMark, err = parseByValue(spec.Values[idx], file, opt)
 				if err != nil {
 					return nil, fmt.Errorf("can't parse type: %v", err)
 				}
 			} else {
 				return nil, fmt.Errorf("can't parse type: %d:%d", spec.Pos(), spec.End())
 			}
-
 			variable.Type = valType
 			vars = append(vars, variable)
 		}
@@ -351,6 +411,7 @@ func parseVariables(decl *ast.GenDecl, file *types.File, opt Option) (vars []typ
 var iotaType = types.TName{TypeName: "iota"}
 
 func parseByType(spec interface{}, file *types.File, opt Option) (tt types.Type, im bool, err error) {
+
 	switch t := spec.(type) {
 	case *ast.Ident:
 		if t.Name == "iota" {
@@ -464,33 +525,35 @@ func parseArrayLen(t *ast.ArrayType) int {
 }
 
 // Fill provided types.Type for cases, when variable's value is provided.
-func parseByValue(spec interface{}, file *types.File, opt Option) (tt types.Type, iotaMark bool, err error) {
+func parseByValue(spec interface{}, file *types.File, opt Option) (value interface{}, tt types.Type, iotaMark bool, err error) {
+
 	switch t := spec.(type) {
 	case *ast.BasicLit:
-		return types.TName{TypeName: t.Kind.String()}, false, nil
+		return t.Value, types.TName{TypeName: t.Kind.String()}, false, nil
 	case *ast.CompositeLit:
 		return parseByValue(t.Type, file, opt)
 	case *ast.SelectorExpr:
 		im, err := findImportByAlias(file, t.X.(*ast.Ident).Name)
 		if err != nil && !opt.check(AllowAnyImportAliases) {
-			return nil, false, fmt.Errorf("%s: %v", t.Sel.Name, err)
+			return nil, nil, false, fmt.Errorf("%s: %v", t.Sel.Name, err)
 		}
 		if im == nil && !opt.check(AllowAnyImportAliases) {
-			return nil, false, fmt.Errorf("wrong import %d:%d", t.Pos(), t.End())
+			return nil, nil, false, fmt.Errorf("wrong import %d:%d", t.Pos(), t.End())
 		}
-		return types.TImport{Import: im}, false, nil
+		return nil, types.TImport{Import: im}, false, nil
 	case *ast.FuncType:
 		fn, err := parseFunction(t, file, opt)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
-		return fn, false, nil
+		return nil, fn, false, nil
 	case *ast.BinaryExpr:
 		return parseByValue(t.X, file, opt) // parse one in pair
 	case *ast.Ident: // iota case
-		return parseByType(t, file, opt)
+		tt, iotaMark, err = parseByType(t, file, opt)
+		return
 	default:
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 }
 

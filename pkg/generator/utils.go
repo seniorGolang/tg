@@ -62,6 +62,21 @@ func isErrorLast(fields []types.Variable) bool {
 		*name == "error"
 }
 
+func searchType(pkg, name string) (retType types.Type) {
+
+	if retType, _ = parseType(pkg, name); retType == nil {
+		pkgPath := mod.PkgModPath(pkg)
+		if retType, _ = parseType(pkgPath, name); retType == nil {
+			pkgPath = path.Join("./vendor", pkg)
+			if retType, _ = parseType(pkgPath, name); retType == nil {
+				pkgPath = trimLocalPkg(pkg)
+				retType, _ = parseType(pkgPath, name)
+			}
+		}
+	}
+	return
+}
+
 func nestedType(field types.Type, pkg string, path []string) (nested types.Type) {
 
 	if len(path) == 0 {
@@ -231,20 +246,15 @@ func callParamNames(object string, fields []types.Variable) *Statement {
 	return List(list...)
 }
 
-func searchType(pkg, name string) (retType types.Type) {
+func (ts *clientTS) searchType(pkg, name string) (retType types.Type, constants []types.Constant) {
 
-	if retType = parseType(pkg, name); retType == nil {
-
+	if retType, constants = parseType(pkg, name); retType == nil {
 		pkgPath := mod.PkgModPath(pkg)
-
-		if retType = parseType(pkgPath, name); retType == nil {
-
+		if retType, constants = parseType(pkgPath, name); retType == nil {
 			pkgPath = path.Join("./vendor", pkg)
-
-			if retType = parseType(pkgPath, name); retType == nil {
-
+			if retType, constants = parseType(pkgPath, name); retType == nil {
 				pkgPath = trimLocalPkg(pkg)
-				retType = parseType(pkgPath, name)
+				retType, constants = parseType(pkgPath, name)
 			}
 		}
 	}
@@ -293,47 +303,40 @@ func getModName() (module string) {
 	return
 }
 
-func parseType(relPath, name string) (retType types.Type) {
+func parseType(relPath, name string) (retType types.Type, constants []types.Constant) {
 
 	pkgPath, _ := filepath.Abs(relPath)
-
 	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
-
 		if err != nil {
 			return err
 		}
-
 		if info.IsDir() {
 			return nil
 		}
-
 		if !strings.HasSuffix(info.Name(), ".go") {
 			return nil
 		}
-
 		var srcFile *types.File
-		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreConstants, astra.IgnoreMethods); err != nil {
+		if srcFile, err = astra.ParseFile(filePath, astra.IgnoreMethods); err != nil {
 			if retErr = errors.Wrap(err, fmt.Sprintf("%s,%s", relPath, name)); retErr != nil {
 				return
 			}
 			return err
 		}
+		constants = append(constants, srcFile.Constants...)
 		for _, typeInfo := range srcFile.Interfaces {
-
 			if typeInfo.Name == name {
 				retType = types.TInterface{Interface: &typeInfo}
 				return
 			}
 		}
 		for _, typeInfo := range srcFile.Types {
-
 			if typeInfo.Name == name {
 				retType = typeInfo.Type
 				return
 			}
 		}
 		for _, structInfo := range srcFile.Structures {
-
 			if structInfo.Name == name {
 				retType = structInfo
 				return

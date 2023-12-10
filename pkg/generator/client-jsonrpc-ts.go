@@ -32,6 +32,9 @@ func newClientTS(tr *Transport) (js *clientTS) {
 
 func (ts *clientTS) render(outDir string) (err error) {
 
+	if err = tsCopyTo("jsonrpc", outDir); err != nil {
+		return err
+	}
 	for _, name := range ts.serviceKeys() {
 		svc := ts.services[name]
 		if !svc.isJsonRPC() {
@@ -48,33 +51,31 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 
 	ts.knownTypes = make(map[string]int)
 	ts.typeDefTs = make(map[string]typeDefTs)
-	outFilename := path.Join(outDir, fmt.Sprintf("%s-jsonrpc.ts", svc.lccName()))
+	outFilename := path.Join(outDir, fmt.Sprintf("%s.ts", svc.lccName()))
 	_ = os.Remove(outFilename)
 	if err = os.MkdirAll(outDir, 0777); err != nil {
 		return
 	}
 	var jsFile bytesWriter
-	jsFile.add("export namespace %sApiTypes {\n", svc.Name)
+	jsFile.add("import {rpcClient} from \"./jsonrpc/jsonrpc\";\n\n")
+	jsFile.add("export namespace %sAPI {\n\n", svc.Name)
+	jsFile.add(`export const RPC = (headers?: Record<string, string>) => {
+        return rpcClient<Methods>({
+            url: "%s",
+            getHeaders: () => headers
+        })
+    }
+`, svc.batchPath())
+	jsFile.add("export type Methods = {\n")
+	// loginByPassword(login: string, password: string): { accessToken: string, refreshToken: string }
 	for _, method := range svc.methods {
-		jsFile.add("export interface %sParams {\n", method.Name)
-		for _, arg := range method.arguments() {
-			switch vType := arg.Variable.Type.(type) {
-			case types.TEllipsis:
-				jsFile.add("%s?: %s[]\n", arg.Name, ts.walkVariable(arg.Name, svc.pkgPath, vType, method.tags).typeLink())
-			default:
-				jsFile.add("%s: %s\n", arg.Name, ts.walkVariable(arg.Name, svc.pkgPath, vType, method.tags).typeLink())
-			}
-		}
-		jsFile.add("}\n")
-		// if len(method.results()) > 0 {
-		// 	var fields []string
-		// 	jsFile.add("export interface %sResult {\n", method.Name)
-		// 	for _, ret := range method.results() {
-		// 		fields = append(fields, fmt.Sprintf("%s: %s\n", ret.Name, ts.walkVariable(ret.Name, svc.pkgPath, ret.Type, method.tags).typeLink()))
-		// 	}
-		// 	jsFile.add("}\n")
-		// }
+		jsFile.add("%s(params: {%s}) : {%s}\n",
+			method.Name,
+			ts.paramsToFuncParams(svc.pkgPath, method.tags, method.argsWithoutContext()),
+			ts.paramsToFuncParams(svc.pkgPath, method.tags, method.resultsWithoutError()),
+		)
 	}
+	jsFile.add("}\n")
 	for _, def := range ts.typeDefTs {
 		jsFile.add(def.ts())
 	}
@@ -82,11 +83,21 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 	return os.WriteFile(outFilename, jsFile.Bytes(), 0600)
 }
 
+func (ts *clientTS) paramsToFuncParams(pkgPath string, tags tags.DocTags, vars []types.Variable) string {
+
+	var params []string
+	for _, arg := range vars {
+		params = append(params, fmt.Sprintf("%s: %s", arg.Name, ts.walkVariable(arg.Name, pkgPath, arg.Type, tags).typeLink()))
+	}
+	return strings.Join(params, ",")
+}
+
 type typeDefTs struct {
 	name       string
 	kind       string
 	typeName   string
 	nullable   bool
+	value      interface{}
 	properties map[string]typeDefTs
 }
 
@@ -110,18 +121,27 @@ func (def typeDefTs) def() (prop string) {
 
 func (def typeDefTs) ts() (js string) {
 
-	var nullable string
-	if def.nullable {
-		nullable = "?"
-	}
-	js += "export interface " + def.name + " {\n"
 	switch def.kind {
-	// case "map":
-	// 	js += fmt.Sprintf("Record<%s, %s>", castTypeTs(def.properties["key"].typeLink()), castTypeTs(def.properties["value"].typeLink()))
-	// 	js += "}\n"
-	// case "array":
-	// 	js += fmt.Sprintf("%s: %s \n }\n", def.name, def.def())
+	case "constant":
+		if len(def.properties) > 1 {
+			if def.typeName == "iota" {
+				var cnt int
+				for key := range def.properties {
+					js += fmt.Sprintf("export const %s = %d;\n", key, cnt)
+					cnt++
+				}
+			} else {
+				js += "export enum " + def.typeName + " {\n"
+				for key := range def.properties {
+					js += fmt.Sprintf("%s,\n", key)
+				}
+				js += "}\n"
+			}
+		} else {
+			js += fmt.Sprintf("export const %s = %v;\n", def.name, def.value)
+		}
 	case "struct":
+		js += "export interface " + def.name + " {\n"
 		for name, property := range def.properties {
 			var pNullable string
 			if property.nullable {
@@ -130,11 +150,6 @@ func (def typeDefTs) ts() (js string) {
 			js += fmt.Sprintf("%s%s: %s\n", name, pNullable, castTypeTs(property.def()))
 		}
 		js += "}\n"
-	default:
-		if def.name != "" {
-			js += fmt.Sprintf("%s%s: %s\n", def.name, nullable, castTypeTs(def.def()))
-			js += "}\n"
-		}
 	}
 	return
 }
@@ -175,12 +190,16 @@ func (ts *clientTS) walkVariable(typeName, pkgPath string, varType types.Type, v
 			schema.typeName = vType.String()
 			return
 		}
-		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
+		if nextType, _ := ts.searchType(pkgPath, vType.TypeName); nextType != nil {
 			if ts.knownCount(vType.TypeName) < 3 {
 				ts.knownInc(vType.TypeName)
 				ts.typeDefTs[vType.TypeName] = ts.walkVariable(typeName, pkgPath, nextType, varTags)
 			}
-			return ts.typeDefTs[vType.TypeName]
+			return typeDefTs{
+				kind:     "scalar",
+				name:     vType.TypeName,
+				typeName: vType.TypeName,
+			}
 		}
 	case types.TMap:
 		schema.kind = "map"
@@ -221,16 +240,31 @@ func (ts *clientTS) walkVariable(typeName, pkgPath string, varType types.Type, v
 				for eField, def := range embed.properties {
 					schema.properties[eField] = def
 				}
-				// for eField, def := range ts.typeDefTs[field.Type.String()].properties {
-				// 	schema.properties[eField] = def
-				// }
 			}
 		}
 	case types.TImport:
-		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
+		if nextType, constants := ts.searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
 			if ts.knownCount(vType.Next.String()) < 10 {
 				ts.knownInc(vType.Next.String())
 				ts.typeDefTs[vType.Next.String()] = ts.walkVariable(typeName, vType.Import.Package, nextType, varTags)
+			}
+			for _, c := range constants {
+				def := typeDefTs{
+					name:     c.Name,
+					kind:     "constant",
+					value:    c.Value,
+					typeName: c.Type.String(),
+				}
+				def.properties = make(map[string]typeDefTs)
+				for _, v := range c.Constants {
+					def.properties[v.Name] = typeDefTs{
+						kind:     "constant",
+						name:     v.Name,
+						value:    v.Value,
+						typeName: v.Type.String(),
+					}
+				}
+				ts.typeDefTs[c.Type.String()] = def
 			}
 			return ts.typeDefTs[vType.Next.String()]
 		}

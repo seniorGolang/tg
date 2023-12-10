@@ -19,8 +19,8 @@ func ParseFile(filename string, options ...Option) (*types.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not filepath.Abs: %v", err)
 	}
-	fset := token.NewFileSet()
-	tree, err := astParser.ParseFile(fset, path, nil, astParser.ParseComments)
+	fSet := token.NewFileSet()
+	tree, err := astParser.ParseFile(fSet, path, nil, astParser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("error when parse file: %v", err)
 	}

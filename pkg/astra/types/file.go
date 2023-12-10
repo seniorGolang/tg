@@ -10,7 +10,7 @@ type FileType struct {
 type File struct {
 	Base                   // `File.Name` is package name, `File.Docs` is a comments above `package ...`
 	Imports    []*Import   `json:"imports,omitempty"`    // Contains imports and their aliases from `import` blocks.
-	Constants  []Variable  `json:"constants,omitempty"`  // Contains constant variables from `const` blocks.
+	Constants  []Constant  `json:"constants,omitempty"`  // Contains constant variables from `const` blocks.
 	Vars       []Variable  `json:"vars,omitempty"`       // Contains variables from `var` blocks.
 	Interfaces []Interface `json:"interfaces,omitempty"` // Contains `type Foo interface` declarations.
 	Structures []Struct    `json:"structures,omitempty"` // Contains `type Foo struct` declarations.

@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/seniorGolang/tg/v2/pkg/astra/types"
-
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
@@ -32,10 +31,6 @@ func newClientJS(tr *Transport) (js *clientJS) {
 	}
 	return
 }
-
-// "scripts": {
-//    "test": "echo 'No tests to run'"
-// },
 
 func (tr *Transport) RenderPackageNPM(outJs, outPkg string) (err error) {
 
