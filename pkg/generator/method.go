@@ -240,6 +240,7 @@ func (m *method) argFromString(typeName string, varMap map[string]string, strCod
 			argTypeName := argType.String()
 			if len(argTokens) > 1 {
 				argType = nestedType(vArg.Type, "", argTokens)
+				argTypeName = argType.String()
 			}
 			switch t := argType.(type) {
 			case types.TPointer:
@@ -512,6 +513,8 @@ func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *State
 	switch *typename {
 	case "string":
 		return id.Op(op).Add(from)
+	case "bool":
+		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseBool").Call(from).Add(errStatement)
 	case "int":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "Atoi").Call(from).Add(errStatement)
 	case "int64":
