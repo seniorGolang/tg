@@ -126,9 +126,9 @@ goimports -l -w ../internal/transport
 svcSome := some.New()
 
 options := []transport.Option{
-transport.Use(cors.New()),
-transport.WithRequestID("X-Request-Id"),
-transport.Some(transport.NewSome(svcSome)),
+   transport.Use(cors.New()),
+   transport.WithRequestID("X-Request-Id"),
+   transport.Some(transport.NewSome(svcSome)),
 }
 
 srv := transport.New(log.Logger, options...).WithMetrics().WithLog()
@@ -137,10 +137,10 @@ srv.ServeHealth(config.Service().HealthBind, "OK")
 srv.ServeMetrics(log.Logger, "/", config.Service().MetricsBind)
 
 go func () {
-log.Info().Str("bind", config.Service().Bind).Msg("listen on")
-if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
-log.Panic().Err(err).Msg("server error")
-}  
+   log.Info().Str("bind", config.Service().Bind).Msg("listen on")
+   if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
+        log.Panic().Err(err).Msg("server error")
+   }  
 }()
 
 ...
@@ -161,20 +161,20 @@ log.Panic().Err(err).Msg("server error")
 
 ```Go
 fiberConfig := fiber.Config{
-Prefork: true,
-CaseSensitive: true,
-StrictRouting: true,
-ServerHeader: "Fiber",
-AppName: "Some Test App v1.0.1",
+   Prefork: true,
+   CaseSensitive: true,
+   StrictRouting: true,
+   ServerHeader: "Fiber",
+   AppName: "Some Test App v1.0.1",
 }
 
 ...
 
 options := []transport.Option{
-transport.SetFiberCfg(fiberConfig),
-transport.Use(cors.New()),
-transport.WithRequestID("X-Request-Id"),
-transport.Some(transport.NewSome(svcSome)),
+   transport.SetFiberCfg(fiberConfig),
+   transport.Use(cors.New()),
+   transport.WithRequestID("X-Request-Id"),
+   transport.Some(transport.NewSome(svcSome)),
 }
 
 srv := transport.New(log.Logger, options...).WithMetrics().WithLog()
@@ -290,13 +290,13 @@ type ErrorDecoder func (errData json.RawMessage) error
 
 ```Go
 type errorJsonRPC struct {
-Code    int         `json:"code"`
-Message string      `json:"message"`
-Data    interface{} `json:"data,omitempty"`
+   Code    int         `json:"code"`
+   Message string      `json:"message"`
+   Data    interface{} `json:"data,omitempty"`
 }
 
 func (err errorJsonRPC) Error() string {
-return err.Message
+    return err.Message
 }
 ```
 
@@ -325,12 +325,12 @@ return err.Message
 
 ```Go
 type Settings struct {
-MaxRequests   uint32
-Interval      time.Duration
-Timeout       time.Duration
-ReadyToTrip   func (counts Counts) bool
-OnStateChange func (name string, from State, to State)
-IsSuccessful  func (err error) bool
+   MaxRequests   uint32
+   Interval      time.Duration
+   Timeout       time.Duration
+   ReadyToTrip   func (counts Counts) bool
+   OnStateChange func (name string, from State, to State)
+   IsSuccessful  func (err error) bool
 }
 ```
 
@@ -364,8 +364,8 @@ IsSuccessful  func (err error) bool
 
 ```Go
 type cache interface {
-SetTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) (err error)
-GetTTL(ctx context.Context, key string, value interface{}) (createdAt time.Time, ttl time.Duration, err error)
+   SetTTL(ctx context.Context, key string, value interface{}, ttl time.Duration) (err error)
+   GetTTL(ctx context.Context, key string, value interface{}) (createdAt time.Time, ttl time.Duration, err error)
 }
 ```
 
