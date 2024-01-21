@@ -96,6 +96,36 @@ func (tr *Transport) withMetricsFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
+		bg.If(Id("RequestCount").Op("!=").Nil()).Block(
+			Id("RequestCount").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
+				DictFunc(func(d Dict) {
+					d[Id("Name")] = Lit("count")
+					d[Id("Namespace")] = Lit("service")
+					d[Id("Subsystem")] = Lit("requests")
+					d[Id("Help")] = Lit("Number of requests received")
+				}),
+			), Index().String().Values(Lit("method"), Lit("service"), Lit("success"))),
+		)
+		bg.If(Id("RequestCountAll").Op("!=").Nil()).Block(
+			Id("RequestCountAll").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
+				DictFunc(func(d Dict) {
+					d[Id("Name")] = Lit("all_count")
+					d[Id("Namespace")] = Lit("service")
+					d[Id("Subsystem")] = Lit("requests")
+					d[Id("Help")] = Lit("Number of all requests received")
+				}),
+			), Index().String().Values(Lit("method"), Lit("service"))),
+		)
+		bg.If(Id("RequestLatency").Op("!=").Nil()).Block(
+			Id("RequestLatency").Op("=").Qual(packageKitPrometheus, "NewHistogramFrom").Call(Qual(packageStdPrometheus, "HistogramOpts").Values(
+				DictFunc(func(d Dict) {
+					d[Id("Name")] = Lit("latency_microseconds")
+					d[Id("Namespace")] = Lit("service")
+					d[Id("Subsystem")] = Lit("requests")
+					d[Id("Help")] = Lit("Total duration of requests in microseconds")
+				}),
+			), Index().String().Values(Lit("method"), Lit("service"), Lit("success"))),
+		)
 		for _, serviceName := range tr.serviceKeys() {
 			svc := tr.services[serviceName]
 			if svc.tags.IsSet(tagMetrics) {
@@ -117,6 +147,7 @@ func (tr *Transport) serverType() Code {
 		g.Line().Id("config").Qual(packageFiber, "Config")
 		g.Line().Id("srvHTTP").Op("*").Qual(packageFiber, "App")
 		g.Id("srvHealth").Op("*").Qual(packageFiber, "App")
+		g.Id("srvMetrics").Op("*").Qual(packageFiber, "App")
 		g.Line().Id("reporterCloser").Qual(packageIO, "Closer")
 		if tr.hasJsonRPC {
 			g.Line().Id("maxBatchSize").Int()
@@ -189,8 +220,8 @@ func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
 			Id("_").Op("=").Id("srv").Dot("srvHealth").Dot("Shutdown").Call(),
 		)
 		if hasMetrics {
-			bg.If(Id("srvMetrics").Op("!=").Id("nil")).Block(
-				Id("_").Op("=").Id("srvMetrics").Dot("Shutdown").Call(),
+			bg.If(Id("srv").Dot("srvMetrics").Op("!=").Id("nil")).Block(
+				Id("_").Op("=").Id("srv").Dot("srvMetrics").Dot("Shutdown").Call(),
 			)
 		}
 	})

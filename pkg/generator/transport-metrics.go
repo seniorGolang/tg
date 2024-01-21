@@ -26,11 +26,9 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 	srcFile.ImportName(packageGoKitEndpoint, "endpoint")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 
-	srcFile.Var().Id("srvMetrics").Op("*").Qual(packageFiber, "App")
-
-	srcFile.Add(prometheusCounterRequestCount())
-	srcFile.Add(prometheusCounterRequestCountAll())
-	srcFile.Add(prometheusSummaryRequestCount())
+	srcFile.Add(Var().Id("RequestCount").Op("*").Qual(packageKitPrometheus, "Counter"))
+	srcFile.Add(Var().Id("RequestCountAll").Op("*").Qual(packageKitPrometheus, "Counter"))
+	srcFile.Add(Var().Id("RequestLatency").Op("*").Qual(packageKitPrometheus, "Histogram"))
 
 	srcFile.Add(tr.serveMetricsFunc())
 
@@ -38,11 +36,11 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 }
 
 func (tr *Transport) serveMetricsFunc() Code {
-	return Func().Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("path").String(), Id("address").String()).Block(
-		Id("srvMetrics").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),
-		Id("srvMetrics").Dot("All").Call(Id("path"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("ServeMetrics").Params(Id("log").Qual(packageZeroLog, "Logger"), Id("path").String(), Id("address").String()).Block(
+		Id("srv").Dot("srvMetrics").Op("=").Qual(packageFiber, "New").Call(Qual(packageFiber, "Config").Values(Dict{Id("DisableStartupMessage"): True()})),
+		Id("srv").Dot("srvMetrics").Dot("All").Call(Id("path"), Qual(packageFiberAdaptor, "HTTPHandler").Call(Qual(packagePrometheusHttp, "Handler").Call())),
 		Go().Func().Params().Block(
-			Err().Op(":=").Id("srvMetrics").Dot("Listen").Call(Id("address")),
+			Err().Op(":=").Id("srv").Dot("srvMetrics").Dot("Listen").Call(Id("address")),
 			Id("ExitOnError").Call(Id("log"), Err(), Lit("serve metrics on ").Op("+").Id("address")),
 		).Call(),
 	)

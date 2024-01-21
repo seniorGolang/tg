@@ -198,7 +198,6 @@ func (tr *Transport) RenderServer(outDir string) (err error) {
 	showError(tr.log, tr.renderErrors(outDir), "renderErrors")
 	showError(tr.log, tr.renderServer(outDir), "renderServer")
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
-	showError(tr.log, tr.renderRedirect(outDir), "renderRedirect")
 	showError(tr.log, tr.renderVersion(outDir, false), "renderVersion")
 	if hasMetric {
 		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
