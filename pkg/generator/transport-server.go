@@ -96,7 +96,7 @@ func (tr *Transport) withMetricsFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
-		bg.If(Id("RequestCount").Op("!=").Nil()).Block(
+		bg.If(Id("RequestCount").Op("==").Nil()).Block(
 			Id("RequestCount").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
 				DictFunc(func(d Dict) {
 					d[Id("Name")] = Lit("count")
@@ -106,7 +106,7 @@ func (tr *Transport) withMetricsFunc() Code {
 				}),
 			), Index().String().Values(Lit("method"), Lit("service"), Lit("success"))),
 		)
-		bg.If(Id("RequestCountAll").Op("!=").Nil()).Block(
+		bg.If(Id("RequestCountAll").Op("==").Nil()).Block(
 			Id("RequestCountAll").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
 				DictFunc(func(d Dict) {
 					d[Id("Name")] = Lit("all_count")
@@ -116,7 +116,7 @@ func (tr *Transport) withMetricsFunc() Code {
 				}),
 			), Index().String().Values(Lit("method"), Lit("service"))),
 		)
-		bg.If(Id("RequestLatency").Op("!=").Nil()).Block(
+		bg.If(Id("RequestLatency").Op("==").Nil()).Block(
 			Id("RequestLatency").Op("=").Qual(packageKitPrometheus, "NewHistogramFrom").Call(Qual(packageStdPrometheus, "HistogramOpts").Values(
 				DictFunc(func(d Dict) {
 					d[Id("Name")] = Lit("latency_microseconds")
