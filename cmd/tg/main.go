@@ -14,6 +14,7 @@ import (
 	"github.com/seniorGolang/tg/pkg/generator"
 	"github.com/seniorGolang/tg/pkg/logger"
 	"github.com/seniorGolang/tg/pkg/skeleton"
+	"github.com/seniorGolang/tg/pkg/info"
 )
 
 var (
@@ -21,6 +22,10 @@ var (
 	BuildStamp = time.Now()
 	Version    = "local.dev"
 )
+
+func init() {
+	info.Version = Version
+}
 
 var log = logger.Log.WithField("module", "tg")
 

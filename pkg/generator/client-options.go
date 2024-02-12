@@ -13,7 +13,7 @@ import (
 func (tr Transport) renderClientOptions(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.Const().Id("headerRequestID").Op("=").Lit("X-Request-Id")
 

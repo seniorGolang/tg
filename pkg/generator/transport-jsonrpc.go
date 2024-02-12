@@ -15,7 +15,7 @@ import (
 func (tr Transport) renderJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.ImportName(packageGotils, "gotils")
 	srcFile.ImportName(packageFastHttp, "fasthttp")

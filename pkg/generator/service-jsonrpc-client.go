@@ -17,7 +17,7 @@ import (
 func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 

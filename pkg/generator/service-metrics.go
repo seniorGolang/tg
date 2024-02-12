@@ -14,7 +14,7 @@ import (
 func (svc *service) renderMetrics(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	ctx := context.WithValue(context.Background(), "code", srcFile)
 
