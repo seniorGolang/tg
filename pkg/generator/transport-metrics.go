@@ -45,39 +45,3 @@ func (tr *Transport) serveMetricsFunc() Code {
 		).Call(),
 	)
 }
-
-func prometheusCounterRequestCount() (code *Statement) {
-
-	return Var().Id("RequestCount").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
-		DictFunc(func(d Dict) {
-			d[Id("Name")] = Lit("count")
-			d[Id("Namespace")] = Lit("service")
-			d[Id("Subsystem")] = Lit("requests")
-			d[Id("Help")] = Lit("Number of requests received")
-		}),
-	), Index().String().Values(Lit("method"), Lit("service"), Lit("success")))
-}
-
-func prometheusCounterRequestCountAll() (code *Statement) {
-
-	return Var().Id("RequestCountAll").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
-		DictFunc(func(d Dict) {
-			d[Id("Name")] = Lit("all_count")
-			d[Id("Namespace")] = Lit("service")
-			d[Id("Subsystem")] = Lit("requests")
-			d[Id("Help")] = Lit("Number of all requests received")
-		}),
-	), Index().String().Values(Lit("method"), Lit("service")))
-}
-
-func prometheusSummaryRequestCount() (code *Statement) {
-
-	return Var().Id("RequestLatency").Op("=").Qual(packageKitPrometheus, "NewHistogramFrom").Call(Qual(packageStdPrometheus, "HistogramOpts").Values(
-		DictFunc(func(d Dict) {
-			d[Id("Name")] = Lit("latency_microseconds")
-			d[Id("Namespace")] = Lit("service")
-			d[Id("Subsystem")] = Lit("requests")
-			d[Id("Help")] = Lit("Total duration of requests in microseconds")
-		}),
-	), Index().String().Values(Lit("method"), Lit("service"), Lit("success")))
-}

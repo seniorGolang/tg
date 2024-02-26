@@ -55,6 +55,12 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		bg.Var().Id("request").Id(method.requestStructName())
 		bg.Line()
 		bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
+		bg.Id("methodCtx").Op("=").
+			Qual(packageZeroLogLog, "Ctx").Call(Id("methodCtx")).
+			Dot("With").Call().
+			Dot("Str").Call(Lit("method"), Lit(method.fullName())).
+			Dot("Logger").Call().
+			Dot("WithContext").Call(Id("methodCtx"))
 		if svc.tags.IsSet(tagTrace) {
 			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
 			bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()

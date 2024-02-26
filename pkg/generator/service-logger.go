@@ -65,6 +65,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
+					d[Lit("method")] = Lit(method.fullName())
 					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
 					params := removeSkippedFields(method.argsFieldsWithoutContext(), skipFields)
 					originParams := removeSkippedFields(method.argsWithoutContext(), skipFields)

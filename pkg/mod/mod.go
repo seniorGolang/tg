@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rogpeppe/go-internal/modfile"
+	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
 

@@ -4,6 +4,7 @@
 package generator
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -50,7 +51,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 }
 
 func (m *method) fullName() string {
-	return m.svc.Name + m.Name
+	return fmt.Sprintf("%s.%s", utils.ToLowerCamel(m.svc.Name), utils.ToLowerCamel(m.Name))
 }
 
 func (m *method) lcName() string {
@@ -77,6 +78,14 @@ func (m *method) httpPath(withoutPrefix ...bool) string {
 	prefix := m.svc.tags.Value(tagHttpPrefix)
 	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
+	pathItems := strings.Split(urlPath, "/")
+	var pathTokens []string
+	for _, pathItem := range pathItems {
+		if strings.HasPrefix(pathItem, ":") {
+			pathTokens = append(pathTokens, fmt.Sprintf("{%s}", strings.TrimPrefix(pathItem, ":")))
+		}
+	}
+	urlPath = strings.Join(pathTokens, "/")
 	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
 }
 
