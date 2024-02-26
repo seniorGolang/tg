@@ -20,7 +20,7 @@ func (tr *Transport) renderServer(outDir string) (err error) {
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {

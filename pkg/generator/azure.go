@@ -6,7 +6,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 type azure struct {

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/seniorGolang/tg/v2/pkg/mod"
+	"github.com/DivPro/tg/v2/pkg/mod"
 )
 
 //go:embed ts/*

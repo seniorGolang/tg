@@ -12,15 +12,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra"
+	"github.com/DivPro/tg/v2/pkg/astra"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/logger"
-	"github.com/seniorGolang/tg/v2/pkg/tags"
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/logger"
+	"github.com/DivPro/tg/v2/pkg/tags"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 var log = logger.Log.WithField("module", "skeleton")

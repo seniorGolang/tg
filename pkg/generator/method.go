@@ -9,12 +9,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/tags"
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/tags"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 type method struct {

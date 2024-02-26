@@ -4,8 +4,8 @@ package example
 import (
 	"context"
 	"fmt"
-	"github.com/seniorGolang/tg/v2/example/clients/example/hasher"
-	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
+	"github.com/DivPro/tg/v2/example/clients/example/hasher"
+	"github.com/DivPro/tg/v2/example/clients/example/jsonrpc"
 )
 
 type ClientExampleRPC struct {

@@ -16,10 +16,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra"
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
-	"github.com/seniorGolang/tg/v2/pkg/mod"
-	"github.com/seniorGolang/tg/v2/pkg/tags"
+	"github.com/DivPro/tg/v2/pkg/astra"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/mod"
+	"github.com/DivPro/tg/v2/pkg/tags"
 )
 
 const keyCode = "code"

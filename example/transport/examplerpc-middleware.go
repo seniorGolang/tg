@@ -3,7 +3,7 @@ package transport
 
 import (
 	"context"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/DivPro/tg/v2/example/interfaces"
 )
 
 type ExampleRPCTest func(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error)

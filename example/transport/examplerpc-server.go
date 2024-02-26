@@ -3,7 +3,7 @@ package transport
 
 import (
 	"context"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/DivPro/tg/v2/example/interfaces"
 )
 
 type serverExampleRPC struct {

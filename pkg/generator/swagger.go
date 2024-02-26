@@ -16,8 +16,8 @@ import (
 	"github.com/valyala/fasthttp"
 	"gopkg.in/yaml.v3"
 
-	"github.com/seniorGolang/tg/v2/pkg/tags"
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/tags"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 const (

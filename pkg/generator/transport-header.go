@@ -19,7 +19,7 @@ func (tr *Transport) renderHeader(outDir string) (err error) {
 	srcFile.ImportName(packageErrors, "errors")
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	tr.renderHeaderTypes(srcFile)
 	tr.renderHeaderHandler(srcFile)

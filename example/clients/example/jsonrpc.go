@@ -3,8 +3,8 @@ package example
 
 import (
 	"context"
-	"github.com/seniorGolang/tg/v2/example/clients/example/cb"
-	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
+	"github.com/DivPro/tg/v2/example/clients/example/cb"
+	"github.com/DivPro/tg/v2/example/clients/example/jsonrpc"
 	"os"
 	"strconv"
 	"time"
@@ -33,11 +33,12 @@ func New(endpoint string, opts ...Option) (cli *ClientJsonRPC) {
 	cli = &ClientJsonRPC{
 		errorDecoder: defaultErrorDecoder,
 		fallbackTTL:  time.Hour * 24,
-		name:         hostname + "_" + "github.com/seniorGolang/tg/v2",
+		name:         hostname + "_" + "github.com/DivPro/tg/v2",
 	}
 	cli.applyOpts(opts)
 	cli.rpc = jsonrpc.NewClient(endpoint, cli.rpcOpts...)
-	cli.cb = cb.NewCircuitBreaker("github.com/seniorGolang/tg/v2", cli.cbCfg)
+	cli.cb = cb.NewCircuitBreaker("github.com/DivPro/tg/v2", cli.cbCfg)
+
 	return
 }
 
