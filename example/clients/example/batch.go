@@ -3,7 +3,7 @@ package example
 
 import (
 	"context"
-	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
+	"github.com/DivPro/tg/v2/example/clients/example/jsonrpc"
 )
 
 type RequestRPC struct {

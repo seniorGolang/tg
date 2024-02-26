@@ -13,13 +13,13 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra"
+	"github.com/DivPro/tg/v2/pkg/astra"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 
-	"github.com/seniorGolang/tg/v2/pkg/mod"
-	"github.com/seniorGolang/tg/v2/pkg/tags"
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/mod"
+	"github.com/DivPro/tg/v2/pkg/tags"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) (structType types.Struct) {

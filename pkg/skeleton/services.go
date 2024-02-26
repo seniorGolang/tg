@@ -10,7 +10,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 func genServices(meta metaInfo) (err error) {

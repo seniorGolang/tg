@@ -15,7 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/seniorGolang/tg/v2/pkg/logger"
+	"github.com/DivPro/tg/v2/pkg/logger"
 )
 
 var (

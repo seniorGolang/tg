@@ -7,6 +7,7 @@ import (
 
 type CircuitBreaker struct {
 	name          string
+	isEnabled     bool
 	maxRequests   uint32
 	interval      time.Duration
 	timeout       time.Duration
@@ -51,6 +52,8 @@ func NewCircuitBreaker(name string, st Settings) *CircuitBreaker {
 	} else {
 		cb.isSuccessful = st.IsSuccessful
 	}
+	cb.isEnabled = st.IsEnabled
+
 	cb.toNewGeneration(time.Now())
 	return cb
 }
@@ -78,7 +81,9 @@ func (cb *CircuitBreaker) Counts() Counts {
 }
 
 func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) {
-
+	if !cb.isEnabled {
+		return nil
+	}
 	var generation uint64
 	values := prepareOpts(opts)
 	if generation, err = cb.beforeRequest(); err != nil {

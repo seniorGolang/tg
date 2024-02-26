@@ -5,8 +5,8 @@ import (
 	"context"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
-	"github.com/seniorGolang/tg/v2/example/transport/viewer"
+	"github.com/DivPro/tg/v2/example/interfaces"
+	"github.com/DivPro/tg/v2/example/transport/viewer"
 	"time"
 )
 

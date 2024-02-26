@@ -11,11 +11,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 
-	"github.com/seniorGolang/tg/v2/example/config"
-	"github.com/seniorGolang/tg/v2/example/implement"
-	"github.com/seniorGolang/tg/v2/example/transport"
-	"github.com/seniorGolang/tg/v2/example/utils"
-	"github.com/seniorGolang/tg/v2/example/utils/header"
+	"github.com/DivPro/tg/v2/example/config"
+	"github.com/DivPro/tg/v2/example/implement"
+	"github.com/DivPro/tg/v2/example/transport"
+	"github.com/DivPro/tg/v2/example/utils"
+	"github.com/DivPro/tg/v2/example/utils/header"
 )
 
 func main() {

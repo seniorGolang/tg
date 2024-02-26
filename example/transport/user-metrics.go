@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/kit/metrics"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
-	"github.com/seniorGolang/tg/v2/example/interfaces/types"
+	"github.com/DivPro/tg/v2/example/interfaces"
+	"github.com/DivPro/tg/v2/example/interfaces/types"
 	"time"
 )
 

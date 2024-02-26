@@ -3,7 +3,7 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"github.com/DivPro/tg/v2/example/interfaces"
 )
 
 type httpExampleRPC struct {

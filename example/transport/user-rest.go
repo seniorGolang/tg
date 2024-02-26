@@ -7,7 +7,7 @@ import (
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/seniorGolang/json"
-	implement "github.com/seniorGolang/tg/v2/example/implement"
+	implement "github.com/DivPro/tg/v2/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {

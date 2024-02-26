@@ -1,6 +1,6 @@
 package astra
 
-import "github.com/seniorGolang/tg/v2/pkg/astra/types"
+import "github.com/DivPro/tg/v2/pkg/astra/types"
 
 func mergeImports(bunch ...[]*types.Import) []*types.Import {
 	set := make(map[string]*types.Import)

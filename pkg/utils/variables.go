@@ -6,7 +6,7 @@ package utils
 import (
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 )
 
 func DictByNormalVariables(fields []types.Variable, normals []types.Variable) Dict {

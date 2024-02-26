@@ -1,4 +1,4 @@
-module github.com/seniorGolang/tg/v2
+module github.com/DivPro/tg/v2
 
 go 1.21
 

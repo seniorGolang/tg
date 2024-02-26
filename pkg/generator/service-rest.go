@@ -10,9 +10,9 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 func (svc *service) renderREST(outDir string) (err error) {
@@ -20,7 +20,7 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageOpentracingExt, "ext")

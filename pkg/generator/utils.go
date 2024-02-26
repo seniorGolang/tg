@@ -15,12 +15,12 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra"
+	"github.com/DivPro/tg/v2/pkg/astra"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 
-	"github.com/seniorGolang/tg/v2/pkg/mod"
-	"github.com/seniorGolang/tg/v2/pkg/utils"
+	"github.com/DivPro/tg/v2/pkg/mod"
+	"github.com/DivPro/tg/v2/pkg/utils"
 )
 
 func removeSkippedFields(fields []types.Variable, skipFields []string) []types.Variable {

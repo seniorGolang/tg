@@ -3,8 +3,8 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
-	implement "github.com/seniorGolang/tg/v2/example/implement"
-	"github.com/seniorGolang/tg/v2/example/interfaces"
+	implement "github.com/DivPro/tg/v2/example/implement"
+	"github.com/DivPro/tg/v2/example/interfaces"
 )
 
 type httpUser struct {

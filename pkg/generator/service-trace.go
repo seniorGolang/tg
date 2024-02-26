@@ -10,7 +10,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/astra/types"
+	"github.com/DivPro/tg/v2/pkg/astra/types"
 )
 
 func (svc *service) renderTrace(outDir string) (err error) {

@@ -2,8 +2,8 @@
 package example
 
 import (
-	"github.com/seniorGolang/tg/v2/example/clients/example/cb"
-	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
+	"github.com/DivPro/tg/v2/example/clients/example/cb"
+	"github.com/DivPro/tg/v2/example/clients/example/jsonrpc"
 	"time"
 )
 

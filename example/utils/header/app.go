@@ -1,7 +1,7 @@
 package header
 
 import (
-	"github.com/seniorGolang/tg/v2/example/transport"
+	"github.com/DivPro/tg/v2/example/transport"
 )
 
 const (
