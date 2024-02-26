@@ -217,7 +217,7 @@ services:
 				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceTags, method.Name)
 				httpValue, found := swaggerDoc.Paths[method.jsonrpcPath()]
 				if !found {
-					swaggerDoc.Paths[method.httpPath()] = swPath{}
+					swaggerDoc.Paths[method.httpPathSwagger()] = swPath{}
 				}
 				requestContentType := method.tags.Value(tagRequestContentType, contentJSON)
 				responseContentType := method.tags.Value(tagResponseContentType, contentJSON)
@@ -249,7 +249,7 @@ services:
 					httpMethod.RequestBody = nil
 				}
 				reflect.ValueOf(&httpValue).Elem().FieldByName(utils.ToCamel(strings.ToLower(method.httpMethod()))).Set(reflect.ValueOf(httpMethod))
-				swaggerDoc.Paths[method.httpPath()] = httpValue
+				swaggerDoc.Paths[method.httpPathSwagger()] = httpValue
 			}
 		}
 	}
