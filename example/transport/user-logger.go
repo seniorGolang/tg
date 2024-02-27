@@ -23,16 +23,17 @@ func loggerMiddlewareUser() MiddlewareUser {
 
 func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 	logger := log.Ctx(ctx).With().Str("service", "User").Str("method", "getUser").Logger()
-	defer func(begin time.Time) {
+	defer func(_begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.getUser",
 				"request": viewer.Sprintf("%+v", requestUserGetUser{
 					Cookie:    cookie,
 					UserAgent: userAgent,
 				}),
 				"response": viewer.Sprintf("%+v", responseUserGetUser{User: user}),
 			}
-			ev.Fields(fields).Str("took", time.Since(begin).String())
+			ev.Fields(fields).Str("took", time.Since(_begin).String())
 		}
 		if err != nil {
 			logger.Error().Err(err).Func(logHandle).Msg("call getUser")
@@ -45,9 +46,10 @@ func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string
 
 func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	logger := log.Ctx(ctx).With().Str("service", "User").Str("method", "customResponse").Logger()
-	defer func(begin time.Time) {
+	defer func(_begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.customResponse",
 				"request": viewer.Sprintf("%+v", requestUserCustomResponse{
 					Arg0: arg0,
 					Arg1: arg1,
@@ -55,7 +57,7 @@ func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, o
 				}),
 				"response": viewer.Sprintf("%+v", responseUserCustomResponse{}),
 			}
-			ev.Fields(fields).Str("took", time.Since(begin).String())
+			ev.Fields(fields).Str("took", time.Since(_begin).String())
 		}
 		if err != nil {
 			logger.Error().Err(err).Func(logHandle).Msg("call customResponse")
@@ -68,9 +70,10 @@ func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, o
 
 func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 	logger := log.Ctx(ctx).With().Str("service", "User").Str("method", "customHandler").Logger()
-	defer func(begin time.Time) {
+	defer func(_begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.customHandler",
 				"request": viewer.Sprintf("%+v", requestUserCustomHandler{
 					Arg0: arg0,
 					Arg1: arg1,
@@ -78,7 +81,7 @@ func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, op
 				}),
 				"response": viewer.Sprintf("%+v", responseUserCustomHandler{}),
 			}
-			ev.Fields(fields).Str("took", time.Since(begin).String())
+			ev.Fields(fields).Str("took", time.Since(_begin).String())
 		}
 		if err != nil {
 			logger.Error().Err(err).Func(logHandle).Msg("call customHandler")

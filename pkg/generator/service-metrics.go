@@ -55,11 +55,11 @@ func (svc *service) metricFuncBody(method *method) func(g *Group) {
 
 	return func(g *Group) {
 
-		g.Line().Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).Block(
+		g.Line().Defer().Func().Params(Id("_begin").Qual(packageTime, "Time")).Block(
 			Id("m").Dot("requestLatency").Dot("With").Call(
 				Lit("method"), Lit(method.lccName()),
 				Lit("success"), Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
-				Dot("Observe").Call(Qual(packageTime, "Since").Call(Id("begin")).Dot("Seconds").Call()),
+				Dot("Observe").Call(Qual(packageTime, "Since").Call(Id("_begin")).Dot("Seconds").Call()),
 		).Call(Qual(packageTime, "Now").Call())
 
 		g.Line().Defer().Id("m").Dot("requestCount").Dot("With").Call(

@@ -27,8 +27,8 @@ func metricsMiddlewareExampleRPC(next interfaces.ExampleRPC) interfaces.ExampleR
 
 func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "test", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		m.requestLatency.With("method", "test", "success", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	defer m.requestCount.With("method", "test", "success", fmt.Sprint(err == nil)).Add(1)
@@ -40,8 +40,8 @@ func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts
 
 func (m metricsExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "test2", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		m.requestLatency.With("method", "test2", "success", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	defer m.requestCount.With("method", "test2", "success", fmt.Sprint(err == nil)).Add(1)

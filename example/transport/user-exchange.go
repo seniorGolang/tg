@@ -4,27 +4,27 @@ package transport
 import "github.com/seniorGolang/tg/v2/example/interfaces/types"
 
 type requestUserGetUser struct {
-	Cookie    string `json:"cookie"`
-	UserAgent string `json:"userAgent"`
+	Cookie    string `json:"cookie,omitempty"`
+	UserAgent string `json:"userAgent,omitempty"`
 }
 
 type responseUserGetUser struct {
-	User *types.User `json:"user"`
+	User *types.User `json:"user,omitempty"`
 }
 
 type requestUserCustomResponse struct {
-	Arg0 int           `json:"arg0"`
-	Arg1 string        `json:"arg1"`
-	Opts []interface{} `json:"opts"` // This field was defined with ellipsis (...).
+	Arg0 int           `json:"arg0,omitempty"`
+	Arg1 string        `json:"arg1,omitempty"`
+	Opts []interface{} `json:"opts,omitempty"` // This field was defined with ellipsis (...).
 }
 
 // Formal exchange type, please do not delete.
 type responseUserCustomResponse struct{}
 
 type requestUserCustomHandler struct {
-	Arg0 int           `json:"arg0"`
-	Arg1 string        `json:"arg1"`
-	Opts []interface{} `json:"opts"` // This field was defined with ellipsis (...).
+	Arg0 int           `json:"arg0,omitempty"`
+	Arg1 string        `json:"arg1,omitempty"`
+	Opts []interface{} `json:"opts,omitempty"` // This field was defined with ellipsis (...).
 }
 
 // Formal exchange type, please do not delete.

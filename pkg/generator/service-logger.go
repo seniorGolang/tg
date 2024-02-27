@@ -62,7 +62,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			Dot("Str").Call(Lit("service"), Lit(svc.Name)).
 			Dot("Str").Call(Lit("method"), Lit(method.lccName())).
 			Dot("Logger").Call()
-		g.Defer().Func().Params(Id("begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
+		g.Defer().Func().Params(Id("_begin").Qual(packageTime, "Time")).BlockFunc(func(g *Group) {
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					d[Lit("method")] = Lit(method.fullName())
@@ -85,7 +85,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 				}))
 				// .Func(logHandle)
 				fg.Id("ev").Dot("Fields").Call(Id("fields")).
-					Dot("Str").Call(Lit("took"), Qual(packageTime, "Since").Call(Id("begin")).Dot("String").Call())
+					Dot("Str").Call(Lit("took"), Qual(packageTime, "Since").Call(Id("_begin")).Dot("String").Call())
 			})
 			g.If(Id("err").Op("!=").Id("nil")).BlockFunc(func(g *Group) {
 				g.Id("logger").Dot("Error").Call().Dot("Err").Call(Err()).Dot("Func").Call(Id("logHandle")).Dot("Msg").Call(Lit(fmt.Sprintf("call %s", method.lccName())))
