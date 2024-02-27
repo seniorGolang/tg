@@ -17,14 +17,16 @@ import (
 func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(fmt.Sprintf("%s/cb", svc.tr.pkgPath(outDir)), "cb")
+	if svc.tr.tags.IsSet(tagCircuitBreaker) {
+		srcFile.ImportName(fmt.Sprintf("%s/cb", svc.tr.pkgPath(outDir)), "cb")
+	}
 	srcFile.ImportName(fmt.Sprintf("%s/cache", svc.tr.pkgPath(outDir)), "cache")
 	srcFile.ImportName(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "hasher")
 	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "jsonrpc")
@@ -151,7 +153,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 func (svc *service) renderClientFallbackError(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.Type().Id("fallback" + svc.Name).InterfaceFunc(func(ig *Group) {
 		for _, method := range svc.methods {

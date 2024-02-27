@@ -14,7 +14,7 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
 
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportAlias(packageKitPrometheus, "kitPrometheus")
 	srcFile.ImportAlias(packageStdPrometheus, "stdPrometheus")

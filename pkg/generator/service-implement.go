@@ -12,7 +12,7 @@ func (svc *service) renderImplement(outDir string) (err error) { // nolint
 
 	outDir, _ = filepath.Abs(outDir)
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	return srcFile.Save(path.Join(outDir, svc.lcName()+".go"))
 }

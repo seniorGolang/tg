@@ -16,14 +16,16 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 	if err = pkgCopyTo("jsonrpc", outDir); err != nil {
 		return err
 	}
-	if err = pkgCopyTo("cb", outDir); err != nil {
-		return err
+	if tr.tags.IsSet(tagCircuitBreaker) {
+		if err = pkgCopyTo("cb", outDir); err != nil {
+			return err
+		}
 	}
 	if err = pkgCopyTo("hasher", outDir); err != nil {
 		return err
 	}
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportAlias(packageUUID, "goUUID")
@@ -31,7 +33,9 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(packageJaegerLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportAlias(packageOpentracing, "otg")
-	srcFile.ImportName(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "cb")
+	if tr.tags.IsSet(tagCircuitBreaker) {
+		srcFile.ImportName(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "cb")
+	}
 	srcFile.ImportName(fmt.Sprintf("%s/cache", tr.pkgPath(outDir)), "cache")
 	srcFile.ImportName(fmt.Sprintf("%s/hasher", tr.pkgPath(outDir)), "hasher")
 	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "jsonrpc")
@@ -48,7 +52,9 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 			}))
 			bg.Id("cli").Dot("applyOpts").Call(Id("opts"))
 			bg.Id("cli").Dot("rpc").Op("=").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "NewClient").Call(Id("endpoint"), Id("cli").Dot("rpcOpts").Op("..."))
-			bg.Id("cli").Dot("cb").Op("=").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "NewCircuitBreaker").Call(Lit(tr.module.Module.Mod.String()), Id("cli").Dot("cbCfg"))
+			if tr.tags.IsSet(tagCircuitBreaker) {
+				bg.Id("cli").Dot("cb").Op("=").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "NewCircuitBreaker").Call(Lit(tr.module.Module.Mod.String()), Id("cli").Dot("cbCfg"))
+			}
 			bg.Return()
 		})
 	for _, name := range tr.serviceKeys() {
@@ -66,7 +72,6 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 }
 
 func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
-
 	return Func().
 		Params(Id("cli").Op("*").Id("ClientJsonRPC")).
 		Id("proceedResponse").
@@ -78,54 +83,63 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 			Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"),
 			Id("methodResponse").Interface(),
 		).Params(Err().Error()).BlockFunc(func(bg *Group) {
-
-		bg.Line()
-		bg.Err().Op("=").Id("cli").Dot("cb").Dot("Execute").CallFunc(func(cg *Group) {
-			cg.Func().Params().Params(Err().Error()).Block(
-				If(Id("httpErr").Op("!=").Nil()).Block(
-					Return(Id("httpErr")),
-				),
-				Return(Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("methodResponse"))),
-			)
-			cg.Id("cb").Dot("IsSuccessful").Call(
-				Func().Params(Err().Error()).Params(Id("success").Bool()).Block(
-					If(Id("fallbackCheck").Op("!=").Nil()).Block(
-						Return(Id("fallbackCheck")).Call(Err()),
+		if tr.tags.IsSet(tagCircuitBreaker) {
+			bg.Line()
+			bg.Err().Op("=").Id("cli").Dot("cb").Dot("Execute").CallFunc(func(cg *Group) {
+				cg.Func().Params().Params(Err().Error()).Block(
+					If(Id("httpErr").Op("!=").Nil()).Block(
+						Return(Id("httpErr")),
 					),
-					If(Id("success").Op("=").Err().Op("==").Nil().Op(";").Id("success")).Block(
+					Return(Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("methodResponse"))),
+				)
+				cg.Id("cb").Dot("IsSuccessful").Call(
+					Func().Params(Err().Error()).Params(Id("success").Bool()).Block(
+						If(Id("fallbackCheck").Op("!=").Nil()).Block(
+							Return(Id("fallbackCheck")).Call(Err()),
+						),
+						If(Id("success").Op("=").Err().Op("==").Nil().Op(";").Id("success")).Block(
+							If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
+								Id("_").Op("=").Id("cli").Dot("cache").
+									Dot("SetTTL").Call(Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Id("methodResponse"), Id("cli").Dot("fallbackTTL")),
+							),
+						),
+						Return(),
+					),
+				)
+				cg.Id("cb").Dot("Fallback").Call(
+					Func().Params(Err().Error()).Params(Error()).Block(
 						If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
-							Id("_").Op("=").Id("cli").Dot("cache").
-								Dot("SetTTL").Call(Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Id("methodResponse"), Id("cli").Dot("fallbackTTL")),
+							List(Id("_"), Id("_"), Err()).Op("=").Id("cli").Dot("cache").Dot("GetTTL").Call(
+								Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Op("&").Id("methodResponse"),
+							),
 						),
+						Return(Err()),
 					),
-					Return(),
-				),
+				)
+			})
+			bg.Return()
+		} else {
+			bg.If(
+				Id("httpErr").Op("!=").Nil(),
+			).Block(
+				Return(Id("httpErr")),
 			)
-			cg.Id("cb").Dot("Fallback").Call(
-				Func().Params(Err().Error()).Params(Error()).Block(
-					If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
-						List(Id("_"), Id("_"), Err()).Op("=").Id("cli").Dot("cache").Dot("GetTTL").Call(
-							Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Op("&").Id("methodResponse"),
-						),
-					),
-					Return(Err()),
-				),
-			)
-		})
-		bg.Return()
+			bg.Return(Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("methodResponse")))
+		}
 	})
 }
 
 func (tr *Transport) jsonrpcClientStructFunc(outDir string) Code {
-
 	return Type().Id("ClientJsonRPC").StructFunc(func(sg *Group) {
 		sg.Id("name").String()
 		sg.Line().Id("rpc").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ClientRPC")
 		sg.Id("rpcOpts").Op("[]").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Option")
 		sg.Line().Id("cache").Id("cache")
-		sg.Line().Id("cbCfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")
-		sg.Id("cb").Op("*").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "CircuitBreaker")
-		sg.Line()
+		if tr.tags.IsSet(tagCircuitBreaker) {
+			sg.Line().Id("cbCfg").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "Settings")
+			sg.Id("cb").Op("*").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "CircuitBreaker")
+			sg.Line()
+		}
 		sg.Line().Id("fallbackTTL").Qual(packageTime, "Duration")
 		for _, svcName := range tr.serviceKeys() {
 			svc := tr.services[svcName]

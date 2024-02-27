@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderClientTracer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")

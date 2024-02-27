@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderErrors(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.Line().Type().Id("withErrorCode").Interface(
 		Id("Code").Call().Int(),

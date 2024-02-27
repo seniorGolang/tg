@@ -15,7 +15,7 @@ import (
 func (tr *Transport) renderJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageErrors, "errors")

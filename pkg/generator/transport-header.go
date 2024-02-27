@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderHeader(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageErrors, "errors")

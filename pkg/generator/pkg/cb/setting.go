@@ -11,5 +11,4 @@ type Settings struct {
 	ReadyToTrip   func(counts Counts) bool
 	OnStateChange func(name string, from State, to State)
 	IsSuccessful  func(err error) bool
-	IsEnabled     bool
 }

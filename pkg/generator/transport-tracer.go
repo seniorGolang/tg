@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderTracer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(GeneratedComment())
+	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageHttp, "http")
