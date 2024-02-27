@@ -6,7 +6,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/seniorGolang/json"
 	implement "github.com/seniorGolang/tg/v2/example/implement"
 )
 
@@ -51,6 +50,10 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 
 	var response responseUserGetUser
 	if response, err = http.getUser(ctx.UserContext(), request); err == nil {
+		var iResponse interface{} = response
+		if redirect, ok := iResponse.(withRedirect); ok {
+			return ctx.Redirect(redirect.RedirectTo())
+		}
 		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {
@@ -85,7 +88,7 @@ func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 	span.SetTag("method", "customResponse")
 
 	var request requestUserCustomResponse
-	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
+	if err = ctx.BodyParser(&request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
@@ -120,7 +123,7 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 	span.SetTag("method", "customHandler")
 
 	var request requestUserCustomHandler
-	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
+	if err = ctx.BodyParser(&request); err != nil {
 		ext.Error.Set(span, true)
 		span.SetTag("msg", "request body could not be decoded: "+err.Error())
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
@@ -130,6 +133,10 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 
 	var response responseUserCustomHandler
 	if response, err = http.customHandler(ctx.UserContext(), request); err == nil {
+		var iResponse interface{} = response
+		if redirect, ok := iResponse.(withRedirect); ok {
+			return ctx.Redirect(redirect.RedirectTo())
+		}
 		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {

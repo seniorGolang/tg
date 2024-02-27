@@ -28,8 +28,8 @@ func metricsMiddlewareUser(next interfaces.User) interfaces.User {
 
 func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "getUser", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		m.requestLatency.With("method", "getUser", "success", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	defer m.requestCount.With("method", "getUser", "success", fmt.Sprint(err == nil)).Add(1)
@@ -41,8 +41,8 @@ func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent strin
 
 func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "customResponse", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		m.requestLatency.With("method", "customResponse", "success", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	defer m.requestCount.With("method", "customResponse", "success", fmt.Sprint(err == nil)).Add(1)
@@ -54,8 +54,8 @@ func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, 
 
 func (m metricsUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "customHandler", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		m.requestLatency.With("method", "customHandler", "success", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	defer m.requestCount.With("method", "customHandler", "success", fmt.Sprint(err == nil)).Add(1)
