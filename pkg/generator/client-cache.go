@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderClientCache(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.Type().Id("cache").InterfaceFunc(func(ig *Group) {
 		ig.Id("SetTTL").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("key").String(), Id("value").Interface(), Id("ttl").Qual(packageTime, "Duration")).Params(Err().Error())

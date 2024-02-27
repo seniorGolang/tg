@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderClientError(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.ImportName(packageStdJSON, "json")
 

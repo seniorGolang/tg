@@ -13,9 +13,9 @@ import (
 func (tr *Transport) renderTracer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportAlias(packageUUID, "goUUID")

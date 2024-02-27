@@ -16,7 +16,7 @@ import (
 func (svc *service) renderServer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 

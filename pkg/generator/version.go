@@ -13,7 +13,7 @@ import (
 func (tr *Transport) renderVersion(outDir string, isServer bool) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.Const().Id("VersionTg").Op("=").Lit(tr.version)
 

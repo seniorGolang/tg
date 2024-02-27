@@ -13,14 +13,14 @@ import (
 func (tr *Transport) renderServer(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.ImportName(packageIO, "io")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {

@@ -15,14 +15,14 @@ import (
 func (tr *Transport) renderJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageErrors, "errors")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageOpentracingExt, "ext")
-	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	srcFile.Line().Add(tr.jsonrpcConstants(false))
 	srcFile.Add(tr.idJsonRPC()).Line()

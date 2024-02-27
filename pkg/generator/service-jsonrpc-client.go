@@ -17,7 +17,7 @@ import (
 func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
@@ -151,7 +151,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 func (svc *service) renderClientFallbackError(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.Type().Id("fallback" + svc.Name).InterfaceFunc(func(ig *Group) {
 		for _, method := range svc.methods {

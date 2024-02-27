@@ -25,7 +25,7 @@ func (tr *Transport) cleanup(outDir string) {
 		filePath := path.Join(outDir, file.Name())
 		if goFile, err := os.Open(filePath); err == nil {
 			if firstLine, err := bufio.NewReader(goFile).ReadString('\n'); err == nil {
-				if strings.TrimSpace(strings.TrimPrefix(firstLine, "//")) == doNotEdit {
+				if strings.HasPrefix(strings.TrimPrefix(firstLine, "//"), generatedPrefix) {
 					if err = os.Remove(filePath); err != nil {
 						tr.log.WithError(err).Warn("cleanup")
 					}

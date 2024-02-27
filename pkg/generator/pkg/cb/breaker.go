@@ -13,6 +13,7 @@ type CircuitBreaker struct {
 	readyToTrip   func(counts Counts) bool
 	isSuccessful  func(err error) bool
 	onStateChange func(name string, from State, to State)
+	isEnabled     bool
 
 	state      State
 	generation uint64
@@ -51,6 +52,7 @@ func NewCircuitBreaker(name string, st Settings) *CircuitBreaker {
 	} else {
 		cb.isSuccessful = st.IsSuccessful
 	}
+	cb.isEnabled = st.IsEnabled
 	cb.toNewGeneration(time.Now())
 	return cb
 }
@@ -78,7 +80,9 @@ func (cb *CircuitBreaker) Counts() Counts {
 }
 
 func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) {
-
+	if !cb.isEnabled {
+		return nil
+	}
 	var generation uint64
 	values := prepareOpts(opts)
 	if generation, err = cb.beforeRequest(); err != nil {

@@ -14,12 +14,17 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/generator"
 	"github.com/seniorGolang/tg/v2/pkg/logger"
 	"github.com/seniorGolang/tg/v2/pkg/skeleton"
+	"github.com/seniorGolang/tg/v2/pkg/info"
 )
 
 var (
 	Version    = "v2.3.54"
 	BuildStamp = time.Now().String()
 )
+
+func init() {
+	info.Version = Version
+}
 
 var log = logger.Log.WithField("module", "tg")
 

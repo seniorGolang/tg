@@ -23,7 +23,7 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 		return err
 	}
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 	srcFile.ImportName(packageHttp, "http")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportAlias(packageUUID, "goUUID")

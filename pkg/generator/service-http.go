@@ -15,7 +15,7 @@ import (
 func (svc *service) renderHTTP(outDir string) (err error) {
 
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	srcFile.ImportName(packageCors, "cors")
 	srcFile.ImportName(packageFiber, "fiber")

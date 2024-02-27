@@ -22,7 +22,7 @@ func (svc *service) renderLogger(outDir string) (err error) {
 		return err
 	}
 	srcFile := newSrc(filepath.Base(outDir))
-	srcFile.PackageComment(doNotEdit)
+	srcFile.PackageComment(GeneratedComment())
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
