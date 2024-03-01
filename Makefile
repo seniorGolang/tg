@@ -5,8 +5,8 @@ GOLDFLAGS += -X main.Version=$(VERSION)
 GOLDFLAGS += -X main.BuildStamp=$(BUILDTIME)
 GOFLAGS = -ldflags "$(GOLDFLAGS)"
 
-run: install
-	./mybinary
+build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(GOFLAGS) -o $(GOPATH)/bin/tg-local ./cmd/tg
 
 install:
 	go install $(GOFLAGS) ./cmd/tg

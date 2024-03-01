@@ -32,7 +32,7 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "jsonrpc")
 
 	srcFile.Line().Type().Id("Client" + svc.Name).StructFunc(func(sg *Group) {
-		sg.Op("*").Id("ClientJsonRPC")
+		sg.Op("*").Id("ClientJsonRPCBase")
 	}).Line()
 	for _, method := range svc.methods {
 		if method.tags.Contains(tagMethodHTTP) {

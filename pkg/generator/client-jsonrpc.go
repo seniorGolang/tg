@@ -41,11 +41,11 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "jsonrpc")
 
 	srcFile.Line().Add(tr.jsonrpcClientStructFunc(outDir))
-	srcFile.Line().Func().Id("New").Params(Id("endpoint").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPC")).BlockFunc(
+	srcFile.Line().Func().Id("New").Params(Id("endpoint").String(), Id("opts").Op("...").Id("Option")).Params(Id("cli").Op("*").Id("ClientJsonRPCBase")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
 			bg.List(Id("hostname"), Id("_")).Op(":=").Qual(packageOS, "Hostname").Call()
-			bg.Id("cli").Op("=").Op("&").Id("ClientJsonRPC").Values(DictFunc(func(dict Dict) {
+			bg.Id("cli").Op("=").Op("&").Id("ClientJsonRPCBase").Values(DictFunc(func(dict Dict) {
 				dict[Id("fallbackTTL")] = Qual(packageTime, "Hour").Op("*").Lit(24)
 				dict[Id("name")] = Id("hostname").Op("+").Lit("_").Op("+").Lit(tr.module.Module.Mod.String())
 				dict[Id("errorDecoder")] = Id("defaultErrorDecoder")
@@ -60,9 +60,9 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 	for _, name := range tr.serviceKeys() {
 		svc := tr.services[name]
 		if svc.tags.Contains(tagServerJsonRPC) {
-			srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPC")).Id(svc.Name).Params().Params(Op("*").Id("Client" + svc.Name)).Block(
+			srcFile.Line().Func().Params(Id("cli").Op("*").Id("ClientJsonRPCBase")).Id(svc.Name).Params().Params(Op("*").Id("Client" + svc.Name)).Block(
 				Return(Op("&").Id("Client" + svc.Name).Values(Dict{
-					Id("ClientJsonRPC"): Id("cli"),
+					Id("ClientJsonRPCBase"): Id("cli"),
 				})),
 			)
 		}
@@ -73,7 +73,7 @@ func (tr *Transport) renderClientJsonRPC(outDir string) (err error) {
 
 func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 	return Func().
-		Params(Id("cli").Op("*").Id("ClientJsonRPC")).
+		Params(Id("cli").Op("*").Id("ClientJsonRPCBase")).
 		Id("proceedResponse").
 		Params(
 			Id(_ctx_).Qual(packageContext, "Context"),
@@ -130,7 +130,7 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 }
 
 func (tr *Transport) jsonrpcClientStructFunc(outDir string) Code {
-	return Type().Id("ClientJsonRPC").StructFunc(func(sg *Group) {
+	return Type().Id("ClientJsonRPCBase").StructFunc(func(sg *Group) {
 		sg.Id("name").String()
 		sg.Line().Id("rpc").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ClientRPC")
 		sg.Id("rpcOpts").Op("[]").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Option")

@@ -31,7 +31,7 @@ func (tr *Transport) renderClientBatch(outDir string) (err error) {
 	srcFile.Line().Type().Id("rpcCallback").Func().Params(Err().Error(), Id("response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"))
 
 	srcFile.Line().Func().Params(Id("cli").Op("*").
-		Id("ClientJsonRPC")).Id("Batch").
+		Id("ClientJsonRPCBase")).Id("Batch").
 		Params(Id(_ctx_).Qual(packageContext, "Context"), Id("requests").Op("...").Id("RequestRPC")).BlockFunc(func(bg *Group) {
 		bg.Line()
 		bg.Var().Id("rpcRequests").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "RequestsRPC")
