@@ -24,7 +24,7 @@ func NewUser(svcUser interfaces.User) (srv *httpUser) {
 	return
 }
 
-func (http *httpUser) Service() MiddlewareSetUser {
+func (http *httpUser) Service() *serverUser {
 	return http.svc
 }
 

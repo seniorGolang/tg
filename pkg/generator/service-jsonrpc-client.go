@@ -24,13 +24,15 @@ func (svc *service) renderClientJsonRPC(outDir string) (err error) {
 	srcFile.ImportAlias(packageUUID, "goUUID")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(fmt.Sprintf("%s/cb", svc.tr.pkgPath(outDir)), "cb")
+	if svc.tr.tags.IsSet(tagCircuitBreaker) {
+		srcFile.ImportName(fmt.Sprintf("%s/cb", svc.tr.pkgPath(outDir)), "cb")
+	}
 	srcFile.ImportName(fmt.Sprintf("%s/cache", svc.tr.pkgPath(outDir)), "cache")
 	srcFile.ImportName(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "hasher")
 	srcFile.ImportName(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "jsonrpc")
 
 	srcFile.Line().Type().Id("Client" + svc.Name).StructFunc(func(sg *Group) {
-		sg.Op("*").Id("ClientJsonRPC")
+		sg.Op("*").Id("ClientJsonRPCBase")
 	}).Line()
 	for _, method := range svc.methods {
 		if method.tags.Contains(tagMethodHTTP) {

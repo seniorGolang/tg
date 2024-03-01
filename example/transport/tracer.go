@@ -9,7 +9,7 @@ import (
 	"github.com/openzipkin/zipkin-go"
 	httpReporter "github.com/openzipkin/zipkin-go/reporter/http"
 	"github.com/rs/zerolog/log"
-	"github.com/seniorGolang/json"
+	json "github.com/seniorGolang/json"
 	"github.com/uber/jaeger-client-go/config"
 	jaegerLog "github.com/uber/jaeger-client-go/log"
 	"github.com/uber/jaeger-lib/metrics"

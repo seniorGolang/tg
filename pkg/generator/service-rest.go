@@ -20,7 +20,7 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(packageOpentracingExt, "ext")

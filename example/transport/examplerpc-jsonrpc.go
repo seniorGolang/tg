@@ -5,7 +5,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/seniorGolang/json"
+	"github.com/rs/zerolog/log"
+	json "github.com/seniorGolang/json"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ func (http *httpExampleRPC) test(ctx *fiber.Ctx, requestBase baseJsonRPC) (respo
 	var request requestExampleRPCTest
 
 	methodCtx := ctx.UserContext()
+	methodCtx = log.Ctx(methodCtx).With().Str("method", "exampleRPC.test").Logger().WithContext(methodCtx)
 	span := otg.SpanFromContext(methodCtx)
 	span.SetTag("method", "test")
 
@@ -86,6 +88,7 @@ func (http *httpExampleRPC) test2(ctx *fiber.Ctx, requestBase baseJsonRPC) (resp
 	var request requestExampleRPCTest2
 
 	methodCtx := ctx.UserContext()
+	methodCtx = log.Ctx(methodCtx).With().Str("method", "exampleRPC.test2").Logger().WithContext(methodCtx)
 	span := otg.SpanFromContext(methodCtx)
 	span.SetTag("method", "test2")
 

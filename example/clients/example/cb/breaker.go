@@ -78,7 +78,6 @@ func (cb *CircuitBreaker) Counts() Counts {
 }
 
 func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) {
-
 	var generation uint64
 	values := prepareOpts(opts)
 	if generation, err = cb.beforeRequest(); err != nil {

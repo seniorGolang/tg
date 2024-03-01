@@ -5,7 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	otg "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/seniorGolang/json"
+	json "github.com/seniorGolang/json"
 	"strings"
 	"sync"
 )

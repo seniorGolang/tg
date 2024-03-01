@@ -2,10 +2,12 @@
 package transport
 
 import (
+	prometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gofiber/fiber/v2"
+	prometheus1 "github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/seniorGolang/json"
+	json "github.com/seniorGolang/json"
 	"io"
 )
 
@@ -17,8 +19,9 @@ type Server struct {
 
 	config fiber.Config
 
-	srvHTTP   *fiber.App
-	srvHealth *fiber.App
+	srvHTTP    *fiber.App
+	srvHealth  *fiber.App
+	srvMetrics *fiber.App
 
 	reporterCloser io.Closer
 
@@ -94,8 +97,8 @@ func (srv *Server) Shutdown() {
 	if srv.srvHealth != nil {
 		_ = srv.srvHealth.Shutdown()
 	}
-	if srvMetrics != nil {
-		_ = srvMetrics.Shutdown()
+	if srv.srvMetrics != nil {
+		_ = srv.srvMetrics.Shutdown()
 	}
 }
 
@@ -110,6 +113,30 @@ func (srv *Server) WithTrace() *Server {
 }
 
 func (srv *Server) WithMetrics() *Server {
+	if RequestCount == nil {
+		RequestCount = prometheus.NewCounterFrom(prometheus1.CounterOpts{
+			Help:      "Number of requests received",
+			Name:      "count",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"method", "service", "success"})
+	}
+	if RequestCountAll == nil {
+		RequestCountAll = prometheus.NewCounterFrom(prometheus1.CounterOpts{
+			Help:      "Number of all requests received",
+			Name:      "all_count",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"method", "service"})
+	}
+	if RequestLatency == nil {
+		RequestLatency = prometheus.NewHistogramFrom(prometheus1.HistogramOpts{
+			Help:      "Total duration of requests in microseconds",
+			Name:      "latency_microseconds",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"method", "service", "success"})
+	}
 	if srv.httpExampleRPC != nil {
 		srv.httpExampleRPC = srv.ExampleRPC().WithMetrics()
 	}

@@ -54,6 +54,7 @@ const (
 	tagPackageUUID         = "uuidPackage"
 	tagSwaggerTags         = "swaggerTags"
 	tagLogSkip             = "log-skip"
+	tagCircuitBreaker      = "circuit-breaker"
 	tagDisableOmitEmpty    = "tagNoOmitempty"
 	tagRequestContentType  = "requestContentType"
 	tagResponseContentType = "responseContentType"

@@ -26,6 +26,7 @@ func (m loggerUser) GetUser(ctx context.Context, cookie string, userAgent string
 	defer func(begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.getUser",
 				"request": viewer.Sprintf("%+v", requestUserGetUser{
 					Cookie:    cookie,
 					UserAgent: userAgent,
@@ -48,6 +49,7 @@ func (m loggerUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, o
 	defer func(begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.customResponse",
 				"request": viewer.Sprintf("%+v", requestUserCustomResponse{
 					Arg0: arg0,
 					Arg1: arg1,
@@ -71,6 +73,7 @@ func (m loggerUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, op
 	defer func(begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "user.customHandler",
 				"request": viewer.Sprintf("%+v", requestUserCustomHandler{
 					Arg0: arg0,
 					Arg1: arg1,

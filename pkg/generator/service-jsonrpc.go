@@ -27,7 +27,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	srcFile.ImportAlias(packageOpentracing, "otg")
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
-	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportAlias(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	for _, method := range svc.methods {
 		if !method.isJsonRPC() {

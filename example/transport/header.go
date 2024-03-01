@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	opentracinggo "github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
-	"github.com/seniorGolang/json"
+	json "github.com/seniorGolang/json"
 )
 
 type Header struct {

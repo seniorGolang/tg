@@ -25,6 +25,7 @@ func (m loggerExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts 
 	defer func(begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "exampleRPC.test",
 				"request": viewer.Sprintf("%+v", requestExampleRPCTest{
 					Arg0: arg0,
 					Arg1: arg1,
@@ -51,6 +52,7 @@ func (m loggerExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts
 	defer func(begin time.Time) {
 		logHandle := func(ev *zerolog.Event) {
 			fields := map[string]interface{}{
+				"method": "exampleRPC.test2",
 				"request": viewer.Sprintf("%+v", requestExampleRPCTest2{
 					Arg0: arg0,
 					Arg1: arg1,
