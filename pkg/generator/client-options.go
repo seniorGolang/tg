@@ -64,9 +64,9 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("cli").Dot("rpcOpts").Op("=").Append(Id("cli").Dot("rpcOpts"), Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "HeaderFromCtx").Call(Id("headers").Op("..."))),
 		),
 	)
-	srcFile.Line().Func().Id("Insecure").Params().Params(Id("Option")).Block(
+	srcFile.Line().Func().Id("ConfigTLS").Params(Id("tlsConfig").Op("*").Qual(packageTLS, "Config")).Params(Id("Option")).Block(
 		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
-			Id("cli").Dot("rpcOpts").Op("=").Append(Id("cli").Dot("rpcOpts"), Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Insecure").Call()),
+			Id("cli").Dot("rpcOpts").Op("=").Append(Id("cli").Dot("rpcOpts"), Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ConfigTLS").Call(Id("tlsConfig"))),
 		),
 	)
 	srcFile.Line().Func().Id("LogRequest").Params().Params(Id("Option")).Block(

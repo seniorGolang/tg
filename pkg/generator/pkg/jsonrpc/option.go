@@ -1,10 +1,14 @@
 package jsonrpc
 
+import (
+	"crypto/tls"
+)
+
 type options struct {
-	insecure           bool
 	logOnError         bool
 	logRequests        bool
 	allowUnknownFields bool
+	tlsConfig          *tls.Config
 	headersFromCtx     []interface{}
 	customHeaders      map[string]string
 }
@@ -32,9 +36,9 @@ func AllowUnknownFields(allowUnknownFields bool) Option {
 	}
 }
 
-func Insecure() Option {
+func ConfigTLS(tlsConfig *tls.Config) Option {
 	return func(ops *options) {
-		ops.insecure = true
+		ops.tlsConfig = tlsConfig
 	}
 }
 

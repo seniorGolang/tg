@@ -1,7 +1,6 @@
 package jsonrpc
 
 import (
-	"crypto/tls"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -29,9 +28,9 @@ func NewClient(endpoint string, opts ...Option) (client *ClientRPC) {
 		httpClient: &http.Client{},
 		options:    prepareOpts(opts),
 	}
-	if client.options.insecure {
+	if client.options.tlsConfig != nil {
 		client.httpClient.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: client.options.tlsConfig,
 		}
 	}
 	return client

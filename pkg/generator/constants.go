@@ -9,6 +9,7 @@ const (
 	packageIO                    = "io"
 	_ctx_                        = "ctx"
 	packageFmt                   = "fmt"
+	packageTLS                   = "crypto/tls"
 	packageTime                  = "time"
 	_next_                       = "next"
 	packageSync                  = "sync"
