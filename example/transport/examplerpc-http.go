@@ -23,7 +23,7 @@ func NewExampleRPC(svcExampleRPC interfaces.ExampleRPC) (srv *httpExampleRPC) {
 	return
 }
 
-func (http *httpExampleRPC) Service() MiddlewareSetExampleRPC {
+func (http *httpExampleRPC) Service() *serverExampleRPC {
 	return http.svc
 }
 
