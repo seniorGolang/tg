@@ -228,9 +228,7 @@ services:
 					Tags:        serviceTags,
 					Deprecated:  method.tags.Contains(tagDeprecated),
 					RequestBody: &swRequestBody{
-						Content: doc.clearContent(swContent{
-							requestContentType: swMedia{Schema: swSchema{Ref: "#/components/schemas/" + method.requestStructName()}},
-						}),
+						Content: doc.clearContent(swContent{}),
 					},
 					Responses: swResponses{
 						fmt.Sprintf("%d", successCode): swResponse{
@@ -241,6 +239,13 @@ services:
 							}),
 						},
 					},
+				}
+				if len(method.arguments()) != 0 {
+					httpMethod.RequestBody = &swRequestBody{
+						Content: doc.clearContent(swContent{
+							requestContentType: swMedia{Schema: swSchema{Ref: "#/components/schemas/" + method.requestStructName()}},
+						}),
+					}
 				}
 				var methodTags tags.DocTags
 				doc.fillErrors(httpMethod.Responses, methodTags.Merge(service.tags).Merge(method.tags))
