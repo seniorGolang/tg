@@ -300,9 +300,7 @@ func (m *method) httpRetHeaders() (block *Statement) {
 				}
 				continue
 			}
-			block.If(Id("response").Call().Dot(utils.ToCamel(ret)).Op("!=").Lit("").Block(
-				Id(_ctx_).Dot("Response").Dot("Header").Dot("Set").Call(Lit(header), Id("response").Dot(utils.ToCamel(ret))),
-			))
+			block.Id(_ctx_).Dot("Set").Call(Lit(header), Qual(packageFmt, "Sprint").Call(Id("response").Dot(utils.ToCamel(ret))))
 		}
 	}
 	return block

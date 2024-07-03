@@ -1,0 +1,53 @@
+package main
+
+import (
+	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
+
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/rs/zerolog/log"
+	_ "go.uber.org/automaxprocs"
+
+	"{{.packageName}}/internal/services/{{.serviceName}}"
+	"{{.packageName}}/internal/transport"
+	"{{.packageName}}/internal/utils/header"
+
+	"{{.packageName}}/internal/config"
+)
+
+const serviceName = "{{.serviceName}}"
+
+func main() {
+
+	log.Logger = config.Service().Logger().With().Str("service", serviceName).Logger()
+
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
+	log.Info().Str("go", runtime.Version()).Send()
+	defer log.Info().Msg("goodbye")
+
+	svc{{.serviceNameCamel}} := {{.serviceName}}.New()
+
+	services := []transport.Option{
+		transport.Use(cors.New()),
+		transport.WithRequestID(header.RequestID),
+		transport.Service(transport.New{{.serviceNameCamel}}(svc{{.serviceNameCamel}})),
+	}
+
+	srv := transport.New(log.Logger, services...).WithMetrics().WithLog()
+
+	srv.ServeHealth(config.Service().HealthBind, "OK")
+	srv.ServeMetrics(log.Logger, "/", config.Service().MetricsBind)
+
+	go func() {
+		log.Info().Str("bind", config.Service().Bind).Msg("listen on")
+		if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
+			log.Panic().Err(err).Msg("server error")
+		}
+	}()
+
+	<-shutdown
+}

@@ -150,7 +150,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		} else {
 			bg.Var().Id("response").Id(method.responseStructName())
 			bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id(_ctx_).Dot("UserContext").Call(), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
-				ex := Line()
+				var ex Statement
 				if len(method.retCookieMap()) > 0 {
 					for retName := range method.retCookieMap() {
 						if ret := method.resultByName(retName); ret != nil {
@@ -163,13 +163,13 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 					}
 				}
 				ex.Add(method.httpRetHeaders())
-				if len(*ex) > 2 {
-					bf.If(Err().Op("==").Nil()).Block(ex)
-				}
 				bf.Var().Id("iResponse").Interface().Op("=").Id("response")
 				bf.If(List(Id("redirect"), Id("ok")).Op(":=").Id("iResponse").Op(".").Call(Id("withRedirect")).Op(";").Id("ok")).Block(
 					Return().Id(_ctx_).Dot("Redirect").Call(Id("redirect").Dot("RedirectTo").Call()),
 				)
+				if len(ex) > 0 {
+					bf.Add(&ex)
+				}
 				bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
 			})
 			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(

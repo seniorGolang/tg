@@ -4,17 +4,24 @@
 package skeleton
 
 import (
+	"bytes"
+	"embed"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"text/template"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/seniorGolang/tg/v2/pkg/generator"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func GenerateSkeleton(log logrus.FieldLogger, version, projectName, repoName, baseDir string, trace, mongo bool) (err error) {
+//go:embed templates
+var templates embed.FS
+
+func GenerateSkeleton(log logrus.FieldLogger, repoName, projectName, serviceName, baseDir string) (err error) {
 
 	if baseDir, err = filepath.Abs(baseDir); err != nil {
 		return
@@ -25,49 +32,79 @@ func GenerateSkeleton(log logrus.FieldLogger, version, projectName, repoName, ba
 	if err = os.Chdir(baseDir); err != nil {
 		return
 	}
-
-	meta := metaInfo{
-		baseDir:     baseDir,
-		repoName:    repoName,
-		projectName: projectName,
-		withTracer:  trace,
-		withMongo:   mongo,
+	meta := map[string]string{
+		"packageName":      repoName,
+		"projectName":      projectName,
+		"serviceNameCamel": utils.ToCamel(serviceName),
+		"serviceName":      utils.ToLowerCamel(serviceName),
 	}
-
 	log.Info("init go.mod")
-
-	packageName := meta.repoName
-
-	if packageName == "" {
-		packageName = path.Join(meta.repoName, meta.projectName)
-	}
-
-	cmdMakeMod := exec.Command("go", "mod", "init", packageName)
-	if err = cmdMakeMod.Run(); err != nil {
+	if err = exec.Command("go", "mod", "init", repoName).Run(); err != nil {
 		log.WithError(err).Warning("go mod creation error")
-	}
-
-	if err = genConfig(meta); err != nil {
 		return
 	}
-
-	if err = genServices(meta); err != nil {
+	var tmpl *template.Template
+	if tmpl, err = template.ParseFS(templates, "templates/*.tmpl"); err != nil {
+		log.WithError(err).Warning("template parse error")
 		return
 	}
-
-	var tr generator.Transport
-	if tr, err = generator.NewTransport(log, version, path.Join(meta.baseDir, "pkg", projectName, "service")); err == nil {
-		if err = tr.RenderServer(path.Join(meta.baseDir, "pkg", projectName, "transport")); err != nil {
-			return
-		}
-	} else {
+	log.Info("make main.go")
+	if err = renderFile(tmpl, "main.tmpl", path.Join(baseDir, "cmd", serviceName, "main.go"), meta); err != nil {
+		log.WithError(err).Warning("render main.go error")
 		return
 	}
-
-	if err = makeCmdMain(meta, meta.repoName, path.Join(meta.baseDir, "cmd", projectName)); err != nil {
+	log.Info("make config")
+	if err = renderFile(tmpl, "config.tmpl", path.Join(baseDir, "internal", "config", "service.go"), meta); err != nil {
+		log.WithError(err).Warning("render service.go error")
 		return
 	}
-
+	log.Info("make utils")
+	if err = renderFile(tmpl, "headers.tmpl", path.Join(baseDir, "internal", "utils", "header", "headers.go"), meta); err != nil {
+		log.WithError(err).Warning("render headers.go error")
+		return
+	}
+	log.Info("make interfaces")
+	if err = renderFile(tmpl, "interface.tmpl", path.Join(baseDir, "interfaces", fmt.Sprintf("%s.go", utils.ToLowerCamel(serviceName))), meta); err != nil {
+		log.WithError(err).Warning("render interface.go error")
+		return
+	}
+	if err = renderFile(tmpl, "tg.tmpl", path.Join(baseDir, "interfaces", "tg.go"), meta); err != nil {
+		log.WithError(err).Warning("render tg.go error")
+		return
+	}
+	if err = os.MkdirAll(path.Join(baseDir, "interfaces", "types"), 0777); err != nil {
+		log.WithError(err).Warning("make types dir error")
+		return
+	}
+	log.Info("make services")
+	if err = renderFile(tmpl, "service.tmpl", path.Join(baseDir, "internal", "services", utils.ToLowerCamel(serviceName), "service.go"), meta); err != nil {
+		log.WithError(err).Warning("render service.go error")
+		return
+	}
+	if err = renderFile(tmpl, "service_method.tmpl", path.Join(baseDir, "internal", "services", utils.ToLowerCamel(serviceName), "some.go"), meta); err != nil {
+		log.WithError(err).Warning("render some.go error")
+		return
+	}
+	_ = os.Chdir(path.Join(baseDir, "interfaces"))
+	if err = exec.Command("go", "generate").Run(); err != nil {
+		log.WithError(err).Warning("tg generate error")
+		return
+	}
 	log.Info("download dependencies ...")
+	_ = os.Chdir(path.Join(baseDir))
 	return exec.Command("go", "mod", "tidy").Run()
+}
+
+func renderFile(tmpl *template.Template, template, path string, data any) (err error) {
+
+	_ = os.Remove(path)
+	dir := filepath.Dir(path)
+	if err = os.MkdirAll(dir, 0777); err != nil {
+		return
+	}
+	var buf bytes.Buffer
+	if err = tmpl.ExecuteTemplate(&buf, template, data); err != nil {
+		return
+	}
+	return os.WriteFile(path, buf.Bytes(), 0666)
 }

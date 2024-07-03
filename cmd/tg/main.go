@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.57"
+	Version    = "v2.3.61"
 	BuildStamp = time.Now().String()
 )
 
@@ -39,20 +39,16 @@ func main() {
 			Action: cmdInit,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
+					Name:  "repo",
+					Usage: "base repository",
+				},
+				&cli.StringFlag{
 					Name:  "project",
 					Usage: "project name",
 				},
 				&cli.StringFlag{
-					Name:  "repo",
-					Usage: "base repository",
-				},
-				&cli.BoolFlag{
-					Name:  "trace",
-					Usage: "use Jaeger tracer",
-				},
-				&cli.BoolFlag{
-					Name:  "mongo",
-					Usage: "enable mongo support",
+					Name:  "service",
+					Usage: "service name",
 				},
 			},
 			ArgsUsage:   "[project name]",
@@ -234,11 +230,17 @@ func cmdInit(c *cli.Context) (err error) {
 	}()
 	repo := c.String("repo")
 	project := c.String("project")
-
+	service := c.String("service")
+	if project == "" {
+		project = c.Args().First()
+	}
 	if repo == "" {
 		repo = project
 	}
-	return skeleton.GenerateSkeleton(log, Version, project, repo, "./"+c.Args().First(), c.Bool("trace"), c.Bool("mongo"))
+	if service == "" {
+		service = "someService"
+	}
+	return skeleton.GenerateSkeleton(log, repo, project, service, "./"+c.Args().First())
 }
 
 func cmdClient(c *cli.Context) (err error) {
