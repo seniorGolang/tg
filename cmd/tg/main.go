@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.62"
+	Version    = "v2.3.63"
 	BuildStamp = time.Now().String()
 )
 
@@ -28,7 +28,7 @@ func main() {
 	app := cli.NewApp()
 	app.Version = Version
 	app.EnableBashCompletion = true
-	app.Usage = "make Go-Kit API easy"
+	app.Usage = "make service easy"
 	app.Name = "golang service 't'ransport 'g'enerator (tg)"
 	app.Compiled, _ = time.Parse(time.RFC3339, BuildStamp)
 
