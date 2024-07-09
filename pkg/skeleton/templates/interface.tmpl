@@ -4,5 +4,5 @@ import "context"
 
 // @tg jsonRPC-server log trace metrics test
 type {{.serviceNameCamel}} interface {
-	SomeMethod(ctx context.Context) (err error)
+	Method(ctx context.Context) (err error)
 }

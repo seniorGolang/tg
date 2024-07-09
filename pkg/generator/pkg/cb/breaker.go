@@ -1,6 +1,7 @@
 package cb
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -69,6 +70,10 @@ func (cb *CircuitBreaker) State() State {
 	return state
 }
 
+func (cb *CircuitBreaker) IsSuccessful() func(err error) bool {
+	return cb.isSuccessful
+}
+
 func (cb *CircuitBreaker) Counts() Counts {
 
 	cb.mutex.Lock()
@@ -82,7 +87,7 @@ func (cb *CircuitBreaker) Execute(req func() error, opts ...Option) (err error) 
 	var generation uint64
 	values := prepareOpts(opts)
 	if generation, err = cb.beforeRequest(); err != nil {
-		if err == ErrOpenState && values.fallback != nil {
+		if errors.Is(err, ErrOpenState) && values.fallback != nil {
 			if fallBackErr := values.fallback(err); fallBackErr == nil {
 				return nil
 			}

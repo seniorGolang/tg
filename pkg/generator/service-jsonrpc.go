@@ -34,7 +34,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 			continue
 		}
 		srcFile.Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("serve" + method.Name).Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
-			Return().Id("http").Dot("serveMethod").Call(Id(_ctx_), Lit(method.lcName()), Id("http").Dot(method.lccName())),
+			Return().Id("http").Dot("_serveMethod").Call(Id(_ctx_), Lit(method.lcName()), Id("http").Dot(method.lccName())),
 		)
 		srcFile.Add(svc.rpcMethodFunc(method))
 	}
@@ -156,7 +156,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 
 func (svc *service) serveMethodFunc() Code {
 
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("serveMethod").
+	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("_serveMethod").
 		ParamsFunc(func(pg *Group) {
 			pg.Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")
 			pg.Id("methodName").String()

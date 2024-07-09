@@ -40,11 +40,18 @@ func (tr *Transport) renderClientBatch(outDir string) (err error) {
 		)
 		bg.Var().Err().Error()
 		bg.Var().Id("rpcResponses").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponsesRPC")
-		bg.List(Id("rpcResponses"), Err()).Op("=").Id("cli").Dot("rpc").Dot("CallBatch").Call(Id(_ctx_), Id("rpcRequests"))
-		bg.For(List(Id("id"), Id("response")).Op(":=").Range().Id("rpcResponses").Dot("AsMap").Call()).Block(
-			If(Id("callback").Op(":=").Id("callbacks").Op("[").Id("id").Op("]").Op(";").Id("callback").Op("!=").Nil().Block(
-				Id("callback").Call(Err(), Id("response")),
-			)),
+		bg.If(Id("cli").Dot("cb").Dot("State").Call().Op("==").Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "StateClosed")).Block(
+			List(Id("rpcResponses"), Err()).Op("=").Id("cli").Dot("rpc").Dot("CallBatch").Call(Id(_ctx_), Id("rpcRequests")),
+			If(Id("rpcResponses").Op("==").Nil()).Block(Return()),
+			For(List(Id("id"), Id("response")).Op(":=").Range().Id("rpcResponses").Dot("AsMap").Call()).Block(
+				If(Id("callback").Op(":=").Id("callbacks").Op("[").Id("id").Op("]").Op(";").Id("callback").Op("!=").Nil().Block(
+					Id("callback").Call(Err(), Id("response")),
+				)),
+			),
+			Return(),
+		)
+		bg.For(List(Id("_"), Id("callback")).Op(":=").Range().Id("callbacks")).Block(
+			Id("callback").Call(Qual(fmt.Sprintf("%s/cb", tr.pkgPath(outDir)), "ErrOpenState"), Nil()),
 		)
 	})
 	return srcFile.Save(path.Join(outDir, "batch.go"))

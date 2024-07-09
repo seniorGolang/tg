@@ -10,11 +10,11 @@ import (
 	"github.com/rs/zerolog/log"
 	_ "go.uber.org/automaxprocs"
 
-	"{{.packageName}}/internal/services/{{.serviceName}}"
-	"{{.packageName}}/internal/transport"
-	"{{.packageName}}/internal/utils/header"
+	"{{.moduleName}}/internal/services/{{.serviceName}}"
+	"{{.moduleName}}/internal/transport"
+	"{{.moduleName}}/internal/utils/header"
 
-	"{{.packageName}}/internal/config"
+	"{{.moduleName}}/internal/config"
 )
 
 const serviceName = "{{.serviceName}}"
@@ -31,13 +31,13 @@ func main() {
 
 	svc{{.serviceNameCamel}} := {{.serviceName}}.New()
 
-	services := []transport.Option{
+	options := []transport.Option{
 		transport.Use(cors.New()),
 		transport.WithRequestID(header.RequestID),
-		transport.Service(transport.New{{.serviceNameCamel}}(svc{{.serviceNameCamel}})),
+		transport.Some(transport.New{{.serviceNameCamel}}(svc{{.serviceNameCamel}})),
 	}
 
-	srv := transport.New(log.Logger, services...).WithMetrics().WithLog()
+	srv := transport.New(log.Logger, options...).WithMetrics().WithLog()
 
 	srv.ServeHealth(config.Service().HealthBind, "OK")
 	srv.ServeMetrics(log.Logger, "/", config.Service().MetricsBind)

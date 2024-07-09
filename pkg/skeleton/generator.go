@@ -21,7 +21,7 @@ import (
 //go:embed templates
 var templates embed.FS
 
-func GenerateSkeleton(log logrus.FieldLogger, repoName, projectName, serviceName, baseDir string) (err error) {
+func GenerateSkeleton(log logrus.FieldLogger, moduleName, projectName, serviceName, baseDir string) (err error) {
 
 	if baseDir, err = filepath.Abs(baseDir); err != nil {
 		return
@@ -33,13 +33,14 @@ func GenerateSkeleton(log logrus.FieldLogger, repoName, projectName, serviceName
 		return
 	}
 	meta := map[string]string{
-		"packageName":      repoName,
+		"moduleName":       moduleName,
 		"projectName":      projectName,
+		"projectNameCamel": utils.ToCamel(projectName),
 		"serviceNameCamel": utils.ToCamel(serviceName),
 		"serviceName":      utils.ToLowerCamel(serviceName),
 	}
 	log.Info("init go.mod")
-	if err = exec.Command("go", "mod", "init", repoName).Run(); err != nil {
+	if err = exec.Command("go", "mod", "init", moduleName).Run(); err != nil {
 		log.WithError(err).Warning("go mod creation error")
 		return
 	}

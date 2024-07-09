@@ -72,18 +72,25 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 		Id("proceedResponse").
 		Params(
 			Id(_ctx_).Qual(packageContext, "Context"),
-			Id("httpErr").Error(),
-			Id("cacheKey").Uint64(),
+			Id("callMethod").Func().Params(Id("request").Any()).Params(Id("response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"), Err().Error()),
+			Id("request").Any(),
 			Id("fallbackCheck").Func().Params(Error()).Bool(),
-			Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"),
-			Id("methodResponse").Interface(),
+			Id("methodResponse").Any(),
 		).Params(Err().Error()).BlockFunc(func(bg *Group) {
 
 		bg.Line()
+		bg.List(Id("cacheKey"), Id("_")).Op(":=").Qual(fmt.Sprintf("%s/hasher", tr.pkgPath(outDir)), "Hash").Call(Id("request"))
 		bg.Err().Op("=").Id("cli").Dot("cb").Dot("Execute").CallFunc(func(cg *Group) {
 			cg.Func().Params().Params(Err().Error()).Block(
-				If(Id("httpErr").Op("!=").Nil()).Block(
-					Return(Id("httpErr")),
+				Var().Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "ResponseRPC"),
+				List(Id("rpcResponse"), Err()).Op("=").Id("callMethod").Call(Id("request")),
+				If(Id("rpcResponse").Op("!=").Nil().Op("&&").Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
+					If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
+						Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
+					).Else().Block(
+						Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+					),
+					Return(),
 				),
 				Return(Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("methodResponse"))),
 			)
@@ -92,7 +99,7 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 					If(Id("fallbackCheck").Op("!=").Nil()).Block(
 						Return(Id("fallbackCheck")).Call(Err()),
 					),
-					If(Id("success").Op("=").Err().Op("==").Nil().Op(";").Id("success")).Block(
+					If(Id("success").Op("=").Id("cli").Dot("cb").Dot("IsSuccessful").Call().Call(Err()).Op(";").Id("success")).Block(
 						If(Id("cli").Dot("cache").Op("!=").Nil().Op("&&").Id("cacheKey").Op("!=").Lit(0)).Block(
 							Id("_").Op("=").Id("cli").Dot("cache").
 								Dot("SetTTL").Call(Id(_ctx_), Qual(packageStrconv, "FormatUint").Call(Id("cacheKey"), Lit(10)), Id("methodResponse"), Id("cli").Dot("fallbackTTL")),
