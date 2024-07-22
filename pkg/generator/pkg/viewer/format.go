@@ -58,7 +58,7 @@ func (f *formatState) constructOrigFormat(verb rune) (format string) {
 
 func (f *formatState) unpackValue(v reflect.Value) reflect.Value {
 
-	if v.Kind() == reflect.Interface {
+	if v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr {
 		f.ignoreNextType = false
 		if !v.IsNil() {
 			v = v.Elem()
@@ -92,7 +92,7 @@ func (f *formatState) formatPtr(v reflect.Value) {
 		}
 		indirect++
 		addr := ve.Pointer()
-		pointerChain = append(pointerChain, addr) // nolint
+		pointerChain = append(pointerChain, addr)
 		if pd, ok := f.pointers[addr]; ok && pd < f.depth {
 			cycleFound = true
 			indirect--
@@ -115,14 +115,17 @@ func (f *formatState) formatPtr(v reflect.Value) {
 		_, _ = f.fs.Write(closeParenBytes)
 	} else {
 		if nilFound || cycleFound {
-			indirect += strings.Count(ve.Type().String(), "*") // nolint
+			indirect += strings.Count(ve.Type().String(), "*")
 		}
 	}
+
 	switch {
 	case nilFound:
 		_, _ = f.fs.Write(nilAngleBytes)
+
 	case cycleFound:
 		_, _ = f.fs.Write(circularShortBytes)
+
 	default:
 		f.ignoreNextType = true
 		f.format(ve)
@@ -244,13 +247,13 @@ func (f *formatState) format(v reflect.Value, opts ...option) {
 		}
 
 	case reflect.Ptr:
+		f.format(v.Elem(), opts...)
 	case reflect.Map:
 
 		if v.IsNil() {
 			_, _ = f.fs.Write(nilAngleBytes)
 			break
 		}
-
 		_, _ = f.fs.Write(openMapBytes)
 		f.depth++
 		if (f.cs.MaxDepth != 0) && (f.depth > f.cs.MaxDepth) {
@@ -277,7 +280,6 @@ func (f *formatState) format(v reflect.Value, opts ...option) {
 			_, _ = f.fs.Write([]byte(v.Interface().(time.Time).Format(time.RFC3339)))
 			break
 		}
-
 		numFields := v.NumField()
 		_, _ = f.fs.Write(openBraceBytes)
 		f.depth++
