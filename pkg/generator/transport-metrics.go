@@ -26,10 +26,6 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 	srcFile.ImportName(packageGoKitEndpoint, "endpoint")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 
-	srcFile.Add(Var().Id("RequestCount").Op("*").Qual(packageKitPrometheus, "Counter"))
-	srcFile.Add(Var().Id("RequestCountAll").Op("*").Qual(packageKitPrometheus, "Counter"))
-	srcFile.Add(Var().Id("RequestLatency").Op("*").Qual(packageKitPrometheus, "Histogram"))
-
 	srcFile.Add(tr.serveMetricsFunc())
 
 	return srcFile.Save(path.Join(outDir, "metrics.go"))

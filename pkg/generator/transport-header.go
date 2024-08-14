@@ -49,11 +49,11 @@ func (tr *Transport) renderHeaderHandler(srcFile goFile) {
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).
 		Id("headersHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Error()).BlockFunc(func(g *Group) {
 		g.Line()
-		if tr.hasTrace() {
-			g.Id("span").Op(":=").Id("makeSpan").Call(Id(_ctx_), Qual(packageFmt, "Sprintf").Call(Lit("request:%s"), Id(_ctx_).Dot("Path").Call()))
-			g.Defer().Id("injectSpan").Call(Id(_ctx_), Id("span"))
-			g.Defer().Id("span").Dot("Finish").Call()
-		}
+		//if tr.hasTrace() {
+		//	g.Id("span").Op(":=").Id("makeSpan").Call(Id(_ctx_), Qual(packageFmt, "Sprintf").Call(Lit("request:%s"), Id(_ctx_).Dot("Path").Call()))
+		//	g.Defer().Id("injectSpan").Call(Id(_ctx_), Id("span"))
+		//	g.Defer().Id("span").Dot("Finish").Call()
+		//}
 		g.For(List(Id("headerName"), Id("handler")).Op(":=").Range().Id("srv").Dot("headerHandlers")).Block(
 			Id("value").Op(":=").Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Id("headerName")),
 			Id("header").Op(":=").Id("handler").Call(String().Call(Id("value"))),
@@ -69,9 +69,9 @@ func (tr *Transport) renderHeaderHandler(srcFile goFile) {
 				Id(_ctx_).Dot("SetUserContext").Call(Id("logger").Dot("WithContext").Call(Id(_ctx_).Dot("UserContext").Call())),
 			),
 		)
-		if tr.hasTrace() {
-			g.Id(_ctx_).Dot("SetUserContext").Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span")))
-		}
+		//if tr.hasTrace() {
+		//	g.Id(_ctx_).Dot("SetUserContext").Call(Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span")))
+		//}
 		g.Return(Id(_ctx_).Dot("Next").Call())
 	})
 }

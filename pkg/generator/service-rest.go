@@ -43,10 +43,10 @@ func (svc *service) httpMethodFunc(method *method) Code {
 		Params(Id("response").Id(method.responseStructName()), Err().Error()).
 		BlockFunc(func(bg *Group) {
 			bg.Line()
-			if svc.tags.IsSet(tagTrace) {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
-				bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
-			}
+			//if svc.tags.IsSet(tagTrace) {
+			//	bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_))
+			//	bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
+			//}
 			bg.ListFunc(func(lg *Group) {
 				for _, ret := range method.resultFieldsWithoutError() {
 					lg.Id("response").Dot(utils.ToCamel(ret.Name))
@@ -67,14 +67,14 @@ func (svc *service) httpMethodFunc(method *method) Code {
 				ig.If(Id("http").Dot("errorHandler").Op("!=").Nil()).Block(
 					Err().Op("=").Id("http").Dot("errorHandler").Call(Err()),
 				)
-				if svc.tags.IsSet(tagTrace) {
-					ig.Id("errData").Op(":=").Id("toString").Call(Err())
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Err().Dot("Error").Call())
-					ig.If(Id("errData").Op("!=").Lit("{}")).Block(
-						Id("span").Dot("SetTag").Call(Lit("errData"), Id("errData")),
-					)
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Id("errData").Op(":=").Id("toString").Call(Err())
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Err().Dot("Error").Call())
+				//	ig.If(Id("errData").Op("!=").Lit("{}")).Block(
+				//		Id("span").Dot("SetTag").Call(Lit("errData"), Id("errData")),
+				//	)
+				//}
 			})
 			bg.Return()
 		})
@@ -86,20 +86,20 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		Params(Err().Error()).BlockFunc(func(bg *Group) {
 
 		bg.Line()
-		if svc.tags.IsSet(tagTrace) {
-			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
-			bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
-		}
+		//if svc.tags.IsSet(tagTrace) {
+		//	bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
+		//	bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
+		//}
 		bg.Var().Id("request").Id(method.requestStructName())
 		if successCode := method.tags.ValueInt(tagHttpSuccess, 0); successCode != 0 {
 			bg.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Lit(successCode))
 		}
 		if len(method.arguments()) != 0 {
 			bg.If(Err().Op("=").Id(_ctx_).Dot("BodyParser").Call(Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusBadRequest"))
 				ig.List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
 				ig.Return()
@@ -108,40 +108,40 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 		bg.Add(method.urlArgs(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("path arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		bg.Add(method.urlParams(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))

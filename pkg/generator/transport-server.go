@@ -22,32 +22,30 @@ func (tr *Transport) renderServer(outDir string) (err error) {
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
-	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
-		if svc.tags.IsSet(tagTrace) {
-			hasTrace = true
-		}
-		if svc.tags.IsSet(tagMetrics) {
-			hasMetrics = true
-		}
+		//if svc.tags.IsSet(tagTrace) {
+		//	hasTrace = true
+		//}
+		//if svc.tags.IsSet(tagMetrics) {
+		//	hasMetrics = true
+		//}
 		srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	}
 
 	srcFile.Line().Add(tr.serverType())
 	srcFile.Line().Add(tr.serverNewFunc())
 	srcFile.Line().Add(tr.fiberFunc())
-	srcFile.Line().Add(tr.withLogFunc())
+	//srcFile.Line().Add(tr.withLogFunc())
 	srcFile.Line().Add(tr.serveHealthFunc())
 	srcFile.Line().Add(tr.sendResponseFunc())
-	srcFile.Line().Add(tr.shutdownFunc(hasMetrics))
-	if hasTrace {
-		srcFile.Line().Add(tr.withTraceFunc())
-	}
-	if hasMetrics {
-		srcFile.Line().Add(tr.withMetricsFunc())
-	}
-
+	srcFile.Line().Add(tr.shutdownFunc())
+	//if hasTrace {
+	//	srcFile.Line().Add(tr.withTraceFunc())
+	//}
+	//if hasMetrics {
+	//	srcFile.Line().Add(tr.withMetricsFunc())
+	//}
 	for _, serviceName := range tr.serviceKeys() {
 		srcFile.Line().Add(Func().Params(Id("srv").Op("*").Id("Server")).Id(serviceName).Params().Params(Op("*").Id("http" + serviceName)).Block(
 			Return(Id("srv").Dot("http" + serviceName)),
@@ -63,39 +61,49 @@ func (tr *Transport) fiberFunc() Code {
 	)
 }
 
-func (tr *Transport) withLogFunc() Code {
+//func (tr *Transport) withLogFunc() Code {
+//
+//	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+//
+//		for _, serviceName := range tr.serviceKeys() {
+//			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+//				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(),
+//			)
+//		}
+//		bg.Return(Id("srv"))
+//	})
+//}
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithLog").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
-
-		for _, serviceName := range tr.serviceKeys() {
-			bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-				Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithLog").Call(),
-			)
-		}
-		bg.Return(Id("srv"))
-	})
-}
-
-func (tr *Transport) withTraceFunc() Code {
-
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithTrace").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
-
-		for _, serviceName := range tr.serviceKeys() {
-			svc := tr.services[serviceName]
-			if svc.tags.IsSet(tagTrace) {
-				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
-				)
-			}
-		}
-		bg.Return(Id("srv"))
-	})
-}
+//func (tr *Transport) withTraceFunc() Code {
+//
+//	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithTrace").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+//
+//		for _, serviceName := range tr.serviceKeys() {
+//			svc := tr.services[serviceName]
+//			//if svc.tags.IsSet(tagTrace) {
+//			//	bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+//			//		Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithTrace").Call(),
+//			//	)
+//			//}
+//		}
+//		bg.Return(Id("srv"))
+//	})
+//}
 
 func (tr *Transport) withMetricsFunc() Code {
 
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params().Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
+	return Func().Params(Id("srv").Op("*").Id("Server")).Id("WithMetrics").Params(Id("appVersion").String()).Params(Op("*").Id("Server")).BlockFunc(func(bg *Group) {
 
+		bg.If(Id("VersionGauge").Op("==").Nil()).Block(
+			Id("VersionGauge").Op("=").Qual(packageKitPrometheus, "NewGaugeFrom").Call(Qual(packageStdPrometheus, "GaugeOpts").Values(
+				DictFunc(func(d Dict) {
+					d[Id("Name")] = Lit("count")
+					d[Id("Namespace")] = Lit("service")
+					d[Id("Subsystem")] = Lit("versions")
+					d[Id("Help")] = Lit("Versions of service parts")
+				}),
+			), Index().String().Values(Lit("part"), Lit("version"), Lit("hostname"))),
+		)
 		bg.If(Id("RequestCount").Op("==").Nil()).Block(
 			Id("RequestCount").Op("=").Qual(packageKitPrometheus, "NewCounterFrom").Call(Qual(packageStdPrometheus, "CounterOpts").Values(
 				DictFunc(func(d Dict) {
@@ -126,14 +134,17 @@ func (tr *Transport) withMetricsFunc() Code {
 				}),
 			), Index().String().Values(Lit("method"), Lit("service"), Lit("success"))),
 		)
-		for _, serviceName := range tr.serviceKeys() {
-			svc := tr.services[serviceName]
-			if svc.tags.IsSet(tagMetrics) {
-				bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
-					Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
-				)
-			}
-		}
+		bg.List(Id("hostname"), Id("_")).Op(":=").Qual(packageOS, "Hostname").Call()
+		bg.Id("VersionGauge").Dot("With").Call(Lit("part"), Lit("tg"), Lit("version"), Id("VersionTg"), Lit("hostname"), Id("hostname")).Dot("Set").Call(Lit(1))
+		bg.Id("VersionGauge").Dot("With").Call(Lit("part"), Lit("app"), Lit("version"), Id("appVersion"), Lit("hostname"), Id("hostname")).Dot("Set").Call(Lit(1))
+		//for _, serviceName := range tr.serviceKeys() {
+		//	svc := tr.services[serviceName]
+		//	if svc.tags.IsSet(tagMetrics) {
+		//		bg.If(Id("srv").Dot("http" + serviceName).Op("!=").Nil()).Block(
+		//			Id("srv").Dot("http" + serviceName).Op("=").Id("srv").Dot(serviceName).Call().Dot("WithMetrics").Call(),
+		//		)
+		//	}
+		//}
 		bg.Return(Id("srv"))
 	})
 }
@@ -208,7 +219,7 @@ func (tr *Transport) serveHealthFunc() Code {
 	)
 }
 
-func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
+func (tr *Transport) shutdownFunc() Code {
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().BlockFunc(func(bg *Group) {
 		bg.If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHTTP").Dot("Shutdown").Call(),
@@ -216,11 +227,11 @@ func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
 		bg.If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHealth").Dot("Shutdown").Call(),
 		)
-		if hasMetrics {
-			bg.If(Id("srv").Dot("srvMetrics").Op("!=").Id("nil")).Block(
-				Id("_").Op("=").Id("srv").Dot("srvMetrics").Dot("Shutdown").Call(),
-			)
-		}
+		//if hasMetrics {
+		//	bg.If(Id("srv").Dot("srvMetrics").Op("!=").Id("nil")).Block(
+		//		Id("_").Op("=").Id("srv").Dot("srvMetrics").Dot("Shutdown").Call(),
+		//	)
+		//}
 	})
 }
 

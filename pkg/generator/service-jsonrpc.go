@@ -17,6 +17,9 @@ import (
 
 func (svc *service) renderJsonRPC(outDir string) (err error) {
 
+	if err = pkgCopyTo("context", outDir); err != nil {
+		return
+	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
@@ -28,6 +31,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+	srcFile.ImportName(fmt.Sprintf("%s/context", svc.tr.pkgPath(outDir)), "context")
 
 	for _, method := range svc.methods {
 		if !method.isJsonRPC() {
@@ -36,7 +40,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 		srcFile.Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("serve" + method.Name).Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Params(Err().Error()).Block(
 			Return().Id("http").Dot("_serveMethod").Call(Id(_ctx_), Lit(method.lcName()), Id("http").Dot(method.lccName())),
 		)
-		srcFile.Add(svc.rpcMethodFunc(method))
+		srcFile.Add(svc.rpcMethodFunc(method, outDir))
 	}
 	srcFile.Add(svc.serveMethodFunc())
 	srcFile.Add(svc.batchFunc())
@@ -45,7 +49,7 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-jsonrpc.go"))
 }
 
-func (svc *service) rpcMethodFunc(method *method) Code {
+func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id(method.lccName()).
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).
@@ -53,6 +57,7 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		bg.Line()
 		bg.Var().Err().Error()
 		bg.Var().Id("request").Id(method.requestStructName())
+		bg.Var().Id("response").Id(method.responseStructName())
 		bg.Line()
 		bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
 		bg.Id("methodCtx").Op("=").
@@ -61,53 +66,65 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 			Dot("Str").Call(Lit("method"), Lit(method.fullName())).
 			Dot("Logger").Call().
 			Dot("WithContext").Call(Id("methodCtx"))
-		if svc.tags.IsSet(tagTrace) {
-			bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
-			bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
-		}
+		//if svc.tags.IsSet(tagTrace) {
+		//	bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodCtx"))
+		//	bg.Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.lccName())).Line()
+		//}
+		bg.Line()
+		bg.Defer().Func().Params().Block(
+			Id(_ctx_).Dot("SetUserContext").Call(Qual(fmt.Sprintf("%s/context", svc.tr.pkgPath(outDir)), "WithCtx").Call(
+				Id("methodCtx"),
+				Id("MethodCallMeta").Block(Dict{
+					Id("Err"):      Err(),
+					Id("Request"):  Op("&").Id("request"),
+					Id("Response"): Op("&").Id("response"),
+					Id("Service"):  Lit(svc.lcName()),
+					Id("Method"):   Lit(method.lcName()),
+				}),
+			)),
+		).Call()
 		bg.If(Id("requestBase").Dot("Params").Op("!=").Nil()).Block(
 			If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("requestBase").Dot("Params"), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 			}),
 		)
 		bg.If(Id("requestBase").Dot("Version").Op("!=").Id("Version")).BlockFunc(func(ig *Group) {
-			if svc.tags.IsSet(tagTrace) {
-				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-				ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("incorrect protocol version: ").Op("+").Id("requestBase").Dot("Version"))
-			}
+			//if svc.tags.IsSet(tagTrace) {
+			//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+			//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("incorrect protocol version: ").Op("+").Id("requestBase").Dot("Version"))
+			//}
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("incorrect protocol version: ").Op("+").Id("requestBase").Dot("Version"), Nil()))
 		})
 		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
-			if svc.tags.IsSet(tagTrace) {
-				return Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
-					Line().If(Err().Op("!=").Nil()).Block(
-					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
-					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
-				)
-			}
-			return Line().If(Err().Op("!=").Nil()).Block(
-				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			//if svc.tags.IsSet(tagTrace) {
+			//	return Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+			//		If(Err().Op("!=").Nil()).Block(
+			//		Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+			//		Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
+			//		Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			//	)
+			//}
+			return If(Err().Op("!=").Nil()).Block(
+				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
 		bg.Add(method.httpCookies(func(arg, header string) *Statement {
-			if svc.tags.IsSet(tagTrace) {
-				return Line().Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
-					Line().If(Err().Op("!=").Nil()).Block(
-					Line().Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
-					Line().Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
-					Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
-				)
-			}
-			return Line().If(Err().Op("!=").Nil()).Block(
-				Line().Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			//if svc.tags.IsSet(tagTrace) {
+			//	return Id("span").Dot("SetTag").Call(Lit(header), Id("_"+arg)).
+			//		If(Err().Op("!=").Nil()).Block(
+			//		Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True()),
+			//		Id("span").Dot("SetTag").Call(Lit("msg"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call()),
+			//		Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+			//	)
+			//}
+			return If(Err().Op("!=").Nil()).Block(
+				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
-		bg.Var().Id("response").Id(method.responseStructName())
 		bg.ListFunc(func(lg *Group) {
 			for _, ret := range method.resultsWithoutError() {
 				lg.Id("response").Dot(utils.ToCamel(ret.Name))
@@ -127,11 +144,11 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 			ig.If(Id("http").Dot("errorHandler").Op("!=").Nil()).Block(
 				Err().Op("=").Id("http").Dot("errorHandler").Call(Err()),
 			)
-			if svc.tags.IsSet(tagTrace) {
-				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-				ig.Id("span").Dot("SetTag").Call(Lit("msg"), Err())
-				ig.Id("span").Dot("SetTag").Call(Lit("errData"), Id("toString").Call(Err()))
-			}
+			//if svc.tags.IsSet(tagTrace) {
+			//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+			//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Err())
+			//	ig.Id("span").Dot("SetTag").Call(Lit("errData"), Id("toString").Call(Err()))
+			//}
 			ig.Id("code").Op(":=").Id("internalError")
 			ig.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
 				Id("code").Op("=").Id("errCoder").Dot("Code").Call(),
@@ -144,10 +161,10 @@ func (svc *service) rpcMethodFunc(method *method) Code {
 		})
 
 		bg.If(List(Id("responseBase").Dot("Result"), Err()).Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("response")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-			if svc.tags.IsSet(tagTrace) {
-				ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-				ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call())
-			}
+			//if svc.tags.IsSet(tagTrace) {
+			//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+			//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call())
+			//}
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 		})
 		bg.Return()
@@ -165,16 +182,16 @@ func (svc *service) serveMethodFunc() Code {
 		Params(Err().Error()).
 		BlockFunc(func(bg *Group) {
 			bg.Line()
-			if svc.tags.IsSet(tagTrace) {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
-				bg.Id("span").Dot("SetTag").Call(Lit("method"), Id("methodName")).Line()
-			}
+			//if svc.tags.IsSet(tagTrace) {
+			//	bg.Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
+			//	bg.Id("span").Dot("SetTag").Call(Lit("method"), Id("methodName")).Line()
+			//}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
 			bg.If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported"))
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported"))
+				//}
 				ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusMethodNotAllowed"))
 				ig.If(List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("only POST method supported")).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),
@@ -183,20 +200,20 @@ func (svc *service) serveMethodFunc() Code {
 			bg.Var().Id("request").Id("baseJsonRPC")
 			bg.Var().Id("response").Op("*").Id("baseJsonRPC")
 			bg.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 			})
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
 
 			bg.If(Id("method").Op("!=").Lit("").Op("&&").Id("method").Op("!=").Id("methodName")).BlockFunc(func(ig *Group) {
-				if svc.tags.IsSet(tagTrace) {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-					ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method ").Op("+").Id("methodNameOrigin"))
-				}
+				//if svc.tags.IsSet(tagTrace) {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+				//	ig.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method ").Op("+").Id("methodNameOrigin"))
+				//}
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil()))
 			})
 			bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_), Id("request"))
@@ -260,20 +277,20 @@ func (svc *service) singleBatchFunc() Code {
 		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
-			if svc.tr.hasTrace() {
-				bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
-			}
+			//if svc.tr.hasTrace() {
+			//	bg.Id("methodContext").Op(":=").Id(_ctx_).Dot("UserContext").Call()
+			//}
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
 			bg.Id("method").Op(":=").Qual(packageStrings, "ToLower").Call(Id("request").Dot("Method"))
-			if svc.tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodContext"))
-			}
-			if svc.tr.hasTrace() {
-				bg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").
-					Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
-				bg.Defer().Id("span").Dot("Finish").Call()
-				bg.Id("methodContext").Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))
-			}
+			//if svc.tr.hasTrace() {
+			//	bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id("methodContext"))
+			//}
+			//if svc.tr.hasTrace() {
+			//	bg.Id("span").Op(":=").Qual(packageOpentracing, "StartSpan").
+			//		Call(Id("request").Dot("Method"), Qual(packageOpentracing, "ChildOf").Call(Id("batchSpan").Dot("Context").Call()))
+			//	bg.Defer().Id("span").Dot("Finish").Call()
+			//	bg.Id("methodContext").Op("=").Qual(packageOpentracing, "ContextWithSpan").Call(Id(_ctx_).Dot("UserContext").Call(), Id("span"))
+			//}
 			bg.Switch(Id("method")).BlockFunc(
 				func(sg *Group) {
 					for _, method := range svc.methods {
@@ -285,10 +302,10 @@ func (svc *service) singleBatchFunc() Code {
 						)
 					}
 					sg.Default().BlockFunc(func(dg *Group) {
-						if svc.tr.hasTrace() {
-							dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
-							dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
-						}
+						//if svc.tr.hasTrace() {
+						//	dg.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("span"), True())
+						//	dg.Id("span").Dot("SetTag").Call(Lit("msg"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"))
+						//}
 						dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
 					})
 				})
@@ -303,15 +320,15 @@ func (svc *service) serveBatchFunc() Code {
 			bg.Line()
 			bg.Var().Id("single").Bool()
 			bg.Var().Id("requests").Op("[]").Id("baseJsonRPC")
-			if svc.tr.hasTrace() {
-				bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
-			}
+			//if svc.tr.hasTrace() {
+			//	bg.Id("batchSpan").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_).Dot("UserContext").Call())
+			//}
 			bg.Id("methodHTTP").Op(":=").Id(_ctx_).Dot("Method").Call()
 			bg.If(Id("methodHTTP").Op("!=").Qual(packageFiber, "MethodPost")).BlockFunc(func(ig *Group) {
-				if svc.tr.hasTrace() {
-					ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
-					ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported"))
-				}
+				//if svc.tr.hasTrace() {
+				//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
+				//	ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("only POST method supported"))
+				//}
 				ig.Id(_ctx_).Dot("Response").Call().Dot("SetStatusCode").Call(Qual(packageFiber, "StatusMethodNotAllowed"))
 				ig.If(List(Id("_"), Err()).Op("=").Id(_ctx_).Dot("WriteString").Call(Lit("only POST method supported")).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),
@@ -321,10 +338,10 @@ func (svc *service) serveBatchFunc() Code {
 			bg.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("requests")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Var().Id("request").Id("baseJsonRPC")
 				ig.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id(_ctx_).Dot("Body").Call(), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
-					if svc.tr.hasTrace() {
-						ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
-						ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
-					}
+					//if svc.tr.hasTrace() {
+					//	ig.Qual(packageOpentracingExt, "Error").Dot("Set").Call(Id("batchSpan"), True())
+					//	ig.Id("batchSpan").Dot("SetTag").Call(Lit("msg"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call())
+					//}
 					ig.Return().Id("sendResponse").Call(Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Op("[]").Byte().Call(Lit(`"0"`)), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 				})
 				ig.Id("single").Op("=").True()

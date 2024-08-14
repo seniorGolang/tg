@@ -8,11 +8,9 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"strings"
 
 	. "github.com/dave/jennifer/jen"
 
-	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
@@ -66,22 +64,12 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					d[Lit("method")] = Lit(method.fullName())
-					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
-					params := removeSkippedFields(method.argsFieldsWithoutContext(), skipFields)
-					originParams := removeSkippedFields(method.argsWithoutContext(), skipFields)
+					params := method.argsFieldsWithoutContext()
+					originParams := method.argsWithoutContext()
 					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, originParams)))
-					printResult := true
-					for _, field := range skipFields {
-						if strings.TrimSpace(field) == "response" {
-							printResult = false
-							break
-						}
-					}
 					returns := method.resultFieldsWithoutError()
 					originReturns := method.resultsWithoutError()
-					if printResult {
-						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
-					}
+					d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
 				}))
 				// .Func(logHandle)
 				fg.Id("ev").Dot("Fields").Call(Id("fields")).

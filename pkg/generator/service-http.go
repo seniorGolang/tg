@@ -40,13 +40,13 @@ func (svc *service) renderHTTP(outDir string) (err error) {
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("Service").Params().Params(Op("*").Id("server" + svc.Name)).Block(
 		Return(Id("http").Dot("svc")),
 	)
-	srcFile.Line().Add(svc.withLogFunc())
-	if svc.tags.IsSet(tagTrace) {
-		srcFile.Line().Add(svc.withTraceFunc())
-	}
-	if svc.tags.IsSet(tagMetrics) {
-		srcFile.Line().Add(svc.withMetricsFunc())
-	}
+	//srcFile.Line().Add(svc.withLogFunc())
+	//if svc.tags.IsSet(tagTrace) {
+	//	srcFile.Line().Add(svc.withTraceFunc())
+	//}
+	//if svc.tags.IsSet(tagMetrics) {
+	//	srcFile.Line().Add(svc.withMetricsFunc())
+	//}
 	srcFile.Line().Add(svc.withErrorHandler())
 
 	srcFile.Line().Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("SetRoutes").Params(Id("route").Op("*").Qual(packageFiber, "App")).BlockFunc(func(bg *Group) {
@@ -86,29 +86,29 @@ func (svc *service) withErrorHandler() Code {
 	})
 }
 
-func (svc *service) withLogFunc() Code {
+//func (svc *service) withLogFunc() Code {
+//
+//	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithLog").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+//
+//		bg.Id("http").Dot("svc").Dot("WithLog").Call()
+//		bg.Return(Id("http"))
+//	})
+//}
 
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithLog").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
-
-		bg.Id("http").Dot("svc").Dot("WithLog").Call()
-		bg.Return(Id("http"))
-	})
-}
-
-func (svc *service) withTraceFunc() Code {
-
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithTrace").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
-
-		bg.Id("http").Dot("svc").Dot("WithTrace").Call()
-		bg.Return(Id("http"))
-	})
-}
-
-func (svc *service) withMetricsFunc() Code {
-
-	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithMetrics").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
-
-		bg.Id("http").Dot("svc").Dot("WithMetrics").Call()
-		bg.Return(Id("http"))
-	})
-}
+//func (svc *service) withTraceFunc() Code {
+//
+//	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithTrace").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+//
+//		bg.Id("http").Dot("svc").Dot("WithTrace").Call()
+//		bg.Return(Id("http"))
+//	})
+//}
+//
+//func (svc *service) withMetricsFunc() Code {
+//
+//	return Func().Params(Id("http").Op("*").Id("http" + svc.Name)).Id("WithMetrics").Params().Params(Op("*").Id("http" + svc.Name)).BlockFunc(func(bg *Group) {
+//
+//		bg.Id("http").Dot("svc").Dot("WithMetrics").Call()
+//		bg.Return(Id("http"))
+//	})
+//}
