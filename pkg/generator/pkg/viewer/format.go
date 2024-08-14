@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -83,7 +82,6 @@ func (f *formatState) formatPtr(v reflect.Value) {
 	indirect := 0
 	nilFound := false
 	cycleFound := false
-	pointerChain := make([]uintptr, 0)
 
 	for ve.Kind() == reflect.Ptr {
 		if ve.IsNil() {
@@ -92,7 +90,6 @@ func (f *formatState) formatPtr(v reflect.Value) {
 		}
 		indirect++
 		addr := ve.Pointer()
-		pointerChain = append(pointerChain, addr)
 		if pd, ok := f.pointers[addr]; ok && pd < f.depth {
 			cycleFound = true
 			indirect--
@@ -113,12 +110,7 @@ func (f *formatState) formatPtr(v reflect.Value) {
 		_, _ = f.fs.Write(bytes.Repeat(asteriskBytes, indirect))
 		_, _ = f.fs.Write([]byte(ve.Type().String()))
 		_, _ = f.fs.Write(closeParenBytes)
-	} else {
-		if nilFound || cycleFound {
-			indirect += strings.Count(ve.Type().String(), "*")
-		}
 	}
-
 	switch {
 	case nilFound:
 		_, _ = f.fs.Write(nilAngleBytes)

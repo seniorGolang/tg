@@ -215,7 +215,7 @@ services:
 				swaggerDoc.Paths[method.jsonrpcPath()] = swPath{Post: postMethod}
 			} else if service.tags.Contains(tagServerHTTP) && method.tags.Contains(tagMethodHTTP) {
 				doc.log.WithField("module", "swagger").Infof("service %s append HTTP method %s", serviceTags, method.Name)
-				httpValue, found := swaggerDoc.Paths[method.jsonrpcPath()]
+				httpValue, found := swaggerDoc.Paths[method.httpPathSwagger()]
 				if !found {
 					swaggerDoc.Paths[method.httpPathSwagger()] = swPath{}
 				}

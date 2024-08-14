@@ -77,7 +77,7 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 	}
 	jsFile.add("}\n")
 	for _, def := range ts.typeDefTs {
-		jsFile.add(def.ts())
+		jsFile.add(def.ts()) // nolint
 	}
 	jsFile.add("}\n\n")
 	return os.WriteFile(outFilename, jsFile.Bytes(), 0600)
