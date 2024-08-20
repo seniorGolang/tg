@@ -43,9 +43,9 @@ func (svc *service) metricsMiddleware() Code {
 			g.Return(Op("&").Id("metrics" + svc.Name).Values(
 				Dict{
 					Id(_next_):            Id(_next_),
-					Id("requestCount"):    Id("RequestCount").Op(".").Id("With").Call(Lit("service"), Lit(svc.Name)),
-					Id("requestCountAll"): Id("RequestCountAll").Op(".").Id("With").Call(Lit("service"), Lit(svc.Name)),
-					Id("requestLatency"):  Id("RequestLatency").Op(".").Id("With").Call(Lit("service"), Lit(svc.Name)),
+					Id("requestCount"):    Id("RequestCount").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
+					Id("requestCountAll"): Id("RequestCountAll").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
+					Id("requestLatency"):  Id("RequestLatency").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
 				},
 			))
 		})

@@ -118,7 +118,7 @@ func (js *clientJS) render(outDir string) (err error) {
 				for _, ret := range method.results() {
 					fields = append(fields, fmt.Sprintf("%s: %s", ret.Name, js.walkVariable(ret.Name, svc.pkgPath, ret.Type, method.tags).typeLink()))
 				}
-				jsFile.add(strings.Join(fields, ","))
+				jsFile.add(strings.Join(fields, ",")) // nolint
 				jsFile.add("}>}\n")
 			}
 			jsFile.add("**/\n")
@@ -132,14 +132,14 @@ func (js *clientJS) render(outDir string) (err error) {
 				}
 				fields = append(fields, prefix+utils.ToLowerCamel(arg.Name))
 			}
-			jsFile.add(strings.Join(fields, ","))
+			jsFile.add(strings.Join(fields, ",")) // nolint
 			jsFile.add(") {\n")
 			jsFile.add("return this.scheduler.__scheduleRequest(\"%s\", {", svc.lccName()+"."+method.lccName())
 			fields = []string{}
 			for _, arg := range method.arguments() {
 				fields = append(fields, fmt.Sprintf("%[1]s:%[1]s", utils.ToLowerCamel(arg.Name)))
 			}
-			jsFile.add(strings.Join(fields, ","))
+			jsFile.add(strings.Join(fields, ",")) // nolint
 			jsFile.add("}).catch(e => { throw ")
 			jsFile.add("%sConvertError(e)", utils.ToLowerCamel(method.fullName()))
 			jsFile.add("; })\n")
@@ -173,7 +173,7 @@ func (js *clientJS) render(outDir string) (err error) {
 		}
 	}
 	for _, def := range js.typeDef {
-		jsFile.add(def.js())
+		jsFile.add(def.js()) // nolint
 	}
 	return os.WriteFile(outFilename, jsFile.Bytes(), 0600)
 }
