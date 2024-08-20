@@ -29,8 +29,8 @@ type swagger struct {
 	*Transport
 
 	schemas    swSchemas
-	aliasTypes map[string]int
-	knownTypes map[string]int
+	knownCount map[string]int
+	knownTypes map[string]swSchema
 }
 
 func newSwagger(tr *Transport) (doc *swagger) {
@@ -38,8 +38,8 @@ func newSwagger(tr *Transport) (doc *swagger) {
 	doc = &swagger{
 		Transport:  tr,
 		schemas:    make(swSchemas),
-		aliasTypes: make(map[string]int),
-		knownTypes: make(map[string]int),
+		knownCount: make(map[string]int),
+		knownTypes: make(map[string]swSchema),
 	}
 	return
 }

@@ -84,6 +84,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 	case types.TMap:
 		schema.Type = "object"
 		schema.AdditionalProperties = doc.walkVariable(typeName, pkgPath, vType.Value, nil)
+		return
 	case types.TArray:
 		schema.Type = "array"
 		schema.Maximum = vType.ArrayLen
@@ -118,20 +119,22 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			schema.Type = vType.TypeName
 			return
 		}
-		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
-			if doc.knownCount(typeName) < 1 {
-				doc.knownInc(typeName)
-				doc.schemas[typeName] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
-			}
+		if schema, found = doc.schemas[typeName]; found {
+			return
+		}
+		if doc.knownCount[typeName] > 0 {
 			return doc.toSchema(doc.normalizeTypeName(vType.TypeName, pkgPath))
+		}
+		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
+			doc.knownCount[typeName]++
+			return doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
 		}
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
-			schema = doc.toSchema(doc.normalizeTypeName(vType.Next.String(), vType.Import.Package))
-			if _, found = doc.schemas[typeName]; found {
-				return
+			if _, found = doc.schemas[typeName]; !found {
+				doc.schemas[typeName] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
 			}
-			doc.schemas[typeName] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
+			return doc.toSchema(doc.normalizeTypeName(vType.Next.String(), vType.Import.Package))
 		}
 	case types.TEllipsis:
 		schema.Type = "array"
@@ -337,32 +340,4 @@ func isLowerStart(s string) bool {
 		break // nolint
 	}
 	return false
-}
-
-func (doc *swagger) knownCount(typeName string) int {
-	if _, found := doc.knownTypes[typeName]; !found {
-		return 0
-	}
-	return doc.knownTypes[typeName]
-}
-
-func (doc *swagger) knownInc(typeName string) {
-	if _, found := doc.knownTypes[typeName]; !found {
-		doc.knownTypes[typeName] = 0
-	}
-	doc.knownTypes[typeName]++
-}
-
-func (doc *swagger) aliasCount(typeName string) int { // nolint
-	if _, found := doc.aliasTypes[typeName]; !found {
-		return 0
-	}
-	return doc.knownTypes[typeName]
-}
-
-func (doc *swagger) aliasInc(typeName string) { // nolint
-	if _, found := doc.aliasTypes[typeName]; !found {
-		doc.knownTypes[typeName] = 0
-	}
-	doc.knownTypes[typeName]++
 }
