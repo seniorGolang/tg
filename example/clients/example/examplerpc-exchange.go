@@ -2,23 +2,23 @@
 package example
 
 type requestExampleRPCTest struct {
-	Arg0 int           `json:"arg0"`
-	Arg1 string        `json:"arg1"`
-	Opts []interface{} `json:"opts"` // This field was defined with ellipsis (...).
+	Arg0 int           `json:"arg0,omitempty"`
+	Arg1 string        `json:"arg1,omitempty"`
+	Opts []interface{} `json:"opts,omitempty"` // This field was defined with ellipsis (...).
 }
 
 type responseExampleRPCTest struct {
-	Ret1 int    `json:"ret1"`
-	Ret2 string `json:"ret2"`
+	Ret1 int    `json:"ret1,omitempty"`
+	Ret2 string `json:"ret2,omitempty"`
 }
 
 type requestExampleRPCTest2 struct {
-	Arg0 int           `json:"arg0"`
-	Arg1 string        `json:"arg1"`
-	Opts []interface{} `json:"opts"` // This field was defined with ellipsis (...).
+	Arg0 int           `json:"arg0,omitempty"`
+	Arg1 string        `json:"arg1,omitempty"`
+	Opts []interface{} `json:"opts,omitempty"` // This field was defined with ellipsis (...).
 }
 
 type responseExampleRPCTest2 struct {
-	Ret1 int    `json:"ret1"`
-	Ret2 string `json:"ret2"`
+	Ret1 int    `json:"ret1,omitempty"`
+	Ret2 string `json:"ret2,omitempty"`
 }

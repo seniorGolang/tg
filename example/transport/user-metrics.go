@@ -4,63 +4,48 @@ package transport
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/kit/metrics"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 	"time"
 )
 
 type metricsUser struct {
-	next            interfaces.User
-	requestCount    metrics.Counter
-	requestCountAll metrics.Counter
-	requestLatency  metrics.Histogram
+	next interfaces.User
 }
 
 func metricsMiddlewareUser(next interfaces.User) interfaces.User {
-	return &metricsUser{
-		next:            next,
-		requestCount:    RequestCount.With("service", "User"),
-		requestCountAll: RequestCountAll.With("service", "User"),
-		requestLatency:  RequestLatency.With("service", "User"),
-	}
+	return &metricsUser{next: next}
 }
 
 func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "getUser", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		RequestCount.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Add(1)
+		RequestCountAll.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Add(1)
+		RequestLatency.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
-
-	defer m.requestCount.With("method", "getUser", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "getUser").Add(1)
 
 	return m.next.GetUser(ctx, cookie, userAgent)
 }
 
 func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "customResponse", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		RequestCount.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Add(1)
+		RequestCountAll.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Add(1)
+		RequestLatency.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
-
-	defer m.requestCount.With("method", "customResponse", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "customResponse").Add(1)
 
 	return m.next.CustomResponse(ctx, arg0, arg1, opts...)
 }
 
 func (m metricsUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "customHandler", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		RequestCount.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Add(1)
+		RequestCountAll.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Add(1)
+		RequestLatency.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
-
-	defer m.requestCount.With("method", "customHandler", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "customHandler").Add(1)
 
 	return m.next.CustomHandler(ctx, arg0, arg1, opts...)
 }

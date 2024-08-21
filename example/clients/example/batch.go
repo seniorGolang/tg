@@ -3,6 +3,7 @@ package example
 
 import (
 	"context"
+	"github.com/seniorGolang/tg/v2/example/clients/example/cb"
 	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
 )
 
@@ -23,10 +24,19 @@ func (cli *ClientJsonRPC) Batch(ctx context.Context, requests ...RequestRPC) {
 	}
 	var err error
 	var rpcResponses jsonrpc.ResponsesRPC
-	rpcResponses, err = cli.rpc.CallBatch(ctx, rpcRequests)
-	for id, response := range rpcResponses.AsMap() {
-		if callback := callbacks[id]; callback != nil {
-			callback(err, response)
+	if cli.cb.State() == cb.StateClosed {
+		rpcResponses, err = cli.rpc.CallBatch(ctx, rpcRequests)
+		if rpcResponses == nil {
+			return
 		}
+		for id, response := range rpcResponses.AsMap() {
+			if callback := callbacks[id]; callback != nil {
+				callback(err, response)
+			}
+		}
+		return
+	}
+	for _, callback := range callbacks {
+		callback(cb.ErrOpenState, nil)
 	}
 }

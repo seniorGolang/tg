@@ -23,6 +23,25 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
+func removeSkippedFields(fields []types.Variable, skipFields []string) []types.Variable {
+
+	var result []types.Variable
+
+	for _, field := range fields {
+		add := true
+		for _, skip := range skipFields {
+			if strings.TrimSpace(skip) == field.Name {
+				add = false
+				break
+			}
+		}
+		if add {
+			result = append(result, field)
+		}
+	}
+	return result
+}
+
 func isContextFirst(fields []types.Variable) bool {
 	if len(fields) == 0 {
 		return false

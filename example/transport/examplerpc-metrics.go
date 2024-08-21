@@ -4,49 +4,36 @@ package transport
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/kit/metrics"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"time"
 )
 
 type metricsExampleRPC struct {
-	next            interfaces.ExampleRPC
-	requestCount    metrics.Counter
-	requestCountAll metrics.Counter
-	requestLatency  metrics.Histogram
+	next interfaces.ExampleRPC
 }
 
 func metricsMiddlewareExampleRPC(next interfaces.ExampleRPC) interfaces.ExampleRPC {
-	return &metricsExampleRPC{
-		next:            next,
-		requestCount:    RequestCount.With("service", "ExampleRPC"),
-		requestCountAll: RequestCountAll.With("service", "ExampleRPC"),
-		requestLatency:  RequestLatency.With("service", "ExampleRPC"),
-	}
+	return &metricsExampleRPC{next: next}
 }
 
 func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "test", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		RequestCount.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Add(1)
+		RequestCountAll.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Add(1)
+		RequestLatency.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
-
-	defer m.requestCount.With("method", "test", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "test").Add(1)
 
 	return m.next.Test(ctx, arg0, arg1, opts...)
 }
 
 func (m metricsExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
-	defer func(begin time.Time) {
-		m.requestLatency.With("method", "test2", "success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
+	defer func(_begin time.Time) {
+		RequestCount.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Add(1)
+		RequestCountAll.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Add(1)
+		RequestLatency.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
-
-	defer m.requestCount.With("method", "test2", "success", fmt.Sprint(err == nil)).Add(1)
-
-	m.requestCountAll.With("method", "test2").Add(1)
 
 	return m.next.Test2(ctx, arg0, arg1, opts...)
 }

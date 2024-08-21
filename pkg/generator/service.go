@@ -79,15 +79,15 @@ func (svc *service) render(outDir string) (err error) {
 	if svc.tags.Contains(tagTests) {
 		showError(svc.log, svc.renderTest(svc.testsPath), "renderTest")
 	}
-	//if svc.tags.Contains(tagTrace) {
-	//	showError(svc.log, svc.renderTrace(outDir), "renderTrace")
-	//}
-	//if svc.tags.Contains(tagMetrics) {
-	//	showError(svc.log, svc.renderMetrics(outDir), "renderMetrics")
-	//}
-	//if svc.tags.Contains(tagLogger) {
-	//	showError(svc.log, svc.renderLogger(outDir), "renderLogger")
-	//}
+	if svc.tags.Contains(tagTrace) {
+		showError(svc.log, svc.renderTrace(outDir), "renderTrace")
+	}
+	if svc.tags.Contains(tagMetrics) {
+		showError(svc.log, svc.renderMetrics(outDir), "renderMetrics")
+	}
+	if svc.tags.Contains(tagLogger) {
+		showError(svc.log, svc.renderLogger(outDir), "renderLogger")
+	}
 	if svc.tags.Contains(tagServerJsonRPC) {
 		showError(svc.log, svc.renderJsonRPC(outDir), "renderJsonRPC")
 	}

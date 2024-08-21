@@ -27,8 +27,6 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 	srcFile.ImportName(packageErrors, "errors")
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportAlias(packageOpentracing, "otg")
-	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(fmt.Sprintf("%s/context", svc.tr.pkgPath(outDir)), "context")
@@ -108,7 +106,7 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 			//		Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			//	)
 			//}
-			return If(Err().Op("!=").Nil()).Block(
+			return Line().If(Err().Op("!=").Nil()).Block(
 				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))
@@ -121,7 +119,7 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 			//		Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			//	)
 			//}
-			return If(Err().Op("!=").Nil()).Block(
+			return Line().If(Err().Op("!=").Nil()).Block(
 				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
 			)
 		}))

@@ -3,8 +3,10 @@ package transport
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
+	"fmt"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
+	otel "go.opentelemetry.io/otel"
+	trace "go.opentelemetry.io/otel/trace"
 )
 
 type traceExampleRPC struct {
@@ -16,13 +18,23 @@ func traceMiddlewareExampleRPC(next interfaces.ExampleRPC) interfaces.ExampleRPC
 }
 
 func (svc traceExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("method", "Test")
+
+	var span trace.Span
+	ctx, span = otel.Tracer(fmt.Sprintf("tg:%s", VersionTg)).Start(ctx, "exampleRPC.test")
+	defer func() {
+		span.RecordError(err)
+		span.End()
+	}()
 	return svc.next.Test(ctx, arg0, arg1, opts...)
 }
 
 func (svc traceExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("method", "Test2")
+
+	var span trace.Span
+	ctx, span = otel.Tracer(fmt.Sprintf("tg:%s", VersionTg)).Start(ctx, "exampleRPC.test2")
+	defer func() {
+		span.RecordError(err)
+		span.End()
+	}()
 	return svc.next.Test2(ctx, arg0, arg1, opts...)
 }

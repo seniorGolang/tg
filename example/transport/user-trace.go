@@ -3,9 +3,11 @@ package transport
 
 import (
 	"context"
-	"github.com/opentracing/opentracing-go"
+	"fmt"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
+	otel "go.opentelemetry.io/otel"
+	trace "go.opentelemetry.io/otel/trace"
 )
 
 type traceUser struct {
@@ -17,19 +19,34 @@ func traceMiddlewareUser(next interfaces.User) interfaces.User {
 }
 
 func (svc traceUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("method", "GetUser")
+
+	var span trace.Span
+	ctx, span = otel.Tracer(fmt.Sprintf("tg:%s", VersionTg)).Start(ctx, "user.getUser")
+	defer func() {
+		span.RecordError(err)
+		span.End()
+	}()
 	return svc.next.GetUser(ctx, cookie, userAgent)
 }
 
 func (svc traceUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("method", "CustomResponse")
+
+	var span trace.Span
+	ctx, span = otel.Tracer(fmt.Sprintf("tg:%s", VersionTg)).Start(ctx, "user.customResponse")
+	defer func() {
+		span.RecordError(err)
+		span.End()
+	}()
 	return svc.next.CustomResponse(ctx, arg0, arg1, opts...)
 }
 
 func (svc traceUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
-	span := opentracing.SpanFromContext(ctx)
-	span.SetTag("method", "CustomHandler")
+
+	var span trace.Span
+	ctx, span = otel.Tracer(fmt.Sprintf("tg:%s", VersionTg)).Start(ctx, "user.customHandler")
+	defer func() {
+		span.RecordError(err)
+		span.End()
+	}()
 	return svc.next.CustomHandler(ctx, arg0, arg1, opts...)
 }

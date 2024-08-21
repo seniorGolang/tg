@@ -2,11 +2,17 @@
 package transport
 
 import (
+	"context"
 	"github.com/gofiber/fiber/v2"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
+	"github.com/seniorGolang/tg/v2/example/transport/tracer"
+	attribute "go.opentelemetry.io/otel/attribute"
 	"io"
+	"os"
 )
 
 type Server struct {
@@ -17,8 +23,9 @@ type Server struct {
 
 	config fiber.Config
 
-	srvHTTP   *fiber.App
-	srvHealth *fiber.App
+	srvHTTP    *fiber.App
+	srvHealth  *fiber.App
+	srvMetrics *fiber.App
 
 	reporterCloser io.Closer
 
@@ -44,6 +51,7 @@ func New(log zerolog.Logger, options ...Option) (srv *Server) {
 	}
 	srv.srvHTTP = fiber.New(srv.config)
 	srv.srvHTTP.Use(recoverHandler)
+	srv.srvHTTP.Use(tracer.Middleware())
 	srv.srvHTTP.Use(srv.setLogger)
 	srv.srvHTTP.Use(srv.logLevelHandler)
 	srv.srvHTTP.Use(srv.headersHandler)
@@ -94,12 +102,14 @@ func (srv *Server) Shutdown() {
 	if srv.srvHealth != nil {
 		_ = srv.srvHealth.Shutdown()
 	}
-	if srvMetrics != nil {
-		_ = srvMetrics.Shutdown()
+	if srv.srvMetrics != nil {
+		_ = srv.srvMetrics.Shutdown()
 	}
 }
 
-func (srv *Server) WithTrace() *Server {
+func (srv *Server) WithTrace(ctx context.Context, appName string, endpoint string, attributes ...attribute.KeyValue) *Server {
+
+	tracer.Init(ctx, appName, endpoint, attributes...)
 	if srv.httpExampleRPC != nil {
 		srv.httpExampleRPC = srv.ExampleRPC().WithTrace()
 	}
@@ -110,6 +120,40 @@ func (srv *Server) WithTrace() *Server {
 }
 
 func (srv *Server) WithMetrics() *Server {
+	if VersionGauge == nil {
+		VersionGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
+			Help:      "Versions of service parts",
+			Name:      "count",
+			Namespace: "service",
+			Subsystem: "versions",
+		}, []string{"part", "version", "hostname"})
+	}
+	if RequestCount == nil {
+		RequestCount = promauto.NewCounterVec(prometheus.CounterOpts{
+			Help:      "Number of requests received",
+			Name:      "count",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"service", "method", "success"})
+	}
+	if RequestCountAll == nil {
+		RequestCountAll = promauto.NewCounterVec(prometheus.CounterOpts{
+			Help:      "Number of all requests received",
+			Name:      "all_count",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"service", "method", "success"})
+	}
+	if RequestLatency == nil {
+		RequestLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
+			Help:      "Total duration of requests in microseconds",
+			Name:      "latency_microseconds",
+			Namespace: "service",
+			Subsystem: "requests",
+		}, []string{"service", "method", "success"})
+	}
+	hostname, _ := os.Hostname()
+	VersionGauge.WithLabelValues("tg", VersionTg, hostname).Set(1)
 	if srv.httpExampleRPC != nil {
 		srv.httpExampleRPC = srv.ExampleRPC().WithMetrics()
 	}

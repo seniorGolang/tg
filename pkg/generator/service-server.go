@@ -50,23 +50,23 @@ func (svc *service) renderServer(outDir string) (err error) {
 		)
 	}
 
-	//if svc.tags.Contains(tagTrace) {
-	//	srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithTrace").Params().Block(
-	//		Id("srv").Dot("Wrap").Call(Id("traceMiddleware" + svc.Name)),
-	//	)
-	//}
-	//
-	//if svc.tags.Contains(tagMetrics) {
-	//	srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithMetrics").Params().Block(
-	//		Id("srv").Dot("Wrap").Call(Id("metricsMiddleware" + svc.Name)),
-	//	)
-	//}
-	//
-	//if svc.tags.Contains(tagLogger) {
-	//	srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params().Block(
-	//		Id("srv").Dot("Wrap").Call(Id("loggerMiddleware" + svc.Name).Call()),
-	//	)
-	//}
+	if svc.tags.Contains(tagTrace) {
+		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithTrace").Params().Block(
+			Id("srv").Dot("Wrap").Call(Id("traceMiddleware" + svc.Name)),
+		)
+	}
+
+	if svc.tags.Contains(tagMetrics) {
+		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithMetrics").Params().Block(
+			Id("srv").Dot("Wrap").Call(Id("metricsMiddleware" + svc.Name)),
+		)
+	}
+
+	if svc.tags.Contains(tagLogger) {
+		srcFile.Line().Func().Params(Id("srv").Op("*").Id("server" + svc.Name)).Id("WithLog").Params().Block(
+			Id("srv").Dot("Wrap").Call(Id("loggerMiddleware" + svc.Name).Call()),
+		)
+	}
 
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-server.go"))
 }
@@ -119,12 +119,12 @@ func (svc *service) middlewareSetType() Code {
 			ig.Id("Wrap" + method.Name).Params(Id("m").Id("Middleware" + svc.Name + method.Name))
 		}
 		ig.Line()
-		//if svc.tags.IsSet(tagTrace) {
-		//	ig.Id("WithTrace").Params()
-		//}
-		//if svc.tags.IsSet(tagMetrics) {
-		//	ig.Id("WithMetrics").Params()
-		//}
-		//ig.Id("WithLog").Params()
+		if svc.tags.IsSet(tagTrace) {
+			ig.Id("WithTrace").Params()
+		}
+		if svc.tags.IsSet(tagMetrics) {
+			ig.Id("WithMetrics").Params()
+		}
+		ig.Id("WithLog").Params()
 	})
 }

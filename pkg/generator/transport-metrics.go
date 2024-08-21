@@ -16,15 +16,17 @@ func (tr *Transport) renderMetrics(outDir string) (err error) {
 
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportAlias(packageKitPrometheus, "kitPrometheus")
-	srcFile.ImportAlias(packageStdPrometheus, "stdPrometheus")
+	srcFile.ImportAlias(packagePrometheus, "prometheus")
 
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(packageGoKitMetrics, "metrics")
 	srcFile.ImportName(packageFiberAdaptor, "adaptor")
-	srcFile.ImportName(packageGoKitEndpoint, "endpoint")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
+
+	srcFile.Add(Var().Id("VersionGauge").Op("*").Qual(packagePrometheus, "GaugeVec"))
+	srcFile.Add(Var().Id("RequestCount").Op("*").Qual(packagePrometheus, "CounterVec"))
+	srcFile.Add(Var().Id("RequestCountAll").Op("*").Qual(packagePrometheus, "CounterVec"))
+	srcFile.Add(Var().Id("RequestLatency").Op("*").Qual(packagePrometheus, "HistogramVec"))
 
 	srcFile.Add(tr.serveMetricsFunc())
 

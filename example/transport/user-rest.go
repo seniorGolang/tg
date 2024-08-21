@@ -4,35 +4,20 @@ package transport
 import (
 	"context"
 	"github.com/gofiber/fiber/v2"
-	otg "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/seniorGolang/json"
 	implement "github.com/seniorGolang/tg/v2/example/implement"
 )
 
 func (http *httpUser) getUser(ctx context.Context, request requestUserGetUser) (response responseUserGetUser, err error) {
-
-	span := otg.SpanFromContext(ctx)
-	span.SetTag("method", "getUser")
 
 	response.User, err = http.svc.GetUser(ctx, request.Cookie, request.UserAgent)
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
 		}
-		errData := toString(err)
-		ext.Error.Set(span, true)
-		span.SetTag("msg", err.Error())
-		if errData != "{}" {
-			span.SetTag("errData", errData)
-		}
 	}
 	return
 }
 func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
-
-	span := otg.SpanFromContext(ctx.UserContext())
-	span.SetTag("method", "getUser")
 
 	var request requestUserGetUser
 	ctx.Response().SetStatusCode(204)
@@ -51,6 +36,11 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 
 	var response responseUserGetUser
 	if response, err = http.getUser(ctx.UserContext(), request); err == nil {
+		var iResponse interface{} = response
+		if redirect, ok := iResponse.(withRedirect); ok {
+			return ctx.Redirect(redirect.RedirectTo())
+		}
+
 		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {
@@ -62,32 +52,18 @@ func (http *httpUser) serveGetUser(ctx *fiber.Ctx) (err error) {
 }
 func (http *httpUser) customResponse(ctx context.Context, request requestUserCustomResponse) (response responseUserCustomResponse, err error) {
 
-	span := otg.SpanFromContext(ctx)
-	span.SetTag("method", "customResponse")
-
 	err = http.svc.CustomResponse(ctx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
-		}
-		errData := toString(err)
-		ext.Error.Set(span, true)
-		span.SetTag("msg", err.Error())
-		if errData != "{}" {
-			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
 func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 
-	span := otg.SpanFromContext(ctx.UserContext())
-	span.SetTag("method", "customResponse")
-
 	var request requestUserCustomResponse
-	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request body could not be decoded: "+err.Error())
+	if err = ctx.BodyParser(&request); err != nil {
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
 		_, err = ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
@@ -97,32 +73,18 @@ func (http *httpUser) serveCustomResponse(ctx *fiber.Ctx) (err error) {
 }
 func (http *httpUser) customHandler(ctx context.Context, request requestUserCustomHandler) (response responseUserCustomHandler, err error) {
 
-	span := otg.SpanFromContext(ctx)
-	span.SetTag("method", "customHandler")
-
 	err = http.svc.CustomHandler(ctx, request.Arg0, request.Arg1, request.Opts...)
 	if err != nil {
 		if http.errorHandler != nil {
 			err = http.errorHandler(err)
-		}
-		errData := toString(err)
-		ext.Error.Set(span, true)
-		span.SetTag("msg", err.Error())
-		if errData != "{}" {
-			span.SetTag("errData", errData)
 		}
 	}
 	return
 }
 func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 
-	span := otg.SpanFromContext(ctx.UserContext())
-	span.SetTag("method", "customHandler")
-
 	var request requestUserCustomHandler
-	if err = json.Unmarshal(ctx.Request().Body(), &request); err != nil {
-		ext.Error.Set(span, true)
-		span.SetTag("msg", "request body could not be decoded: "+err.Error())
+	if err = ctx.BodyParser(&request); err != nil {
 		ctx.Response().SetStatusCode(fiber.StatusBadRequest)
 		_, err = ctx.WriteString("request body could not be decoded: " + err.Error())
 		return
@@ -130,6 +92,11 @@ func (http *httpUser) serveCustomHandler(ctx *fiber.Ctx) (err error) {
 
 	var response responseUserCustomHandler
 	if response, err = http.customHandler(ctx.UserContext(), request); err == nil {
+		var iResponse interface{} = response
+		if redirect, ok := iResponse.(withRedirect); ok {
+			return ctx.Redirect(redirect.RedirectTo())
+		}
+
 		return sendResponse(ctx, response)
 	}
 	if errCoder, ok := err.(withErrorCode); ok {

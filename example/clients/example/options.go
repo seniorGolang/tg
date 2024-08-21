@@ -2,6 +2,7 @@
 package example
 
 import (
+	"crypto/tls"
 	"github.com/seniorGolang/tg/v2/example/clients/example/cb"
 	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
 	"time"
@@ -51,9 +52,9 @@ func Headers(headers ...interface{}) Option {
 	}
 }
 
-func Insecure() Option {
+func ConfigTLS(tlsConfig *tls.Config) Option {
 	return func(cli *ClientJsonRPC) {
-		cli.rpcOpts = append(cli.rpcOpts, jsonrpc.Insecure())
+		cli.rpcOpts = append(cli.rpcOpts, jsonrpc.ConfigTLS(tlsConfig))
 	}
 }
 

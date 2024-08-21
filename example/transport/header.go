@@ -4,7 +4,6 @@ package transport
 import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
-	opentracinggo "github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog/log"
 	"github.com/seniorGolang/json"
 )
@@ -24,9 +23,6 @@ type HeaderHandler func(value string) Header
 
 func (srv *Server) headersHandler(ctx *fiber.Ctx) error {
 
-	span := makeSpan(ctx, fmt.Sprintf("request:%s", ctx.Path()))
-	defer injectSpan(ctx, span)
-	defer span.Finish()
 	for headerName, handler := range srv.headerHandlers {
 		value := ctx.Request().Header.Peek(headerName)
 		header := handler(string(value))
@@ -41,7 +37,6 @@ func (srv *Server) headersHandler(ctx *fiber.Ctx) error {
 			ctx.SetUserContext(logger.WithContext(ctx.UserContext()))
 		}
 	}
-	ctx.SetUserContext(opentracinggo.ContextWithSpan(ctx.UserContext(), span))
 	return ctx.Next()
 }
 

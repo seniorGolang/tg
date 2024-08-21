@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/seniorGolang/tg/v2/example/config"
 	"github.com/seniorGolang/tg/v2/example/implement"
@@ -18,12 +21,18 @@ import (
 	"github.com/seniorGolang/tg/v2/example/utils/header"
 )
 
+const (
+	appVersion  = "local"
+	serviceName = "example"
+)
+
 func main() {
 
 	log.Logger = config.Service().Logger()
 
 	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339})
+	ctx := log.Logger.WithContext(context.Background())
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT)
@@ -36,14 +45,15 @@ func main() {
 
 	services := []transport.Option{
 		transport.Use(cors.New()),
+		transport.Use(compress.New()),
 		transport.Use(utils.LogRequest),
-		transport.WithHeader(header.AppHeader, header.AppName),
 		transport.WithRequestID("X-Request-Id"),
+		transport.WithHeader(header.AppHeader, header.AppName),
 		transport.User(transport.NewUser(svcUser)),
 		transport.ExampleRPC(transport.NewExampleRPC(svcJsonRPC)),
 	}
 
-	srv := transport.New(log.Logger, services...).WithLog().WithTrace().TraceJaeger("example")
+	srv := transport.New(log.Logger, services...).WithLog().WithMetrics().WithTrace(ctx, serviceName, "localhost:4317", attribute.String("appVersion", appVersion))
 
 	go func() {
 		log.Info().Str("bind", config.Service().Bind).Msg("listen on")

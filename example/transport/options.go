@@ -58,6 +58,12 @@ func SetReadBufferSize(size int) Option {
 	}
 }
 
+func SetWriteBufferSize(size int) Option {
+	return func(srv *Server) {
+		srv.config.WriteBufferSize = size
+	}
+}
+
 func MaxBodySize(max int) Option {
 	return func(srv *Server) {
 		srv.config.BodyLimit = max

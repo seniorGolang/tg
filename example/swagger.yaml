@@ -18,6 +18,10 @@ paths:
             responses:
                 "200":
                     description: Successful operation
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/responseUserCustomHandler'
                 "400":
                     description: Bad Request
     /api/v1/api/v2/user/custom/response:
@@ -33,6 +37,10 @@ paths:
             responses:
                 "200":
                     description: Successful operation
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/responseUserCustomResponse'
                 "400":
                     description: Bad Request
     /api/v1/api/v2/user/info:
@@ -281,7 +289,9 @@ components:
             type: object
             properties:
                 user:
-                    $ref: '#/components/schemas/types.User'
+                    oneOf:
+                        - $ref: '#/components/schemas/types.User'
+                        - nullable: true
             description: Возвращает данные пользователя код успеха 204
         types.User:
             type: object

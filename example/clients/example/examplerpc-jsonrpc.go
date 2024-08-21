@@ -4,7 +4,6 @@ package example
 import (
 	"context"
 	"fmt"
-	"github.com/seniorGolang/tg/v2/example/clients/example/hasher"
 	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
 )
 
@@ -24,20 +23,18 @@ func (cli *ClientExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, op
 	}
 	var response responseExampleRPCTest
 	var rpcResponse *jsonrpc.ResponseRPC
-	cacheKey, _ := hasher.Hash(request)
-	rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test", request)
-	var fallbackCheck func(error) bool
-	if cli.fallbackExampleRPC != nil {
-		fallbackCheck = cli.fallbackExampleRPC.Test
+	if rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test", request); err != nil || rpcResponse == nil {
+		return
 	}
-	if rpcResponse != nil && rpcResponse.Error != nil {
+	if rpcResponse.Error != nil {
 		if cli.errorDecoder != nil {
 			err = cli.errorDecoder(rpcResponse.Error.Raw())
 		} else {
 			err = fmt.Errorf(rpcResponse.Error.Message)
 		}
+		return
 	}
-	if err = cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response); err != nil {
+	if err = rpcResponse.GetObject(&response); err != nil {
 		return
 	}
 	return response.Ret1, response.Ret2, err
@@ -58,19 +55,18 @@ func (cli *ClientExampleRPC) ReqTest(ctx context.Context, callback retExampleRPC
 	if callback != nil {
 		var response responseExampleRPCTest
 		request.retHandler = func(err error, rpcResponse *jsonrpc.ResponseRPC) {
-			cacheKey, _ := hasher.Hash(request.rpcRequest.Params)
-			var fallbackCheck func(error) bool
-			if cli.fallbackExampleRPC != nil {
-				fallbackCheck = cli.fallbackExampleRPC.Test
-			}
-			if rpcResponse != nil && rpcResponse.Error != nil {
-				if cli.errorDecoder != nil {
-					err = cli.errorDecoder(rpcResponse.Error.Raw())
+			if err == nil && rpcResponse != nil {
+				if rpcResponse.Error != nil {
+					if cli.errorDecoder != nil {
+						err = cli.errorDecoder(rpcResponse.Error.Raw())
+					} else {
+						err = fmt.Errorf(rpcResponse.Error.Message)
+					}
 				} else {
-					err = fmt.Errorf(rpcResponse.Error.Message)
+					err = rpcResponse.GetObject(&response)
 				}
 			}
-			callback(response.Ret1, response.Ret2, cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response))
+			callback(response.Ret1, response.Ret2, err)
 		}
 	}
 	return
@@ -85,20 +81,18 @@ func (cli *ClientExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, o
 	}
 	var response responseExampleRPCTest2
 	var rpcResponse *jsonrpc.ResponseRPC
-	cacheKey, _ := hasher.Hash(request)
-	rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test2", request)
-	var fallbackCheck func(error) bool
-	if cli.fallbackExampleRPC != nil {
-		fallbackCheck = cli.fallbackExampleRPC.Test2
+	if rpcResponse, err = cli.rpc.Call(ctx, "examplerpc.test2", request); err != nil || rpcResponse == nil {
+		return
 	}
-	if rpcResponse != nil && rpcResponse.Error != nil {
+	if rpcResponse.Error != nil {
 		if cli.errorDecoder != nil {
 			err = cli.errorDecoder(rpcResponse.Error.Raw())
 		} else {
 			err = fmt.Errorf(rpcResponse.Error.Message)
 		}
+		return
 	}
-	if err = cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response); err != nil {
+	if err = rpcResponse.GetObject(&response); err != nil {
 		return
 	}
 	return response.Ret1, response.Ret2, err
@@ -119,19 +113,18 @@ func (cli *ClientExampleRPC) ReqTest2(ctx context.Context, callback retExampleRP
 	if callback != nil {
 		var response responseExampleRPCTest2
 		request.retHandler = func(err error, rpcResponse *jsonrpc.ResponseRPC) {
-			cacheKey, _ := hasher.Hash(request.rpcRequest.Params)
-			var fallbackCheck func(error) bool
-			if cli.fallbackExampleRPC != nil {
-				fallbackCheck = cli.fallbackExampleRPC.Test2
-			}
-			if rpcResponse != nil && rpcResponse.Error != nil {
-				if cli.errorDecoder != nil {
-					err = cli.errorDecoder(rpcResponse.Error.Raw())
+			if err == nil && rpcResponse != nil {
+				if rpcResponse.Error != nil {
+					if cli.errorDecoder != nil {
+						err = cli.errorDecoder(rpcResponse.Error.Raw())
+					} else {
+						err = fmt.Errorf(rpcResponse.Error.Message)
+					}
 				} else {
-					err = fmt.Errorf(rpcResponse.Error.Message)
+					err = rpcResponse.GetObject(&response)
 				}
 			}
-			callback(response.Ret1, response.Ret2, cli.proceedResponse(ctx, err, cacheKey, fallbackCheck, rpcResponse, &response))
+			callback(response.Ret1, response.Ret2, err)
 		}
 	}
 	return

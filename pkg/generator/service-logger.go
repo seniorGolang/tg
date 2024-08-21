@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"strings"
 
 	. "github.com/dave/jennifer/jen"
 
+	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
@@ -26,7 +28,6 @@ func (svc *service) renderLogger(outDir string) (err error) {
 
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(packageGoKitMetrics, "metrics")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "viewer")
 
@@ -64,12 +65,22 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					d[Lit("method")] = Lit(method.fullName())
-					params := method.argsFieldsWithoutContext()
-					originParams := method.argsWithoutContext()
+					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
+					params := removeSkippedFields(method.argsFieldsWithoutContext(), skipFields)
+					originParams := removeSkippedFields(method.argsWithoutContext(), skipFields)
 					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, originParams)))
+					printResult := true
+					for _, field := range skipFields {
+						if strings.TrimSpace(field) == "response" {
+							printResult = false
+							break
+						}
+					}
 					returns := method.resultFieldsWithoutError()
 					originReturns := method.resultsWithoutError()
-					d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
+					if printResult {
+						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
+					}
 				}))
 				// .Func(logHandle)
 				fg.Id("ev").Dot("Fields").Call(Id("fields")).

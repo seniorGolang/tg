@@ -3,7 +3,9 @@ package example
 
 import (
 	"context"
+	"fmt"
 	"github.com/seniorGolang/tg/v2/example/clients/example/cb"
+	"github.com/seniorGolang/tg/v2/example/clients/example/hasher"
 	"github.com/seniorGolang/tg/v2/example/clients/example/jsonrpc"
 	"os"
 	"strconv"
@@ -45,18 +47,26 @@ func (cli *ClientJsonRPC) ExampleRPC() *ClientExampleRPC {
 	return &ClientExampleRPC{ClientJsonRPC: cli}
 }
 
-func (cli *ClientJsonRPC) proceedResponse(ctx context.Context, httpErr error, cacheKey uint64, fallbackCheck func(error) bool, rpcResponse *jsonrpc.ResponseRPC, methodResponse interface{}) (err error) {
+func (cli *ClientJsonRPC) proceedResponse(ctx context.Context, callMethod func(request any) (response *jsonrpc.ResponseRPC, err error), request any, fallbackCheck func(error) bool, methodResponse any) (err error) {
 
+	cacheKey, _ := hasher.Hash(request)
 	err = cli.cb.Execute(func() (err error) {
-		if httpErr != nil {
-			return httpErr
+		var rpcResponse *jsonrpc.ResponseRPC
+		rpcResponse, err = callMethod(request)
+		if rpcResponse != nil && rpcResponse.Error != nil {
+			if cli.errorDecoder != nil {
+				err = cli.errorDecoder(rpcResponse.Error.Raw())
+			} else {
+				err = fmt.Errorf(rpcResponse.Error.Message)
+			}
+			return
 		}
 		return rpcResponse.GetObject(&methodResponse)
 	}, cb.IsSuccessful(func(err error) (success bool) {
 		if fallbackCheck != nil {
 			return fallbackCheck(err)
 		}
-		if success = err == nil; success {
+		if success = cli.cb.IsSuccessful()(err); success {
 			if cli.cache != nil && cacheKey != 0 {
 				_ = cli.cache.SetTTL(ctx, strconv.FormatUint(cacheKey, 10), methodResponse, cli.fallbackTTL)
 			}

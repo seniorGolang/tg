@@ -23,9 +23,7 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
-	srcFile.ImportName(packageOpentracingExt, "ext")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
-	srcFile.ImportAlias(packageOpentracing, "otg")
 
 	for _, method := range svc.methods {
 		if !method.isHTTP() {

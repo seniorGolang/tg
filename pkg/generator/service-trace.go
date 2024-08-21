@@ -21,7 +21,6 @@ func (svc *service) renderTrace(outDir string) (err error) {
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
-	srcFile.ImportName(packageOpentracing, "opentracing")
 
 	srcFile.Type().Id("trace" + svc.Name).Struct(
 		Id("next").Qual(svc.pkgPath, svc.Name),
@@ -36,14 +35,18 @@ func (svc *service) renderTrace(outDir string) (err error) {
 	for _, method := range svc.methods {
 		srcFile.Line().Func().Params(Id("svc").Id("trace"+svc.Name)).Id(method.Name).Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).Block(
 
-			Id("span").Op(":=").Qual(packageOpentracing, "SpanFromContext").Call(Id(_ctx_)),
-			Id("span").Dot("SetTag").Call(Lit("method"), Lit(method.Name)),
-
+			Line(),
+			Var().Id("span").Qual(packageTrace, "Span"),
+			List(Id(_ctx_), Id("span")).Op("=").
+				Qual(packageOTEL, "Tracer").
+				Call(Qual(packageFmt, "Sprintf").Call(Lit("tg:%s"), Id("VersionTg"))).Dot("Start").Call(Id(_ctx_), Lit(method.fullName())),
+			Defer().Func().Params().Block(
+				Id("span").Dot("RecordError").Call(Err()),
+				Id("span").Dot("End").Call(),
+			).Call(),
 			Return(Id("svc").Dot("next").Dot(method.Name).CallFunc(func(cg *Group) {
 				for _, arg := range method.Args {
-
 					argCode := Id(arg.Name)
-
 					if types.IsEllipsis(arg.Type) {
 						argCode.Op("...")
 					}

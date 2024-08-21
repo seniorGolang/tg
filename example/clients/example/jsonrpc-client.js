@@ -107,7 +107,7 @@ this.scheduler = new JSONRPCScheduler(transport);
 * @return {PromiseLike<{Ret1: number,Ret2: string}>}
 **/
 test(arg1,...opts) {
-return this.scheduler.__scheduleRequest("exampleRPC.test", {arg1:arg1,opts:opts}).catch(e => { throw exampleRPCTestConvertError(e); })
+return this.scheduler.__scheduleRequest("exampleRPC.test", {arg1:arg1,opts:opts}).catch(e => { throw exampleRPCtestConvertError(e); })
 }
 /**
 * @param {number} Arg0
@@ -116,7 +116,7 @@ return this.scheduler.__scheduleRequest("exampleRPC.test", {arg1:arg1,opts:opts}
 * @return {PromiseLike<{Ret1: number,Ret2: string}>}
 **/
 test2(arg0,arg1,...opts) {
-return this.scheduler.__scheduleRequest("exampleRPC.test2", {arg0:arg0,arg1:arg1,opts:opts}).catch(e => { throw exampleRPCTest2ConvertError(e); })
+return this.scheduler.__scheduleRequest("exampleRPC.test2", {arg0:arg0,arg1:arg1,opts:opts}).catch(e => { throw exampleRPCtest2ConvertError(e); })
 }
 }
 
@@ -127,13 +127,13 @@ this.exampleRPC = new JSONRPCClientExampleRPC(transport);
 }
 export default JSONRPCClient
 
-function exampleRPCTestConvertError(e) {
+function exampleRPCtestConvertError(e) {
 switch(e.code) {
 default:
 return new JSONRPCError(e.message, "UnknownError", e.code, e.data);
 }
 }
-function exampleRPCTest2ConvertError(e) {
+function exampleRPCtest2ConvertError(e) {
 switch(e.code) {
 default:
 return new JSONRPCError(e.message, "UnknownError", e.code, e.data);

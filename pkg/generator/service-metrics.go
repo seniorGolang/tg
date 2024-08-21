@@ -18,14 +18,11 @@ func (svc *service) renderMetrics(outDir string) (err error) {
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
-	srcFile.ImportName(packageGoKitMetrics, "metrics")
+	srcFile.ImportName(packagePrometheus, "metrics")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 
-	srcFile.Type().Id("metrics"+svc.Name).Struct(
+	srcFile.Type().Id("metrics" + svc.Name).Struct(
 		Id(_next_).Qual(svc.pkgPath, svc.Name),
-		Id("requestCount").Qual(packageGoKitMetrics, "Counter"),
-		Id("requestCountAll").Qual(packageGoKitMetrics, "Counter"),
-		Id("requestLatency").Qual(packageGoKitMetrics, "Histogram"),
 	)
 
 	srcFile.Line().Add(svc.metricsMiddleware())
@@ -42,10 +39,7 @@ func (svc *service) metricsMiddleware() Code {
 		BlockFunc(func(g *Group) {
 			g.Return(Op("&").Id("metrics" + svc.Name).Values(
 				Dict{
-					Id(_next_):            Id(_next_),
-					Id("requestCount"):    Id("RequestCount").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
-					Id("requestCountAll"): Id("RequestCountAll").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
-					Id("requestLatency"):  Id("RequestLatency").Op(".").Id("With").Call(Lit("service"), Lit(svc.lccName())),
+					Id(_next_): Id(_next_),
 				},
 			))
 		})
@@ -56,19 +50,22 @@ func (svc *service) metricFuncBody(method *method) func(g *Group) {
 	return func(g *Group) {
 
 		g.Line().Defer().Func().Params(Id("_begin").Qual(packageTime, "Time")).Block(
-			Id("m").Dot("requestCount").Dot("With").Call(
-				Lit("method"), Lit(method.lccName()),
-				Lit("success"), Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+			Id("RequestCount").Dot("WithLabelValues").Call(
+				Lit(method.svc.lccName()),
+				Lit(method.lccName()),
+				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
 				Dot("Add").Call(Lit(1)),
-			Id("m").Dot("requestLatency").Dot("With").Call(
-				Lit("method"), Lit(method.lccName()),
-				Lit("success"), Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+			Id("RequestCountAll").Dot("WithLabelValues").Call(
+				Lit(method.svc.lccName()),
+				Lit(method.lccName()),
+				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+				Dot("Add").Call(Lit(1)),
+			Id("RequestLatency").Dot("WithLabelValues").Call(
+				Lit(method.svc.lccName()),
+				Lit(method.lccName()),
+				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
 				Dot("Observe").Call(Qual(packageTime, "Since").Call(Id("_begin")).Dot("Seconds").Call()),
 		).Call(Qual(packageTime, "Now").Call())
-
-		g.Line().Id("m").Dot("requestCountAll").Dot("With").Call(
-			Lit("method"), Lit(method.lccName())).
-			Dot("Add").Call(Lit(1))
 
 		g.Line().Return().Id("m").Dot(_next_).Dot(method.Name).Call(paramNames(method.Args))
 	}

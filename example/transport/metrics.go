@@ -2,39 +2,23 @@
 package transport
 
 import (
-	kitPrometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gofiber/adaptor/v2"
 	"github.com/gofiber/fiber/v2"
-	stdPrometheus "github.com/prometheus/client_golang/prometheus"
+	prometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 )
 
-var srvMetrics *fiber.App
-var RequestCount = kitPrometheus.NewCounterFrom(stdPrometheus.CounterOpts{
-	Help:      "Number of requests received",
-	Name:      "count",
-	Namespace: "service",
-	Subsystem: "requests",
-}, []string{"method", "service", "success"})
-var RequestCountAll = kitPrometheus.NewCounterFrom(stdPrometheus.CounterOpts{
-	Help:      "Number of all requests received",
-	Name:      "all_count",
-	Namespace: "service",
-	Subsystem: "requests",
-}, []string{"method", "service"})
-var RequestLatency = kitPrometheus.NewSummaryFrom(stdPrometheus.SummaryOpts{
-	Help:      "Total duration of requests in microseconds",
-	Name:      "latency_microseconds",
-	Namespace: "service",
-	Subsystem: "requests",
-}, []string{"method", "service", "success"})
+var VersionGauge *prometheus.GaugeVec
+var RequestCount *prometheus.CounterVec
+var RequestCountAll *prometheus.CounterVec
+var RequestLatency *prometheus.HistogramVec
 
-func ServeMetrics(log zerolog.Logger, address string) {
-	srvMetrics = fiber.New(fiber.Config{DisableStartupMessage: true})
-	srvMetrics.All("/", adaptor.HTTPHandler(promhttp.Handler()))
+func (srv *Server) ServeMetrics(log zerolog.Logger, path string, address string) {
+	srv.srvMetrics = fiber.New(fiber.Config{DisableStartupMessage: true})
+	srv.srvMetrics.All(path, adaptor.HTTPHandler(promhttp.Handler()))
 	go func() {
-		err := srvMetrics.Listen(address)
+		err := srv.srvMetrics.Listen(address)
 		ExitOnError(log, err, "serve metrics on "+address)
 	}()
 }
