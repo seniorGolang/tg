@@ -13,8 +13,10 @@ import (
 
 func (tr *Transport) renderServer(outDir string) (err error) {
 
-	if err = pkgCopyTo("tracer", outDir); err != nil {
-		return
+	if tr.hasTrace() {
+		if err = pkgCopyTo("tracer", outDir); err != nil {
+			return
+		}
 	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
@@ -27,17 +29,12 @@ func (tr *Transport) renderServer(outDir string) (err error) {
 	srcFile.ImportName(packagePrometheusAuto, "promauto")
 	srcFile.ImportName(packagePrometheusHttp, "promhttp")
 	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
-	srcFile.ImportName(fmt.Sprintf("%s/tracer", tr.pkgPath(outDir)), "tracer")
+	if tr.hasTrace() {
+		srcFile.ImportName(fmt.Sprintf("%s/tracer", tr.pkgPath(outDir)), "tracer")
+	}
 
-	var hasTrace, hasMetrics bool
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
-		if svc.tags.IsSet(tagTrace) {
-			hasTrace = true
-		}
-		if svc.tags.IsSet(tagMetrics) {
-			hasMetrics = true
-		}
 		srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	}
 
@@ -47,11 +44,11 @@ func (tr *Transport) renderServer(outDir string) (err error) {
 	srcFile.Line().Add(tr.withLogFunc())
 	srcFile.Line().Add(tr.serveHealthFunc())
 	srcFile.Line().Add(tr.sendResponseFunc())
-	srcFile.Line().Add(tr.shutdownFunc(hasMetrics))
-	if hasTrace {
+	srcFile.Line().Add(tr.shutdownFunc())
+	if tr.hasTrace() {
 		srcFile.Line().Add(tr.withTraceFunc(outDir))
 	}
-	if hasMetrics {
+	if tr.hasMetrics() {
 		srcFile.Line().Add(tr.withMetricsFunc())
 	}
 	for _, serviceName := range tr.serviceKeys() {
@@ -203,7 +200,9 @@ func (tr *Transport) serverNewFunc(outDir string) Code {
 			)
 			bg.Id("srv").Dot("srvHTTP").Op("=").Qual(packageFiber, "New").Call(Id("srv").Dot("config"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("recoverHandler"))
-			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Qual(fmt.Sprintf("%s/tracer", tr.pkgPath(outDir)), "Middleware").Call())
+			if tr.hasTrace() {
+				bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Qual(fmt.Sprintf("%s/tracer", tr.pkgPath(outDir)), "Middleware").Call())
+			}
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("setLogger"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("logLevelHandler"))
 			bg.Id("srv").Dot("srvHTTP").Dot("Use").Call(Id("srv").Dot("headersHandler"))
@@ -233,7 +232,8 @@ func (tr *Transport) serveHealthFunc() Code {
 	)
 }
 
-func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
+func (tr *Transport) shutdownFunc() Code {
+
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("Shutdown").Params().BlockFunc(func(bg *Group) {
 		bg.If(Id("srv").Dot("srvHTTP").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHTTP").Dot("Shutdown").Call(),
@@ -241,7 +241,7 @@ func (tr *Transport) shutdownFunc(hasMetrics bool) Code {
 		bg.If(Id("srv").Dot("srvHealth").Op("!=").Id("nil")).Block(
 			Id("_").Op("=").Id("srv").Dot("srvHealth").Dot("Shutdown").Call(),
 		)
-		if hasMetrics {
+		if tr.hasMetrics() {
 			bg.If(Id("srv").Dot("srvMetrics").Op("!=").Id("nil")).Block(
 				Id("_").Op("=").Id("srv").Dot("srvMetrics").Dot("Shutdown").Call(),
 			)

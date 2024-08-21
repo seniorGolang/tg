@@ -67,7 +67,6 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
     }
 `, svc.batchPath())
 	jsFile.add("export type Methods = {\n")
-	// loginByPassword(login: string, password: string): { accessToken: string, refreshToken: string }
 	for _, method := range svc.methods {
 		jsFile.add("%s(params: {%s}) : {%s}\n",
 			method.Name,

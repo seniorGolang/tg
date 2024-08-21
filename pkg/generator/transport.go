@@ -190,9 +190,6 @@ func (tr *Transport) RenderServer(outDir string) (err error) {
 		return
 	}
 
-	hasTrace := tr.hasTrace()
-	hasMetric := tr.hasMetrics()
-
 	showError(tr.log, tr.renderHTTP(outDir), "renderHTTP")
 	showError(tr.log, tr.renderContext(outDir), "renderCtx")
 	showError(tr.log, tr.renderFiber(outDir), "renderFiber")
@@ -202,16 +199,12 @@ func (tr *Transport) RenderServer(outDir string) (err error) {
 	showError(tr.log, tr.renderOptions(outDir), "renderOptions")
 	showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
 	showError(tr.log, tr.renderVersion(outDir, false), "renderVersion")
-	if hasMetric {
+	if tr.hasMetrics() {
 		showError(tr.log, tr.renderMetrics(outDir), "renderMetrics")
-	}
-	if hasTrace {
-		showError(tr.log, tr.renderTracer(outDir), "renderTracer")
 	}
 	if tr.hasJsonRPC {
 		showError(tr.log, tr.renderJsonRPC(outDir), "renderJsonRPC")
 	}
-
 	for _, serviceName := range tr.serviceKeys() {
 		svc := tr.services[serviceName]
 		err = svc.render(outDir)

@@ -36,11 +36,6 @@ func (tr *Transport) renderFiberLogger(srcFile goFile) {
 	)
 }
 
-// if level, err := zerolog.ParseLevel(levelName); err == nil {
-//			logger := log.Ctx(ctx.UserContext()).Level(level)
-//			ctx.SetUserContext(logger.WithContext(ctx.UserContext()))
-//		}
-
 func (tr *Transport) logLevelHandler(srcFile goFile) {
 
 	srcFile.Line().Func().Params(Id("srv").Op("*").Id("Server")).Id("logLevelHandler").Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx")).Error().Block(

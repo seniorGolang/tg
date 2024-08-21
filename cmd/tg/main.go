@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	Version    = "v2.3.69"
+	Version    = "v2.3.70"
 	BuildStamp = time.Now().String()
 )
 
@@ -114,26 +114,6 @@ func main() {
 				&cli.StringFlag{
 					Name:  "outSwagger",
 					Usage: "path to output swagger file",
-				},
-				&cli.StringFlag{
-					Name:  "redoc",
-					Usage: "path to output redoc bundle",
-				},
-				&cli.BoolFlag{
-					Name:  "jaeger",
-					Usage: "use Jaeger tracer",
-				},
-				&cli.BoolFlag{
-					Name:  "zipkin",
-					Usage: "use Zipkin tracer",
-				},
-				&cli.StringFlag{
-					Name:  "implements",
-					Usage: "path to generate implements",
-				},
-				&cli.StringFlag{
-					Name:  "tests",
-					Usage: "path to generate tests",
 				},
 			},
 

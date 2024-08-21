@@ -82,7 +82,6 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 						d[Lit("response")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.responseStructName()).Values(utils.DictByNormalVariables(returns, originReturns)))
 					}
 				}))
-				// .Func(logHandle)
 				fg.Id("ev").Dot("Fields").Call(Id("fields")).
 					Dot("Str").Call(Lit("took"), Qual(packageTime, "Since").Call(Id("_begin")).Dot("String").Call())
 			})
