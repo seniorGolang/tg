@@ -126,13 +126,18 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 			return doc.toSchema(doc.normalizeTypeName(vType.TypeName, pkgPath))
 		}
 		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
+
 			doc.knownCount[typeName]++
-			return doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
+			if _, found = doc.schemas[typeName]; !found {
+				doc.schemas[doc.normalizeTypeName(vType.String(), pkgPath)] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
+			}
+			return doc.toSchema(doc.normalizeTypeName(vType.String(), pkgPath))
 		}
+
 	case types.TImport:
 		if nextType := searchType(vType.Import.Package, vType.Next.String()); nextType != nil {
 			if _, found = doc.schemas[typeName]; !found {
-				doc.schemas[typeName] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
+				doc.schemas[doc.normalizeTypeName(vType.Next.String(), vType.Import.Package)] = doc.walkVariable(nextType.String(), vType.Import.Package, nextType, varTags)
 			}
 			return doc.toSchema(doc.normalizeTypeName(vType.Next.String(), vType.Import.Package))
 		}
