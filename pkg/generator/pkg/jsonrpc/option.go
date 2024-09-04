@@ -26,7 +26,7 @@ func prepareOpts(opts []Option) (options options) {
 
 func HeaderFromCtx(headers ...interface{}) Option {
 	return func(ops *options) {
-		ops.headersFromCtx = headers
+		ops.headersFromCtx = append(ops.headersFromCtx, headers...)
 	}
 }
 
