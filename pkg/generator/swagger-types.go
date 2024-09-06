@@ -97,6 +97,7 @@ type swSchema struct {
 	Format      string       `json:"format,omitempty" yaml:"format,omitempty"`
 	Minimum     int          `json:"minimum,omitempty" yaml:"minimum,omitempty"`
 	Maximum     int          `json:"maximum,omitempty" yaml:"maximum,omitempty"`
+	Required    []string     `json:"required,omitempty" yaml:"required,omitempty"`
 	Properties  swProperties `json:"properties,omitempty" yaml:"properties,omitempty"`
 	Items       *swSchema    `json:"items,omitempty" yaml:"items,omitempty"`
 	Enum        []string     `json:"enum,omitempty" yaml:"enum,omitempty"`

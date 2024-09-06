@@ -35,6 +35,7 @@ const (
 	tagTrace               = "trace"
 	tagEnums               = "enums"
 	tagFormat              = "format"
+	tagRequired            = "required"
 	tagSummary             = "summary"
 	tagHandler             = "handler"
 	tagExample             = "example"

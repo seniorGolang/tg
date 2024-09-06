@@ -34,11 +34,17 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	structType = types.Struct{
 		Base: types.Base{Name: name, Docs: mTags.ToDocs()},
 	}
+	var required []string
 	for _, field := range fields {
 		field.Base.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
+		if fieldName, inline := jsonName(field); !inline {
+			required = append(required, fieldName)
+		}
 	}
-	doc.schemas[name] = doc.walkVariable(name, pkgPath, structType, mTags)
+	schema := doc.walkVariable(name, pkgPath, structType, mTags)
+	schema.Required = required
+	doc.schemas[name] = schema
 	return
 }
 
@@ -100,6 +106,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 				embed := doc.walkVariable(field.Type.String(), pkgPath, field.Type, tags.ParseTags(field.Docs))
 				if !inline {
 					schema.Properties[fieldName] = embed
+					if tags.ParseTags(field.Docs).IsSet(tagRequired) {
+						schema.Required = append(schema.Required, fieldName)
+					}
 					continue
 				}
 				if len(embed.AllOf) != 0 {
