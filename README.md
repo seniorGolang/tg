@@ -493,6 +493,14 @@ Login(ctx context.Context, token string) (cookie *types.Cookie, err error)
 Указывает формат поля в генерируемой документации, согласно
 спецификации [openAPI](https://swagger.io/docs/specification/data-models/data-types/)
 
+## required
+
+- тип
+
+Указывает обязательность поля в генерируемой документации, согласно
+спецификации [openAPI](https://swagger.io/docs/specification/data-models/data-types/)
+
+
 ## example=someExampleValue
 
 - тип
