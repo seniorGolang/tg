@@ -128,6 +128,18 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 		bg.If(List(Id("responseBase").Dot("Result"), Err()).Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("response")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 		})
+		if len(method.retCookieMap()) > 0 {
+			for retName := range method.retCookieMap() {
+				if ret := method.resultByName(retName); ret != nil {
+					bg.If(List(Id("rCookie"), Id("ok")).Op(":=").
+						Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
+						Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
+						Id(_ctx_).Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
+					)
+				}
+			}
+		}
+		bg.Add(method.httpRetHeaders())
 		bg.Return()
 	})
 }
