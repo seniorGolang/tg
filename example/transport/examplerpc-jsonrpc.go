@@ -69,6 +69,7 @@ func (http *httpExampleRPC) test(ctx *fiber.Ctx, requestBase baseJsonRPC) (respo
 	if responseBase.Result, err = json.Marshal(response); err != nil {
 		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "response body could not be encoded: "+err.Error(), nil)
 	}
+
 	return
 }
 func (http *httpExampleRPC) serveTest2(ctx *fiber.Ctx) (err error) {
@@ -120,6 +121,7 @@ func (http *httpExampleRPC) test2(ctx *fiber.Ctx, requestBase baseJsonRPC) (resp
 	if responseBase.Result, err = json.Marshal(response); err != nil {
 		return makeErrorResponseJsonRPC(requestBase.ID, parseError, "response body could not be encoded: "+err.Error(), nil)
 	}
+
 	return
 }
 func (http *httpExampleRPC) _serveMethod(ctx *fiber.Ctx, methodName string, methodHandler methodJsonRPC) (err error) {

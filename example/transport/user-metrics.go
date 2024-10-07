@@ -3,9 +3,9 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
+	"strconv"
 	"time"
 )
 
@@ -20,9 +20,20 @@ func metricsMiddlewareUser(next interfaces.User) interfaces.User {
 func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent string) (user *types.User, err error) {
 
 	defer func(_begin time.Time) {
-		RequestCount.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Add(1)
-		RequestCountAll.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Add(1)
-		RequestLatency.WithLabelValues("user", "getUser", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
+		var (
+			success = true
+			errCode int
+		)
+		if err != nil {
+			success = false
+			ec, ok := err.(withErrorCode)
+			if ok {
+				errCode = ec.Code()
+			}
+		}
+		RequestCount.WithLabelValues("user", "getUser", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestCountAll.WithLabelValues("user", "getUser", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestLatency.WithLabelValues("user", "getUser", strconv.FormatBool(success), strconv.Itoa(errCode)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	return m.next.GetUser(ctx, cookie, userAgent)
@@ -31,9 +42,20 @@ func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent strin
 func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
 	defer func(_begin time.Time) {
-		RequestCount.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Add(1)
-		RequestCountAll.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Add(1)
-		RequestLatency.WithLabelValues("user", "customResponse", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
+		var (
+			success = true
+			errCode int
+		)
+		if err != nil {
+			success = false
+			ec, ok := err.(withErrorCode)
+			if ok {
+				errCode = ec.Code()
+			}
+		}
+		RequestCount.WithLabelValues("user", "customResponse", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestCountAll.WithLabelValues("user", "customResponse", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestLatency.WithLabelValues("user", "customResponse", strconv.FormatBool(success), strconv.Itoa(errCode)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	return m.next.CustomResponse(ctx, arg0, arg1, opts...)
@@ -42,9 +64,20 @@ func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, 
 func (m metricsUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (err error) {
 
 	defer func(_begin time.Time) {
-		RequestCount.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Add(1)
-		RequestCountAll.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Add(1)
-		RequestLatency.WithLabelValues("user", "customHandler", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
+		var (
+			success = true
+			errCode int
+		)
+		if err != nil {
+			success = false
+			ec, ok := err.(withErrorCode)
+			if ok {
+				errCode = ec.Code()
+			}
+		}
+		RequestCount.WithLabelValues("user", "customHandler", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestCountAll.WithLabelValues("user", "customHandler", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestLatency.WithLabelValues("user", "customHandler", strconv.FormatBool(success), strconv.Itoa(errCode)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	return m.next.CustomHandler(ctx, arg0, arg1, opts...)

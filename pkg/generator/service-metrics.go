@@ -50,20 +50,34 @@ func (svc *service) metricFuncBody(method *method) func(g *Group) {
 	return func(g *Group) {
 
 		g.Line().Defer().Func().Params(Id("_begin").Qual(packageTime, "Time")).Block(
+			Var().Defs(
+				Id("success").Op("=").True(),
+				Id("errCode").Int(),
+			),
+			If(Err().Op("!=").Nil()).Block(
+				Id("success").Op("=").False(),
+				List(Id("ec"), Id("ok")).Op(":=").Err().Assert(Id("withErrorCode")),
+				If(Id("ok")).Block(
+					Id("errCode").Op("=").Id("ec").Dot("Code").Call(),
+				),
+			),
 			Id("RequestCount").Dot("WithLabelValues").Call(
 				Lit(method.svc.lccName()),
 				Lit(method.lccName()),
-				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+				Qual("strconv", "FormatBool").Call(Id("success")),
+				Qual("strconv", "Itoa").Call(Id("errCode"))).
 				Dot("Add").Call(Lit(1)),
 			Id("RequestCountAll").Dot("WithLabelValues").Call(
 				Lit(method.svc.lccName()),
 				Lit(method.lccName()),
-				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+				Qual("strconv", "FormatBool").Call(Id("success")),
+				Qual("strconv", "Itoa").Call(Id("errCode"))).
 				Dot("Add").Call(Lit(1)),
 			Id("RequestLatency").Dot("WithLabelValues").Call(
 				Lit(method.svc.lccName()),
 				Lit(method.lccName()),
-				Qual(packageFmt, "Sprint").Call(Err().Op("==").Nil())).
+				Qual("strconv", "FormatBool").Call(Id("success")),
+				Qual("strconv", "Itoa").Call(Id("errCode"))).
 				Dot("Observe").Call(Qual(packageTime, "Since").Call(Id("_begin")).Dot("Seconds").Call()),
 		).Call(Qual(packageTime, "Now").Call())
 
