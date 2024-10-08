@@ -25,6 +25,7 @@ func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts
 		)
 		if err != nil {
 			success = false
+			errCode = internalError
 			ec, ok := err.(withErrorCode)
 			if ok {
 				errCode = ec.Code()
@@ -47,6 +48,7 @@ func (m metricsExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opt
 		)
 		if err != nil {
 			success = false
+			errCode = internalError
 			ec, ok := err.(withErrorCode)
 			if ok {
 				errCode = ec.Code()

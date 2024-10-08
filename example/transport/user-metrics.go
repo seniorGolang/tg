@@ -3,6 +3,7 @@ package transport
 
 import (
 	"context"
+	v2 "github.com/gofiber/fiber/v2"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
 	"github.com/seniorGolang/tg/v2/example/interfaces/types"
 	"strconv"
@@ -26,6 +27,7 @@ func (m metricsUser) GetUser(ctx context.Context, cookie string, userAgent strin
 		)
 		if err != nil {
 			success = false
+			errCode = v2.StatusInternalServerError
 			ec, ok := err.(withErrorCode)
 			if ok {
 				errCode = ec.Code()
@@ -48,6 +50,7 @@ func (m metricsUser) CustomResponse(ctx context.Context, arg0 int, arg1 string, 
 		)
 		if err != nil {
 			success = false
+			errCode = v2.StatusInternalServerError
 			ec, ok := err.(withErrorCode)
 			if ok {
 				errCode = ec.Code()
@@ -70,6 +73,7 @@ func (m metricsUser) CustomHandler(ctx context.Context, arg0 int, arg1 string, o
 		)
 		if err != nil {
 			success = false
+			errCode = v2.StatusInternalServerError
 			ec, ok := err.(withErrorCode)
 			if ok {
 				errCode = ec.Code()

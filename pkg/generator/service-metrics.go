@@ -49,6 +49,14 @@ func (svc *service) metricFuncBody(method *method) func(g *Group) {
 
 	return func(g *Group) {
 
+		errCodeAssignment := Id("errCode").Op("=")
+
+		if method.isHTTP() {
+			errCodeAssignment.Qual(packageFiber, "StatusInternalServerError")
+		} else {
+			errCodeAssignment.Id("internalError")
+		}
+
 		g.Line().Defer().Func().Params(Id("_begin").Qual(packageTime, "Time")).Block(
 			Var().Defs(
 				Id("success").Op("=").True(),
@@ -56,6 +64,7 @@ func (svc *service) metricFuncBody(method *method) func(g *Group) {
 			),
 			If(Err().Op("!=").Nil()).Block(
 				Id("success").Op("=").False(),
+				errCodeAssignment,
 				List(Id("ec"), Id("ok")).Op(":=").Err().Assert(Id("withErrorCode")),
 				If(Id("ok")).Block(
 					Id("errCode").Op("=").Id("ec").Dot("Code").Call(),
