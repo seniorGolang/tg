@@ -215,6 +215,9 @@ components:
     schemas:
         requestExampleRPCTest:
             type: object
+            required:
+                - arg1
+                - opts
             properties:
                 arg1:
                     type: string
@@ -226,6 +229,10 @@ components:
                         nullable: true
         requestExampleRPCTest2:
             type: object
+            required:
+                - arg0
+                - arg1
+                - opts
             properties:
                 arg0:
                     type: number
@@ -239,6 +246,10 @@ components:
                         nullable: true
         requestUserCustomHandler:
             type: object
+            required:
+                - arg0
+                - arg1
+                - opts
             properties:
                 arg0:
                     type: number
@@ -252,6 +263,10 @@ components:
                         nullable: true
         requestUserCustomResponse:
             type: object
+            required:
+                - arg0
+                - arg1
+                - opts
             properties:
                 arg0:
                     type: number
@@ -267,6 +282,9 @@ components:
             type: object
         responseExampleRPCTest:
             type: object
+            required:
+                - ret1
+                - ret2
             properties:
                 ret1:
                     type: number
@@ -275,6 +293,9 @@ components:
                     type: string
         responseExampleRPCTest2:
             type: object
+            required:
+                - ret1
+                - ret2
             properties:
                 ret1:
                     type: number
@@ -287,6 +308,8 @@ components:
             type: object
         responseUserGetUser:
             type: object
+            required:
+                - user
             properties:
                 user:
                     oneOf:

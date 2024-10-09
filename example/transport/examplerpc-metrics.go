@@ -3,8 +3,8 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"github.com/seniorGolang/tg/v2/example/interfaces"
+	"strconv"
 	"time"
 )
 
@@ -19,9 +19,21 @@ func metricsMiddlewareExampleRPC(next interfaces.ExampleRPC) interfaces.ExampleR
 func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
 	defer func(_begin time.Time) {
-		RequestCount.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Add(1)
-		RequestCountAll.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Add(1)
-		RequestLatency.WithLabelValues("exampleRPC", "test", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
+		var (
+			success = true
+			errCode int
+		)
+		if err != nil {
+			success = false
+			errCode = internalError
+			ec, ok := err.(withErrorCode)
+			if ok {
+				errCode = ec.Code()
+			}
+		}
+		RequestCount.WithLabelValues("exampleRPC", "test", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestCountAll.WithLabelValues("exampleRPC", "test", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestLatency.WithLabelValues("exampleRPC", "test", strconv.FormatBool(success), strconv.Itoa(errCode)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	return m.next.Test(ctx, arg0, arg1, opts...)
@@ -30,9 +42,21 @@ func (m metricsExampleRPC) Test(ctx context.Context, arg0 int, arg1 string, opts
 func (m metricsExampleRPC) Test2(ctx context.Context, arg0 int, arg1 string, opts ...interface{}) (ret1 int, ret2 string, err error) {
 
 	defer func(_begin time.Time) {
-		RequestCount.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Add(1)
-		RequestCountAll.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Add(1)
-		RequestLatency.WithLabelValues("exampleRPC", "test2", fmt.Sprint(err == nil)).Observe(time.Since(_begin).Seconds())
+		var (
+			success = true
+			errCode int
+		)
+		if err != nil {
+			success = false
+			errCode = internalError
+			ec, ok := err.(withErrorCode)
+			if ok {
+				errCode = ec.Code()
+			}
+		}
+		RequestCount.WithLabelValues("exampleRPC", "test2", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestCountAll.WithLabelValues("exampleRPC", "test2", strconv.FormatBool(success), strconv.Itoa(errCode)).Add(1)
+		RequestLatency.WithLabelValues("exampleRPC", "test2", strconv.FormatBool(success), strconv.Itoa(errCode)).Observe(time.Since(_begin).Seconds())
 	}(time.Now())
 
 	return m.next.Test2(ctx, arg0, arg1, opts...)

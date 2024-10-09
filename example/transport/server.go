@@ -134,7 +134,7 @@ func (srv *Server) WithMetrics() *Server {
 			Name:      "count",
 			Namespace: "service",
 			Subsystem: "requests",
-		}, []string{"service", "method", "success"})
+		}, []string{"service", "method", "success", "errCode"})
 	}
 	if RequestCountAll == nil {
 		RequestCountAll = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -142,7 +142,7 @@ func (srv *Server) WithMetrics() *Server {
 			Name:      "all_count",
 			Namespace: "service",
 			Subsystem: "requests",
-		}, []string{"service", "method", "success"})
+		}, []string{"service", "method", "success", "errCode"})
 	}
 	if RequestLatency == nil {
 		RequestLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
@@ -150,7 +150,7 @@ func (srv *Server) WithMetrics() *Server {
 			Name:      "latency_microseconds",
 			Namespace: "service",
 			Subsystem: "requests",
-		}, []string{"service", "method", "success"})
+		}, []string{"service", "method", "success", "errCode"})
 	}
 	hostname, _ := os.Hostname()
 	VersionGauge.WithLabelValues("tg", VersionTg, hostname).Set(1)
