@@ -545,6 +545,11 @@ func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *State
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(64)).Add(errStatement)
 	case "uint32":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(32)).Add(errStatement)
+	case "float64":
+		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseFloat").Call(from, Lit(64)).Add(errStatement)
+	case "float32":
+		temp64 := Id("temp64")
+		return List(temp64, Err()).Op(":=").Qual(packageStrconv, "ParseFloat").Call(from, Lit(32)).Add(errStatement).Add(Line()).Add(id.Op(op).Float32().Call(temp64))
 	case "UUID":
 		return List(id, Id("_")).Op(op).Qual(uuidPackage, "Parse").Call(from)
 
