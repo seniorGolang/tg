@@ -46,7 +46,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 
 func (doc *swagger) render(outFilePath string, ifaces ...string) (err error) {
 
-	var include, exclude []string
+	var include, exclude = make([]string, 0, len(ifaces)), make([]string, len(ifaces))
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface, "!") {
 			exclude = append(exclude, strings.TrimPrefix(iface, "!"))

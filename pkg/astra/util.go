@@ -69,7 +69,7 @@ func ParsePackage(path string, options ...Option) ([]*types.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not read dir: %v", err)
 	}
-	var parsedFiles []*types.File
+	var parsedFiles = make([]*types.File, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() {
 			continue

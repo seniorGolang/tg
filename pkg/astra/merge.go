@@ -3,6 +3,7 @@ package astra
 import "github.com/seniorGolang/tg/v2/pkg/astra/types"
 
 func mergeImports(bunch ...[]*types.Import) []*types.Import {
+
 	set := make(map[string]*types.Import)
 	for i := range bunch {
 		for j := range bunch[i] {
@@ -15,7 +16,7 @@ func mergeImports(bunch ...[]*types.Import) []*types.Import {
 			}
 		}
 	}
-	var result []*types.Import
+	var result = make([]*types.Import, 0, len(set))
 	for _, v := range set {
 		result = append(result, v)
 	}

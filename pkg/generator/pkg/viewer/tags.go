@@ -10,8 +10,7 @@ func tagToOption(tag string) (opt option) {
 
 	parsed := strings.Split(tag, ",")
 	if len(parsed) == 2 {
-		switch parsed[0] {
-		case "hide":
+		if parsed[0] == "hide" {
 			return hide(parsed[1])
 		}
 	}

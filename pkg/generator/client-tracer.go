@@ -3,7 +3,7 @@
 // conditions defined in file 'LICENSE', which is part of this project source code.
 package generator
 
-//func (tr *Transport) renderClientTracer(outDir string) (err error) {
+// func (tr *Transport) renderClientTracer(outDir string) (err error) {
 //
 //	srcFile := newSrc(filepath.Base(outDir))
 //	srcFile.PackageComment(doNotEdit)
@@ -17,9 +17,9 @@ package generator
 //	srcFile.Line().Add(tr.injectSpanClientFunc())
 //
 //	return srcFile.Save(path.Join(outDir, "tracer.go"))
-//}
+// }
 
-//func (tr *Transport) extractSpanClientFunc() Code {
+// func (tr *Transport) extractSpanClientFunc() Code {
 //
 //	return Func().Id("extractSpan").Params(Id(_ctx_).Qual(packageContext, "Context"), Id("opName").String()).Params(Id("span").Qual(packageOpentracing, "Span")).Block(
 //
@@ -35,9 +35,9 @@ package generator
 //		Line().Id("span").Op("=").Qual(packageOpentracing, "GlobalTracer").Call().Dot("StartSpan").Call(Id("opName"), Id("opts").Op("...")),
 //		Return(),
 //	)
-//}
+// }
 
-//func (tr *Transport) injectSpanClientFunc() Code {
+// func (tr *Transport) injectSpanClientFunc() Code {
 //	return Func().Id("injectSpan").Params(Id("span").Qual(packageOpentracing, "Span"), Id("request").Op("*").Qual(packageFiber, "Request")).Params().Block(
 //		Id("headers").Op(":=").Make(Qual(packageHttp, "Header")),
 //		If(Err().Op(":=").Qual(packageOpentracing, "GlobalTracer").Call().
@@ -52,4 +52,4 @@ package generator
 //			Id("request").Dot("Header").Dot("Set").Call(Id("key"), Qual(packageStrings, "Join").Call(Id("values"), Lit(";"))),
 //		),
 //	)
-//}
+// }

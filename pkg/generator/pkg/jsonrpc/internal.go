@@ -16,7 +16,7 @@ func (client *ClientRPC) newRequest(ctx context.Context, reqBody interface{}) (r
 	if body, err = json.Marshal(reqBody); err != nil {
 		return
 	}
-	if request, err = http.NewRequestWithContext(ctx, "POST", client.endpoint, bytes.NewReader(body)); err != nil {
+	if request, err = http.NewRequestWithContext(ctx, http.MethodPost, client.endpoint, bytes.NewReader(body)); err != nil {
 		return
 	}
 	request.Header.Set("Accept", "application/json")

@@ -72,6 +72,7 @@ const (
 )
 
 type Transport struct {
+	hasHTTP    bool
 	hasJsonRPC bool
 	version    string
 	modPath    string
@@ -87,7 +88,7 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...stri
 	tr.version = version
 	var files []os.DirEntry
 	tr.services = make(map[string]*service)
-	var include, exclude []string
+	var include, exclude = make([]string, 0, len(ifaces)), make([]string, 0, len(ifaces))
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface, "!") {
 			exclude = append(exclude, strings.TrimPrefix(iface, "!"))
@@ -132,6 +133,9 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...stri
 			if len(tags.ParseTags(iface.Docs)) != 0 {
 				service := newService(log, &tr, filePath, iface)
 				tr.services[iface.Name] = service
+				if service.tags.Contains(tagServerHTTP) {
+					tr.hasHTTP = true
+				}
 				if service.tags.Contains(tagServerJsonRPC) {
 					tr.hasJsonRPC = true
 				}
@@ -165,11 +169,12 @@ func (tr *Transport) RenderClient(outDir string) (err error) {
 		return
 	}
 
-	//if tr.hasTrace() {
-	//	showError(tr.log, tr.renderClientTracer(outDir), "renderClientTracer")
-	//}
-	showError(tr.log, tr.renderClientOptions(outDir), "renderClientOptions")
+	if tr.hasHTTP {
+		showError(tr.log, tr.renderVersion(outDir, false), "renderVersion")
+		showError(tr.log, tr.renderClientError(outDir), "renderClientError")
+	}
 	if tr.hasJsonRPC {
+		showError(tr.log, tr.renderClientOptions(outDir), "renderClientOptions")
 		showError(tr.log, tr.renderVersion(outDir, false), "renderVersion")
 		showError(tr.log, tr.renderClientJsonRPC(outDir), "renderClientJsonRPC")
 		showError(tr.log, tr.renderClientError(outDir), "renderClientError")
