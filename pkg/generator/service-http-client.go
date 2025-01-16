@@ -133,7 +133,7 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			urlPathFmt := methodPath
 			var urlPathArgs []Code
 			for placeholder := range pathParams {
-				urlPathFmt = strings.ReplaceAll(urlPathFmt, placeholder, "%s")
+				urlPathFmt = strings.ReplaceAll(urlPathFmt, ":"+placeholder, "%v")
 			}
 			fullURLPath := path.Join(svcPrefix, urlPathFmt)
 			urlPathArgs = append(urlPathArgs, Lit("%s"+fullURLPath))
