@@ -22,7 +22,7 @@ type config struct {
 }
 
 type Option interface {
-	apply(*config)
+	apply(cfg *config)
 }
 
 type optionFunc func(*config)

@@ -17,7 +17,8 @@ type Method struct {
 }
 
 func (f Function) funcStr() string {
-	var args, results []string
+
+	var args, results = make([]string, 0, len(f.Args)), make([]string, 0, len(f.Args))
 	for _, arg := range f.Args {
 		args = append(args, arg.String())
 	}

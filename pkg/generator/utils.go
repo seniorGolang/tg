@@ -77,6 +77,12 @@ func searchType(pkg, name string) (retType types.Type) {
 	return
 }
 
+func isPointerType(v types.Type) (isPointer bool) {
+
+	_, isPointer = v.(types.TPointer)
+	return
+}
+
 func nestedType(field types.Type, pkg string, path []string) (nested types.Type) {
 
 	if len(path) == 0 {

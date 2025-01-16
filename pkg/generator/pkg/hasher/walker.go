@@ -60,6 +60,7 @@ func (w *walker) visit(v reflect.Value, opts *visitOpts) (hash uint64, err error
 			tmp = 1
 		}
 		v = reflect.ValueOf(tmp)
+	default:
 	}
 	k := v.Kind()
 	if k >= reflect.Int && k <= reflect.Complex64 {
@@ -67,8 +68,7 @@ func (w *walker) visit(v reflect.Value, opts *visitOpts) (hash uint64, err error
 		_ = binary.Write(w.h, binary.LittleEndian, v.Interface())
 		return w.h.Sum64(), err
 	}
-	switch v.Type() {
-	case timeType:
+	if v.Type() == timeType {
 		w.h.Reset()
 		b, err := v.Interface().(time.Time).MarshalBinary()
 		if err != nil {
@@ -181,8 +181,7 @@ func (w *walker) visit(v reflect.Value, opts *visitOpts) (hash uint64, err error
 						continue
 					}
 				}
-				switch tag {
-				case "set":
+				if tag == "set" {
 					f |= visitFlagSet
 				}
 				kh, err := w.visit(reflect.ValueOf(fieldType.Name), nil)

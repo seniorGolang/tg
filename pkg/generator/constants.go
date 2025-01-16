@@ -31,6 +31,7 @@ const (
 	packageAttributeOTEL  = "go.opentelemetry.io/otel/attribute"
 	packageOTEL           = "go.opentelemetry.io/otel"
 	packageTrace          = "go.opentelemetry.io/otel/trace"
+	packageFasthttp       = "github.com/valyala/fasthttp"
 	packagePrometheus     = "github.com/prometheus/client_golang/prometheus"
 	packagePrometheusAuto = "github.com/prometheus/client_golang/prometheus/promauto"
 	packagePrometheusHttp = "github.com/prometheus/client_golang/prometheus/promhttp"

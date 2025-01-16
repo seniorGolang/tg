@@ -132,7 +132,11 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				if len(ex) > 0 {
 					bf.Add(&ex)
 				}
-				bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
+				if len(method.resultsWithoutError()) == 1 {
+					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name)))
+				} else {
+					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
+				}
 			})
 			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
 				Id(_ctx_).Dot("Status").Call(Id("errCoder").Dot("Code").Call()),

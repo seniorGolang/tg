@@ -107,5 +107,5 @@ func renderFile(tmpl *template.Template, template, path string, data any) (err e
 	if err = tmpl.ExecuteTemplate(&buf, template, data); err != nil {
 		return
 	}
-	return os.WriteFile(path, buf.Bytes(), 0666)
+	return os.WriteFile(path, buf.Bytes(), 0600)
 }

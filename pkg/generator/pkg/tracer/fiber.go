@@ -86,7 +86,7 @@ func Middleware(opts ...Option) fiber.Handler {
 		start := time.Now()
 		requestMetricsAttrs := httpServerMetricAttributesFromRequest(ftx, cfg)
 		httpServerActiveRequests.Add(savedCtx, 1, metric.WithAttributes(requestMetricsAttrs...))
-		responseMetricAttrs := make([]attribute.KeyValue, len(requestMetricsAttrs))
+		responseMetricAttrs := make([]attribute.KeyValue, 0, len(requestMetricsAttrs))
 		copy(responseMetricAttrs, requestMetricsAttrs)
 		reqHeader := make(http.Header)
 		var reqHeaderAttrs []attribute.KeyValue
