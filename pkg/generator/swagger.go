@@ -46,7 +46,7 @@ func newSwagger(tr *Transport) (doc *swagger) {
 
 func (doc *swagger) render(outFilePath string, ifaces ...string) (err error) {
 
-	var include, exclude = make([]string, 0, len(ifaces)), make([]string, len(ifaces))
+	var include, exclude = make([]string, 0, len(ifaces)), make([]string, 0, len(ifaces))
 	for _, iface := range ifaces {
 		if strings.HasPrefix(iface, "!") {
 			exclude = append(exclude, strings.TrimPrefix(iface, "!"))
@@ -55,7 +55,7 @@ func (doc *swagger) render(outFilePath string, ifaces ...string) (err error) {
 		include = append(include, iface)
 	}
 	if len(include) != 0 && len(exclude) != 0 {
-		err = fmt.Errorf("include and exclude cannot be set at same time")
+		err = fmt.Errorf("include and exclude cannot be set at same time (%v | %v)", include, exclude)
 		return
 	}
 	if err = os.MkdirAll(filepath.Dir(outFilePath), 0777); err != nil {

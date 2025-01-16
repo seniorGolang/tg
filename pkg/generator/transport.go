@@ -97,7 +97,7 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...stri
 		include = append(include, iface)
 	}
 	if len(include) != 0 && len(exclude) != 0 {
-		err = fmt.Errorf("include and exclude cannot be set at same time")
+		err = fmt.Errorf("include and exclude cannot be set at same time (%v | %v)", include, exclude)
 		return
 	}
 	if err = tr.goMod(svcDir); err != nil {

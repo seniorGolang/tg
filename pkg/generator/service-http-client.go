@@ -6,6 +6,7 @@ package generator
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	. "github.com/dave/jennifer/jen"
 
+	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 
 	"github.com/seniorGolang/tg/v2/pkg/utils"
@@ -25,11 +27,9 @@ func (svc *service) renderClientHTTP(outDir string) (err error) {
 
 	ctx := context.WithValue(context.Background(), keyCode, srcFile) // nolint
 
-	// Copy necessary packages for the HTTP client
 	if err = pkgCopyTo("httpclient", outDir); err != nil {
 		return err
 	}
-	// Import necessary packages
 	srcFile.ImportName(packageContext, "context")
 	srcFile.ImportName(packageFmt, "fmt")
 	srcFile.ImportName(packageTime, "time")
@@ -40,12 +40,10 @@ func (svc *service) renderClientHTTP(outDir string) (err error) {
 	srcFile.ImportName(fmt.Sprintf("%s/hasher", svc.tr.pkgPath(outDir)), "hasher")
 	srcFile.ImportName(fmt.Sprintf("%s/httpclient", svc.tr.pkgPath(outDir)), "httpclient")
 
-	// Define the Client struct for this service
 	srcFile.Type().Id("Client" + svc.Name).StructFunc(func(g *Group) {
 		g.Id("httpClient").Op("*").Qual(fmt.Sprintf("%s/httpclient", svc.tr.pkgPath(outDir)), "ClientHTTP")
 	}).Line()
 
-	// Implement the NewClient function
 	srcFile.Func().Id("NewClient"+svc.Name).Params(
 		Id("endpoint").String(),
 		Id("opts").Op("...").Qual(fmt.Sprintf("%s/httpclient", svc.tr.pkgPath(outDir)), "Option"),
@@ -56,11 +54,9 @@ func (svc *service) renderClientHTTP(outDir string) (err error) {
 		})),
 	).Line()
 
-	// Generate client methods for each service method
 	for _, method := range svc.methods {
 		srcFile.Line().Add(svc.httpClientMethodFunc(ctx, method, outDir))
 	}
-	// Save the generated source file
 	return srcFile.Save(path.Join(outDir, svc.lcName()+"-http-client.go"))
 }
 
@@ -74,7 +70,6 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 		Params(funcDefinitionParams(ctx, method.Results)).
 		BlockFunc(func(g *Group) {
 			g.Line()
-			// Variables for request and response
 			g.Var().Id("reqBody").Index().Byte()
 			var httpMethod string
 			if method.tags.Contains(tagMethodHTTP) {
@@ -82,20 +77,18 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			} else {
 				httpMethod = "POST"
 			}
-			// Retrieve the success status code from annotations
 			var successStatusCode int
 			if method.tags.Contains(tagHttpSuccess) {
 				successCodeStr := method.tags.Value(tagHttpSuccess)
 				code, err := strconv.Atoi(successCodeStr)
 				if err != nil {
-					successStatusCode = 200 // Default to 200
+					successStatusCode = http.StatusOK
 				} else {
 					successStatusCode = code
 				}
 			} else {
-				successStatusCode = 200 // Default to 200
+				successStatusCode = http.StatusOK
 			}
-			// Retrieve the method path from annotations
 			methodPath := strings.ToLower(method.Name)
 			pathParams := make(map[string]string)
 			if method.tags.Contains(tagHttpPath) {
@@ -112,7 +105,6 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			argsMappings := varArgsMap(method.tags)
 			cookieMappings := varCookieMap(method.tags)
 			headerMappings := varHeaderMap(method.tags)
-			// Serialize the request parameters if any
 			if len(method.arguments()) > 1 {
 				g.Id("request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
 					for idx, arg := range method.argsWithoutContext() {
@@ -136,10 +128,8 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 					Return(),
 				)
 			}
-			// Set up the request
 			g.Id("req").Op(":=").Qual(packageFasthttp, "AcquireRequest").Call()
 			g.Defer().Qual(packageFasthttp, "ReleaseRequest").Call(Id("req"))
-			// Build URL path with parameter replacements
 			urlPathFmt := methodPath
 			var urlPathArgs []Code
 			for placeholder := range pathParams {
@@ -157,37 +147,33 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			g.Id("req").Dot("Header").Dot("SetMethod").Call(Lit(httpMethod))
 			g.Id("req").Dot("Header").Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
 			g.Id("req").Dot("SetBody").Call(Id("reqBody"))
-			// Set cookies in the request
 			for paramName, cookieName := range cookieMappings {
-				g.Id("req").Dot("Header").Dot("SetCookie").Call(Lit(cookieName), Id(paramName))
+				g.Id("req").Dot("Header").Dot("SetCookie").Call(Lit(cookieName), varToString(method.argByName(paramName)))
 			}
-			// Set headers in the request
 			for paramName, headerName := range headerMappings {
-				g.Id("req").Dot("Header").Dot("Set").Call(Lit(headerName), Id(paramName))
+				g.Id("req").Dot("Header").Dot("Set").Call(Lit(headerName), varToString(method.argByName(paramName)))
 			}
-			// Set args in the request
 			for paramName, argName := range argsMappings {
-				g.If(Id(paramName).Op("!=").Op(`""`)).Block(
-					Id("req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), Id(paramName)),
-				)
+				paramVar := method.argByName(paramName)
+				if isPointerType(paramVar.Type) {
+					g.If(Id(paramName).Op("!=").Nil()).Block(
+						Id("req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar)),
+					)
+				} else {
+					g.Id("req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar))
+				}
 			}
-			// Set up the response
 			g.Id("resp").Op(":=").Qual(packageFasthttp, "AcquireResponse").Call()
 			g.Defer().Qual(packageFasthttp, "ReleaseResponse").Call(Id("resp"))
-			// Context handling
 			g.If(List(Id("deadline"), Id("ok")).Op(":=").Id(_ctx_).Dot("Deadline").Call(), Id("ok")).Block(
 				Id("timeout").Op(":=").Qual(packageTime, "Until").Call(Id("deadline")),
 				Id("cli").Dot("httpClient").Dot("SetTimeout").Call(Id("timeout")),
 			)
-			// Perform the HTTP request
 			g.If(Err().Op("=").Id("cli").Dot("httpClient").Dot("Do").Call(Id("ctx"), Id("req"), Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
 			)
-			// Read the response body for error information
 			g.Id("respBody").Op(":=").Id("resp").Dot("Body").Call()
-			// Check HTTP status code
 			g.If(Id("resp").Dot("StatusCode").Call().Op("!=").Lit(successStatusCode)).Block(
-				// Build an error with detailed information
 				Err().Op("=").Qual(packageFmt, "Errorf").Call(
 					Lit("HTTP error: %d. URL: %s, Method: %s, Body: %s"),
 					Id("resp").Dot("StatusCode").Call(),
@@ -280,4 +266,15 @@ func varHeaderMap(tags tags.DocTags) (headers map[string]string) {
 		}
 	}
 	return headerToVar
+}
+
+func varToString(variable *types.Variable) (code *Statement) {
+
+	typename := types.TypeName(variable.Type)
+	switch *typename {
+	case "string":
+		return Id(variable.Name)
+	default:
+		return Qual(packageFmt, "Sprint").Call(Id(variable.Name))
+	}
 }

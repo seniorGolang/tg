@@ -31,7 +31,7 @@ func toCurl(req *http.Request) (command *CurlCommand, err error) {
 		bodyEscaped := bashEscape(string(body))
 		command.append("-d", bodyEscaped)
 	}
-	var keys []string
+	var keys = make([]string, 0, len(req.Header))
 	for k := range req.Header {
 		keys = append(keys, k)
 	}
@@ -52,7 +52,7 @@ func (c *CurlCommand) String() string {
 }
 
 func bashEscape(str string) string {
-	return `'` + strings.Replace(str, `'`, `'\''`, -1) + `'`
+	return `'` + strings.ReplaceAll(str, `'`, `'\''`) + `'`
 }
 
 func (nopCloser) Close() error { return nil }
