@@ -229,7 +229,8 @@ func funcDefinitionParams(ctx context.Context, fields []types.Variable) *Stateme
 }
 
 func paramNames(fields []types.Variable) *Statement {
-	var list []Code
+
+	var list = make([]Code, 0, len(fields))
 	for _, field := range fields {
 		v := Id(utils.ToLowerCamel(field.Name))
 		if types.IsEllipsis(field.Type) {
@@ -241,7 +242,8 @@ func paramNames(fields []types.Variable) *Statement {
 }
 
 func callParamNames(object string, fields []types.Variable) *Statement {
-	var list []Code
+
+	var list = make([]Code, 0, len(fields))
 	for _, field := range fields {
 		v := Id(object).Dot(utils.ToCamel(field.Name))
 		if types.IsEllipsis(field.Type) {

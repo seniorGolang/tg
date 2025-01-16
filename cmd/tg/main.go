@@ -279,7 +279,7 @@ func cmdTransport(c *cli.Context) (err error) {
 	if c.String("redoc") != "" {
 		var output []byte
 		log.Infof("write to %s", c.String("redoc"))
-		if output, err = exec.Command("redoc-cli", "bundle", c.String("outSwagger"), "-o", c.String("redoc")).Output(); err != nil {
+		if output, err = exec.Command("redoc-cli", "bundle", c.String("outSwagger"), "-o", c.String("redoc")).Output(); err != nil { // nolint:gosec
 			log.WithError(err).Error(string(output))
 		}
 	}

@@ -90,7 +90,7 @@ func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
 	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
 	pathItems := strings.Split(urlPath, "/")
-	var pathTokens []string
+	var pathTokens []string // nolint:prealloc
 	for _, pathItem := range pathItems {
 		if strings.HasPrefix(pathItem, ":") {
 			pathTokens = append(pathTokens, fmt.Sprintf("{%s}", strings.TrimPrefix(pathItem, ":")))
@@ -264,7 +264,7 @@ func (m *method) argFromString(typeName string, varMap map[string]string, strCod
 				argType = nestedType(vArg.Type, "", argTokens)
 				argTypeName = argType.String()
 			}
-			switch t := argType.(type) {
+			switch t := argType.(type) { // nolint:gocritic
 			case types.TPointer:
 				argID = Op("&").Add(argID)
 				argTypeName = t.NextType().String()
@@ -509,7 +509,7 @@ func (m *method) argsFieldsWithoutContext() (vars []types.Variable) {
 	}
 	for _, v := range argVars {
 		if m.isInlined(&v) {
-			switch vType := v.Type.(type) {
+			switch vType := v.Type.(type) { // nolint:gocritic
 			case types.TImport:
 				vars = append(vars, types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next})
 				continue
