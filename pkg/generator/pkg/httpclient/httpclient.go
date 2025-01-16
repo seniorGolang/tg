@@ -3,6 +3,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -18,7 +19,6 @@ type ClientHTTP struct {
 	headersFromCtx []interface{}
 }
 
-// NewClient creates a new HTTP client with the provided baseURL, circuit breaker settings, and options.
 func NewClient(baseURL string, opts ...Option) *ClientHTTP {
 
 	c := &ClientHTTP{
@@ -28,17 +28,14 @@ func NewClient(baseURL string, opts ...Option) *ClientHTTP {
 		},
 		BaseURL: baseURL,
 	}
-	// Apply options
 	for _, opt := range opts {
 		opt(c)
 	}
 	return c
 }
 
-// Do send the request and fills the response, using the circuit breaker.
 func (c *ClientHTTP) Do(ctx context.Context, req *fasthttp.Request, resp *fasthttp.Response) (err error) {
 
-	// Set headers from context
 	for _, header := range c.headersFromCtx {
 		if value := ctx.Value(header); value != nil {
 			if k := toString(header); k != "" {
@@ -48,21 +45,17 @@ func (c *ClientHTTP) Do(ctx context.Context, req *fasthttp.Request, resp *fastht
 			}
 		}
 	}
-	// Log the request if logRequests is enabled
 	if c.logRequests {
 		if cmd, cmdErr := toCurlCommand(req); cmdErr == nil {
 			log.Debug().Str("method", string(req.Header.Method())).
-				Str("url", req.URI().String()).
 				Str("curl", cmd.String()).
 				Msg("HTTP request")
 		}
 	}
-	// Defer function to log on error if logOnError is enabled
 	defer func() {
 		if err != nil && c.logOnError {
 			if cmd, cmdErr := toCurlCommand(req); cmdErr == nil {
 				log.Error().Str("method", string(req.Header.Method())).
-					Str("url", req.URI().String()).
 					Str("curl", cmd.String()).
 					Err(err).
 					Msg("HTTP request failed")
@@ -73,19 +66,29 @@ func (c *ClientHTTP) Do(ctx context.Context, req *fasthttp.Request, resp *fastht
 	return
 }
 
-// SetTimeout sets the read and write timeout for the client.
-func (c *ClientHTTP) SetTimeout(timeout time.Duration) {
-	c.client.ReadTimeout = timeout
-	c.client.WriteTimeout = timeout
-}
-
-// Option represents a configuration option for ClientHTTP.
 type Option func(*ClientHTTP)
 
-// WithTimeout sets the read and write timeout for the client.
-func WithTimeout(timeout time.Duration) Option {
+func WithClient(client *fasthttp.Client) Option {
 	return func(c *ClientHTTP) {
-		c.SetTimeout(timeout)
+		c.client = client
+	}
+}
+
+func WithTLS(config *tls.Config) Option {
+	return func(c *ClientHTTP) {
+		c.client.TLSConfig = config
+	}
+}
+
+func WithReadTimeout(timeout time.Duration) Option {
+	return func(c *ClientHTTP) {
+		c.client.ReadTimeout = timeout
+	}
+}
+
+func WithWriteTimeout(timeout time.Duration) Option {
+	return func(c *ClientHTTP) {
+		c.client.WriteTimeout = timeout
 	}
 }
 
@@ -111,34 +114,33 @@ func toCurlCommand(req *fasthttp.Request) (*bytes.Buffer, error) {
 
 	var cmd bytes.Buffer
 	cmd.WriteString("curl -X ")
-	cmd.WriteString(string(req.Header.Method())) // nolint:mirror
+	cmd.Write(req.Header.Method())
 	cmd.WriteString(" '")
 	cmd.WriteString(req.URI().String())
 	cmd.WriteString("'")
-	// Add headers
 	req.Header.VisitAll(func(key, value []byte) {
 		cmd.WriteString(" -H '")
-		cmd.WriteString(string(key)) // nolint:mirror
+		cmd.Write(key)
 		cmd.WriteString(": ")
-		cmd.WriteString(string(value)) // nolint:mirror
+		cmd.Write(value)
 		cmd.WriteString("'")
 	})
-	// Add body if present
 	if req.Body() != nil && len(req.Body()) > 0 {
 		cmd.WriteString(" -d '")
-		cmd.WriteString(string(req.Body())) // nolint:mirror
+		cmd.Write(req.Body())
 		cmd.WriteString("'")
 	}
 	return &cmd, nil
 }
 
 func toString(v interface{}) string {
+
 	switch val := v.(type) {
 	case string:
 		return val
 	case fmt.Stringer:
 		return val.String()
 	default:
-		return ""
+		return fmt.Sprint(v)
 	}
 }
