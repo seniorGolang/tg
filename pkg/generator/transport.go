@@ -106,6 +106,7 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...stri
 	if files, err = os.ReadDir(svcDir); err != nil {
 		return
 	}
+	interfaces := make(map[string]types.Interface)
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".go") {
 			continue
@@ -118,27 +119,30 @@ func NewTransport(log logrus.FieldLogger, version, svcDir string, ifaces ...stri
 		}
 		tr.tags = tr.tags.Merge(tags.ParseTags(serviceAst.Docs))
 		for _, iface := range serviceAst.Interfaces {
-			if len(include) != 0 {
-				if !slices.Contains(include, iface.Name) {
-					log.WithField("iface", iface.Name).Info("skip")
-					continue
-				}
+			interfaces[filePath] = iface
+		}
+	}
+	for filePath, iface := range interfaces {
+		if len(include) != 0 {
+			if !slices.Contains(include, iface.Name) {
+				log.WithField("iface", iface.Name).Info("skip")
+				continue
 			}
-			if len(exclude) != 0 {
-				if slices.Contains(exclude, iface.Name) {
-					log.WithField("iface", iface.Name).Info("skip")
-					continue
-				}
+		}
+		if len(exclude) != 0 {
+			if slices.Contains(exclude, iface.Name) {
+				log.WithField("iface", iface.Name).Info("skip")
+				continue
 			}
-			if len(tags.ParseTags(iface.Docs)) != 0 {
-				service := newService(log, &tr, filePath, iface)
-				tr.services[iface.Name] = service
-				if service.tags.Contains(tagServerHTTP) {
-					tr.hasHTTP = true
-				}
-				if service.tags.Contains(tagServerJsonRPC) {
-					tr.hasJsonRPC = true
-				}
+		}
+		if len(tags.ParseTags(iface.Docs)) != 0 {
+			service := newService(log, &tr, filePath, iface)
+			tr.services[iface.Name] = service
+			if service.tags.Contains(tagServerHTTP) {
+				tr.hasHTTP = true
+			}
+			if service.tags.Contains(tagServerJsonRPC) {
+				tr.hasJsonRPC = true
 			}
 		}
 	}

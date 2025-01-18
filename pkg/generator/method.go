@@ -108,9 +108,8 @@ func (m *method) jsonrpcPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := formatPathURL(m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName())))
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) httpMethod() string {

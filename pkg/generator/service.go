@@ -102,5 +102,5 @@ func (svc *service) render(outDir string) (err error) {
 }
 
 func (svc *service) batchPath() string {
-	return path.Join("/", svc.tr.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPath, path.Join("/", svc.lccName())))
+	return path.Join("/", svc.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPath, path.Join("/", svc.lccName())))
 }

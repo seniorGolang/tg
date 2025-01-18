@@ -131,12 +131,12 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			g.Id("req").Op(":=").Qual(packageFasthttp, "AcquireRequest").Call()
 			g.Defer().Qual(packageFasthttp, "ReleaseRequest").Call(Id("req"))
 			urlPathFmt := methodPath
-			var urlPathArgs []Code
 			for placeholder := range pathParams {
 				urlPathFmt = strings.ReplaceAll(urlPathFmt, ":"+placeholder, "%v")
 			}
-			fullURLPath := path.Join(svcPrefix, urlPathFmt)
-			urlPathArgs = append(urlPathArgs, Lit("%s"+fullURLPath))
+			fullURLPath := path.Join("%s", svcPrefix, urlPathFmt)
+			var urlPathArgs []Code
+			urlPathArgs = append(urlPathArgs, Lit(fullURLPath))
 			urlPathArgs = append(urlPathArgs, Id("cli").Dot("httpClient").Dot("BaseURL"))
 			for _, paramName := range pathParams {
 				urlPathArgs = append(urlPathArgs, Id(paramName))
