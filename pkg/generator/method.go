@@ -43,7 +43,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 		Function: fn,
 		log:      log,
 		svc:      svc,
-		tags:     tags.ParseTags(fn.Docs),
+		tags:     tags.ParseTags(fn.Docs).Merge(svc.tags),
 	}
 	m.argFields = m.varsToFields(m.argsWithoutContext(), m.tags, m.argCookieMap(), m.varHeaderMap())
 	m.resultFields = m.varsToFields(m.resultsWithoutError(), m.tags, m.retCookieMap(), m.varHeaderMap())
