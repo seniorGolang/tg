@@ -270,7 +270,11 @@ func (m *method) argFromString(typeName string, varMap map[string]string, strCod
 			}
 			block.If(Id("_" + argVarName).Op(":=").Add(strCodeFn(srcName)).Op(";").Id("_" + argVarName).Op("!=").Lit("")).
 				BlockFunc(func(g *Group) {
-					g.Var().Id(argVarName).Id(argTypeName)
+					if pkg := importPackage(argType); pkg != "" {
+						g.Var().Id(argVarName).Qual(pkg, strings.Split(argTypeName, ".")[1])
+					} else {
+						g.Var().Id(argVarName).Id(argTypeName)
+					}
 					g.Add(m.argToTypeConverter(Id("_"+argVarName), argType, Id(argVarName), errStatement(argVarName, srcName)))
 					reqID := g.Id("request").Dot(utils.ToCamel(argName))
 					if len(argTokens) > 1 {
@@ -554,8 +558,9 @@ func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *State
 
 	case "Time":
 		return List(id, Err()).Op(op).Qual(packageTime, "Parse").Call(Qual(packageTime, "RFC3339Nano"), from).Add(errStatement)
+	default:
+		return Op("_").Op("=").Qual(m.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Op("[]").Byte().Call(Op("`\"`").Op("+").Add(from).Op("+").Op("`\"`")), Op("&").Add(id))
 	}
-	return Line().Add(from)
 }
 
 func (m *method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes ...map[string]string) (fields []types.StructField) {
@@ -612,4 +617,15 @@ func (m *method) isInlined(field *types.Variable) (isInlined bool) {
 		}
 	}
 	return
+}
+
+func importPackage(varType types.Type) string {
+
+	switch vType := varType.(type) {
+	case types.TImport:
+		return vType.Import.Package
+	case types.TPointer:
+		return importPackage(vType.Next)
+	}
+	return ""
 }

@@ -20,10 +20,10 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
+	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	for _, method := range svc.methods {
 		if !method.isHTTP() {
