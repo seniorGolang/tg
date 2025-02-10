@@ -2,6 +2,7 @@ package jsonrpc
 
 import (
 	"crypto/tls"
+	"net/http"
 )
 
 type options struct {
@@ -9,6 +10,7 @@ type options struct {
 	logRequests        bool
 	allowUnknownFields bool
 	tlsConfig          *tls.Config
+	clientHTTP         *http.Client
 	headersFromCtx     []interface{}
 	customHeaders      map[string]string
 }
@@ -33,6 +35,12 @@ func HeaderFromCtx(headers ...interface{}) Option {
 func AllowUnknownFields(allowUnknownFields bool) Option {
 	return func(ops *options) {
 		ops.allowUnknownFields = allowUnknownFields
+	}
+}
+
+func ClientHTTP(client *http.Client) Option {
+	return func(ops *options) {
+		ops.clientHTTP = client
 	}
 }
 

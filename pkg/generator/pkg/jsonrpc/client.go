@@ -28,6 +28,9 @@ func NewClient(endpoint string, opts ...Option) (client *ClientRPC) {
 		httpClient: &http.Client{},
 		options:    prepareOpts(opts),
 	}
+	if client.options.clientHTTP != nil {
+		client.httpClient = client.options.clientHTTP
+	}
 	if client.options.tlsConfig != nil {
 		client.httpClient.Transport = &http.Transport{
 			TLSClientConfig: client.options.tlsConfig,
