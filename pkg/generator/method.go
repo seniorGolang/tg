@@ -76,9 +76,8 @@ func (m *method) httpPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
@@ -87,7 +86,6 @@ func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
 	pathItems := strings.Split(urlPath, "/")
 	var pathTokens []string // nolint:prealloc
@@ -99,7 +97,7 @@ func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
 		pathTokens = append(pathTokens, pathItem)
 	}
 	urlPath = strings.Join(pathTokens, "/")
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) jsonrpcPath(withoutPrefix ...bool) string {
