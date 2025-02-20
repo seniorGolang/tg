@@ -23,6 +23,18 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
+type pair[K, V any] struct {
+	Key   K
+	Value V
+}
+
+func newPair[K, V any](k K, v V) pair[K, V] {
+	return pair[K, V]{
+		Key:   k,
+		Value: v,
+	}
+}
+
 func removeSkippedFields(fields []types.Variable, skipFields []string) []types.Variable {
 
 	var result []types.Variable
