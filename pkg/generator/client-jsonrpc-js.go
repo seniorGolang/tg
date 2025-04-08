@@ -108,7 +108,7 @@ func (js *clientJS) render(outDir string) (err error) {
 				jsFile.add("*\n")
 			}
 			for _, arg := range method.arguments() {
-				switch vType := arg.Variable.Type.(type) {
+				switch vType := arg.Type.(type) {
 				case types.TEllipsis:
 					jsFile.add("* @param {...%s} %s\n", js.walkVariable(arg.Name, svc.pkgPath, vType, method.tags).typeLink(), arg.Name)
 				default:
@@ -129,7 +129,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			var fields []string
 			for _, arg := range method.arguments() {
 				var prefix string
-				if _, ok := arg.Variable.Type.(types.TEllipsis); ok {
+				if _, ok := arg.Type.(types.TEllipsis); ok {
 					prefix = "..."
 				}
 				fields = append(fields, prefix+utils.ToLowerCamel(arg.Name))

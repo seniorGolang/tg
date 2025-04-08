@@ -602,8 +602,8 @@ func parseFunctionDeclaration(funcField *ast.Field, file *types.File, opt Option
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", funcField.Names[0].Name, err)
 	}
-	fn.Base.Name = funcField.Names[0].Name
-	fn.Base.Docs = parseComments(funcField.Doc, opt)
+	fn.Name = funcField.Names[0].Name
+	fn.Docs = parseComments(funcField.Doc, opt)
 	return fn, nil
 }
 

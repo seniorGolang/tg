@@ -40,7 +40,7 @@ func MergeFiles(files []*types.File) (*types.File, error) {
 			continue
 		}
 		// do not merge documentation.
-		targetFile.Base.Name = file.Base.Name
+		targetFile.Name = file.Name
 		targetFile.Imports = mergeImports(targetFile.Imports, file.Imports)
 		targetFile.Constants = append(targetFile.Constants, file.Constants...)
 		targetFile.Vars = append(targetFile.Vars, file.Vars...)

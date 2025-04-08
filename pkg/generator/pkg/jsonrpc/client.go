@@ -25,7 +25,7 @@ func NewClient(endpoint string, opts ...Option) (client *ClientRPC) {
 
 	client = &ClientRPC{
 		endpoint:   endpoint,
-		httpClient: &http.Client{},
+		httpClient: http.DefaultClient,
 		options:    prepareOpts(opts),
 	}
 	if client.options.clientHTTP != nil {

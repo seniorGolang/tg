@@ -237,7 +237,7 @@ func (ts *clientTS) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.properties[fieldName] = embed
 					continue
 				}
-				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
+				inlineTokens := strings.Split(field.Type.String(), ".")
 				embed = ts.typeDefTs[inlineTokens[len(inlineTokens)-1]]
 				for eField, def := range embed.properties {
 					schema.properties[eField] = def

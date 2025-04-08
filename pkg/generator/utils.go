@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 	"github.com/pkg/errors"
 
 	"github.com/seniorGolang/tg/v2/pkg/astra"
@@ -146,14 +146,14 @@ func structField(ctx context.Context, field types.StructField, template string) 
 	}
 	var s *Statement
 	if isInlined {
-		s = fieldType(ctx, field.Variable.Type, false)
+		s = fieldType(ctx, field.Type, false)
 		s.Tag(map[string]string{"json": ",inline"})
 	} else {
 		s = Id(utils.ToCamel(field.Name))
-		s.Add(fieldType(ctx, field.Variable.Type, false))
+		s.Add(fieldType(ctx, field.Type, false))
 		s.Tag(tags)
 	}
-	if types.IsEllipsis(field.Variable.Type) {
+	if types.IsEllipsis(field.Type) {
 		s.Comment("This field was defined with ellipsis (...).")
 	}
 	return s
@@ -170,10 +170,10 @@ func fieldType(ctx context.Context, field types.Type, allowEllipsis bool) *State
 		case types.TImport:
 			if f.Import != nil {
 				if srcFile, ok := ctx.Value("code").(goFile); ok {
-					if strings.HasSuffix(f.Import.Package, f.Import.Base.Name) {
-						srcFile.ImportName(f.Import.Package, f.Import.Base.Name)
+					if strings.HasSuffix(f.Import.Package, f.Import.Name) {
+						srcFile.ImportName(f.Import.Package, f.Import.Name)
 					} else {
-						srcFile.ImportAlias(f.Import.Package, f.Import.Base.Name)
+						srcFile.ImportAlias(f.Import.Package, f.Import.Name)
 					}
 					c.Qual(f.Import.Package, "")
 				} else {

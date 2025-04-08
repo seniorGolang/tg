@@ -4,7 +4,7 @@ import (
 	"path"
 	"path/filepath"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 )
 
 func (tr *Transport) renderContext(outDir string) (err error) {

@@ -8,7 +8,7 @@ import (
 	"path"
 	"path/filepath"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 )
 
 func (svc *service) renderMetrics(outDir string) (err error) {

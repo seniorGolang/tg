@@ -36,7 +36,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	}
 	var required []string
 	for _, field := range fields {
-		field.Base.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
+		field.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
 		if fieldName, inline := jsonName(field); !inline {
 			required = append(required, fieldName)
@@ -329,8 +329,8 @@ func castType(originName string) (typeName, format string) {
 
 func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 
-	if fieldInfo.Variable.Name == "" {
-		fieldInfo.Variable.Name = fieldInfo.Type.String()
+	if fieldInfo.Name == "" {
+		fieldInfo.Name = fieldInfo.Type.String()
 	}
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 { // nolint
@@ -339,7 +339,7 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 			inline = tagValues[1] == "inline"
 		}
 	}
-	if isLowerStart(fieldInfo.Variable.Name) && !inline {
+	if isLowerStart(fieldInfo.Name) && !inline {
 		value = "-"
 	}
 	return

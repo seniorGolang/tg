@@ -69,7 +69,7 @@ func (tr *Transport) pkgPath(dir string) (pkgPath string) {
 	var pkgDir string
 	dirAbs, _ := filepath.Abs(dir)
 	if modPath, err := mod.GoModPath(dir); err == nil {
-		pkgDir = strings.TrimPrefix(dirAbs, filepath.Dir(modPath))
+		pkgDir = filepath.ToSlash(strings.TrimPrefix(dirAbs, filepath.Dir(modPath)))
 	}
 	return tr.module.Module.Mod.String() + pkgDir
 }
