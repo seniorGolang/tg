@@ -103,10 +103,8 @@ func (tags DocTags) ToDocs() (docs []string) {
 
 func (tags DocTags) Sub(prefix string) (subTags DocTags) {
 
+	prefix += "."
 	subTags = make(DocTags)
-
-	prefix = prefix + "."
-
 	for key, value := range tags {
 		if strings.HasPrefix(key, prefix) {
 			subTags[strings.TrimPrefix(key, prefix)] = value

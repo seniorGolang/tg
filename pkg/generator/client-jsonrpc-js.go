@@ -1,3 +1,6 @@
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
+// This file (client-jsonrpc.go at 25.06.2020, 10:50) is subject to the terms and
+// conditions defined in file 'LICENSE', which is part of this project source code.
 package generator
 
 import (
@@ -105,7 +108,7 @@ func (js *clientJS) render(outDir string) (err error) {
 				jsFile.add("*\n")
 			}
 			for _, arg := range method.arguments() {
-				switch vType := arg.Variable.Type.(type) {
+				switch vType := arg.Type.(type) {
 				case types.TEllipsis:
 					jsFile.add("* @param {...%s} %s\n", js.walkVariable(arg.Name, svc.pkgPath, vType, method.tags).typeLink(), arg.Name)
 				default:
@@ -126,8 +129,7 @@ func (js *clientJS) render(outDir string) (err error) {
 			var fields []string
 			for _, arg := range method.arguments() {
 				var prefix string
-				switch arg.Variable.Type.(type) {
-				case types.TEllipsis:
+				if _, ok := arg.Type.(types.TEllipsis); ok {
 					prefix = "..."
 				}
 				fields = append(fields, prefix+utils.ToLowerCamel(arg.Name))

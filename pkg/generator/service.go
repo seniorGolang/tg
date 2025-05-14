@@ -35,7 +35,7 @@ func newService(log logrus.FieldLogger, tr *Transport, filePath string, iface ty
 		tr:        tr,
 		log:       log,
 		Interface: iface,
-		tags:      tags.ParseTags(iface.Docs),
+		tags:      tags.ParseTags(iface.Docs).Merge(tr.tags),
 	}
 	for _, method := range iface.Methods {
 		svc.methods = append(svc.methods, newMethod(log, svc, method))
@@ -60,12 +60,16 @@ func (svc *service) lccName() string {
 }
 
 func (svc *service) renderClient(outDir string) (err error) {
+
+	if err = svc.renderExchange(outDir); err != nil {
+		return
+	}
 	if svc.tags.Contains(tagServerJsonRPC) {
-		if err = svc.renderExchange(outDir); err != nil {
-			return
-		}
 		err = svc.renderClientJsonRPC(outDir)
 		showError(svc.log, svc.renderClientFallbackError(outDir), "renderFallback")
+	}
+	if svc.tags.Contains(tagServerHTTP) {
+		showError(svc.log, svc.renderClientHTTP(outDir), "renderHTTP")
 	}
 	return
 }
@@ -98,5 +102,5 @@ func (svc *service) render(outDir string) (err error) {
 }
 
 func (svc *service) batchPath() string {
-	return path.Join("/", svc.tr.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPath, path.Join("/", svc.lccName())))
+	return path.Join("/", svc.tags.Value(tagHttpPrefix), svc.tags.Value(tagHttpPath, path.Join("/", svc.lccName())))
 }

@@ -327,7 +327,8 @@ func parseConstant(decl *ast.GenDecl, file *types.File, opt Option) (constants [
 					Docs: parseCommentFromSources(opt, decl.Doc, spec.Doc, spec.Comment),
 				},
 			}
-			if spec.Type != nil {
+			switch {
+			case spec.Type != nil:
 				valType, iotaMark, err = parseByType(spec.Type, file, opt)
 				if err != nil {
 					return nil, fmt.Errorf("can't parse type: %v", err)
@@ -338,13 +339,13 @@ func parseConstant(decl *ast.GenDecl, file *types.File, opt Option) (constants [
 						return nil, fmt.Errorf("can't parse type: %v", err)
 					}
 				}
-			} else if iotaMark {
-			} else if len(spec.Values) > idx {
+			case iotaMark:
+			case len(spec.Values) > idx:
 				variable.Value, valType, iotaMark, err = parseByValue(spec.Values[idx], file, opt)
 				if err != nil {
 					return nil, fmt.Errorf("can't parse type: %v", err)
 				}
-			} else {
+			default:
 				return nil, fmt.Errorf("can't parse type: %d:%d", spec.Pos(), spec.End())
 			}
 			if iotaMark {
@@ -386,19 +387,20 @@ func parseVariables(decl *ast.GenDecl, file *types.File, opt Option) (vars []typ
 				valType types.Type
 				err     error
 			)
-			if spec.Type != nil {
+			switch {
+			case spec.Type != nil:
 				valType, iotaMark, err = parseByType(spec.Type, file, opt)
 				if err != nil {
 					return nil, fmt.Errorf("can't parse type: %v", err)
 				}
-			} else if iotaMark {
+			case iotaMark:
 				valType = iotaType
-			} else if len(spec.Values) > idx {
+			case len(spec.Values) > idx:
 				_, valType, iotaMark, err = parseByValue(spec.Values[idx], file, opt)
 				if err != nil {
 					return nil, fmt.Errorf("can't parse type: %v", err)
 				}
-			} else {
+			default:
 				return nil, fmt.Errorf("can't parse type: %d:%d", spec.Pos(), spec.End())
 			}
 			variable.Type = valType
@@ -600,8 +602,8 @@ func parseFunctionDeclaration(funcField *ast.Field, file *types.File, opt Option
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", funcField.Names[0].Name, err)
 	}
-	fn.Base.Name = funcField.Names[0].Name
-	fn.Base.Docs = parseComments(funcField.Doc, opt)
+	fn.Name = funcField.Names[0].Name
+	fn.Docs = parseComments(funcField.Doc, opt)
 	return fn, nil
 }
 
@@ -683,11 +685,12 @@ func parseTags(lit *ast.BasicLit) (tags map[string][]string, raw string) {
 }
 
 func parseStructFields(s *ast.StructType, file *types.File, opt Option) ([]types.StructField, error) {
+
 	fields, err := parseParams(s.Fields, file, opt)
 	if err != nil {
 		return nil, err
 	}
-	var strF []types.StructField
+	var strF = make([]types.StructField, 0, len(fields))
 	for i, f := range fields {
 		var tags *ast.BasicLit
 		// Fill tags, if Tag field exist in ast

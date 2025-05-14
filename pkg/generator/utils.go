@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 	"github.com/pkg/errors"
 
 	"github.com/seniorGolang/tg/v2/pkg/astra"
@@ -22,6 +22,18 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/mod"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
+
+type pair[K, V any] struct {
+	Key   K
+	Value V
+}
+
+func newPair[K, V any](k K, v V) pair[K, V] {
+	return pair[K, V]{
+		Key:   k,
+		Value: v,
+	}
+}
 
 func removeSkippedFields(fields []types.Variable, skipFields []string) []types.Variable {
 
@@ -77,6 +89,12 @@ func searchType(pkg, name string) (retType types.Type) {
 	return
 }
 
+func isPointerType(v types.Type) (isPointer bool) {
+
+	_, isPointer = v.(types.TPointer)
+	return
+}
+
 func nestedType(field types.Type, pkg string, path []string) (nested types.Type) {
 
 	if len(path) == 0 {
@@ -128,14 +146,14 @@ func structField(ctx context.Context, field types.StructField, template string) 
 	}
 	var s *Statement
 	if isInlined {
-		s = fieldType(ctx, field.Variable.Type, false)
+		s = fieldType(ctx, field.Type, false)
 		s.Tag(map[string]string{"json": ",inline"})
 	} else {
 		s = Id(utils.ToCamel(field.Name))
-		s.Add(fieldType(ctx, field.Variable.Type, false))
+		s.Add(fieldType(ctx, field.Type, false))
 		s.Tag(tags)
 	}
-	if types.IsEllipsis(field.Variable.Type) {
+	if types.IsEllipsis(field.Type) {
 		s.Comment("This field was defined with ellipsis (...).")
 	}
 	return s
@@ -152,10 +170,10 @@ func fieldType(ctx context.Context, field types.Type, allowEllipsis bool) *State
 		case types.TImport:
 			if f.Import != nil {
 				if srcFile, ok := ctx.Value("code").(goFile); ok {
-					if strings.HasSuffix(f.Import.Package, f.Import.Base.Name) {
-						srcFile.ImportName(f.Import.Package, f.Import.Base.Name)
+					if strings.HasSuffix(f.Import.Package, f.Import.Name) {
+						srcFile.ImportName(f.Import.Package, f.Import.Name)
 					} else {
-						srcFile.ImportAlias(f.Import.Package, f.Import.Base.Name)
+						srcFile.ImportAlias(f.Import.Package, f.Import.Name)
 					}
 					c.Qual(f.Import.Package, "")
 				} else {
@@ -223,7 +241,8 @@ func funcDefinitionParams(ctx context.Context, fields []types.Variable) *Stateme
 }
 
 func paramNames(fields []types.Variable) *Statement {
-	var list []Code
+
+	var list = make([]Code, 0, len(fields))
 	for _, field := range fields {
 		v := Id(utils.ToLowerCamel(field.Name))
 		if types.IsEllipsis(field.Type) {
@@ -235,7 +254,8 @@ func paramNames(fields []types.Variable) *Statement {
 }
 
 func callParamNames(object string, fields []types.Variable) *Statement {
-	var list []Code
+
+	var list = make([]Code, 0, len(fields))
 	for _, field := range fields {
 		v := Id(object).Dot(utils.ToCamel(field.Name))
 		if types.IsEllipsis(field.Type) {

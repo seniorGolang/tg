@@ -82,11 +82,12 @@ func (i TArray) t() {}
 
 func (i TArray) String() string {
 	str := ""
-	if i.IsEllipsis {
+	switch {
+	case i.IsEllipsis:
 		str += "..."
-	} else if i.IsSlice {
+	case i.IsSlice:
 		str += "[]"
-	} else {
+	default:
 		str += "[" + strconv.Itoa(i.ArrayLen) + "]"
 	}
 	if i.Next != nil {

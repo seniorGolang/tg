@@ -8,7 +8,7 @@ import (
 	"path"
 	"path/filepath"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 )
 
 func (tr *Transport) renderServer(outDir string) (err error) {
@@ -120,7 +120,7 @@ func (tr *Transport) withMetricsFunc() Code {
 					d[Id("Subsystem")] = Lit("requests")
 					d[Id("Help")] = Lit("Number of requests received")
 				}),
-			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"))),
+			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"), Lit("errCode"))),
 		)
 		bg.If(Id("RequestCountAll").Op("==").Nil()).Block(
 			Id("RequestCountAll").Op("=").Qual(packagePrometheusAuto, "NewCounterVec").Call(Qual(packagePrometheus, "CounterOpts").Values(
@@ -130,7 +130,7 @@ func (tr *Transport) withMetricsFunc() Code {
 					d[Id("Subsystem")] = Lit("requests")
 					d[Id("Help")] = Lit("Number of all requests received")
 				}),
-			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"))),
+			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"), Lit("errCode"))),
 		)
 		bg.If(Id("RequestLatency").Op("==").Nil()).Block(
 			Id("RequestLatency").Op("=").Qual(packagePrometheusAuto, "NewHistogramVec").Call(Qual(packagePrometheus, "HistogramOpts").Values(
@@ -140,7 +140,7 @@ func (tr *Transport) withMetricsFunc() Code {
 					d[Id("Subsystem")] = Lit("requests")
 					d[Id("Help")] = Lit("Total duration of requests in microseconds")
 				}),
-			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"))),
+			), Index().String().Values(Lit("service"), Lit("method"), Lit("success"), Lit("errCode"))),
 		)
 		bg.List(Id("hostname"), Id("_")).Op(":=").Qual(packageOS, "Hostname").Call()
 		bg.Id("VersionGauge").Dot("WithLabelValues").Call(Lit("tg"), Id("VersionTg"), Id("hostname")).Dot("Set").Call(Lit(1))

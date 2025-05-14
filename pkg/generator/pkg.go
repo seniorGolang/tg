@@ -34,7 +34,7 @@ func pkgCopyTo(pkg, dst string) (err error) {
 			return err
 		}
 		filename := path.Join(dst, pkg, entry.Name())
-		if err = os.WriteFile(filename, fileContent, 0666); err != nil {
+		if err = os.WriteFile(filename, fileContent, 0600); err != nil {
 			return err
 		}
 	}
@@ -57,7 +57,7 @@ func tsCopyTo(pkg, dst string) (err error) {
 			return err
 		}
 		filename := path.Join(dst, pkg, entry.Name())
-		if err = os.WriteFile(filename, fileContent, 0666); err != nil {
+		if err = os.WriteFile(filename, fileContent, 0600); err != nil {
 			return err
 		}
 	}
@@ -69,7 +69,7 @@ func (tr *Transport) pkgPath(dir string) (pkgPath string) {
 	var pkgDir string
 	dirAbs, _ := filepath.Abs(dir)
 	if modPath, err := mod.GoModPath(dir); err == nil {
-		pkgDir = strings.TrimPrefix(dirAbs, filepath.Dir(modPath))
+		pkgDir = filepath.ToSlash(strings.TrimPrefix(dirAbs, filepath.Dir(modPath)))
 	}
 	return tr.module.Module.Mod.String() + pkgDir
 }

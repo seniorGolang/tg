@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 
 	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
@@ -20,10 +20,10 @@ func (svc *service) renderREST(outDir string) (err error) {
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
-	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
+	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
 	for _, method := range svc.methods {
 		if !method.isHTTP() {
@@ -132,7 +132,11 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				if len(ex) > 0 {
 					bf.Add(&ex)
 				}
-				bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
+				if len(method.resultsWithoutError()) == 1 {
+					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name)))
+				} else {
+					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))
+				}
 			})
 			bg.If(List(Id("errCoder"), Id("ok")).Op(":=").Err().Op(".").Call(Id("withErrorCode")).Op(";").Id("ok")).Block(
 				Id(_ctx_).Dot("Status").Call(Id("errCoder").Dot("Code").Call()),

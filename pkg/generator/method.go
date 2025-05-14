@@ -12,7 +12,7 @@ import (
 
 	"github.com/seniorGolang/tg/v2/pkg/astra/types"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 
 	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
@@ -43,7 +43,7 @@ func newMethod(log logrus.FieldLogger, svc *service, fn *types.Function) (m *met
 		Function: fn,
 		log:      log,
 		svc:      svc,
-		tags:     tags.ParseTags(fn.Docs),
+		tags:     tags.ParseTags(fn.Docs).Merge(svc.tags),
 	}
 	m.argFields = m.varsToFields(m.argsWithoutContext(), m.tags, m.argCookieMap(), m.varHeaderMap())
 	m.resultFields = m.varsToFields(m.resultsWithoutError(), m.tags, m.retCookieMap(), m.varHeaderMap())
@@ -76,9 +76,8 @@ func (m *method) httpPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
@@ -87,10 +86,9 @@ func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName()))
 	pathItems := strings.Split(urlPath, "/")
-	var pathTokens []string
+	var pathTokens []string // nolint:prealloc
 	for _, pathItem := range pathItems {
 		if strings.HasPrefix(pathItem, ":") {
 			pathTokens = append(pathTokens, fmt.Sprintf("{%s}", strings.TrimPrefix(pathItem, ":")))
@@ -99,7 +97,7 @@ func (m *method) httpPathSwagger(withoutPrefix ...bool) string {
 		pathTokens = append(pathTokens, pathItem)
 	}
 	urlPath = strings.Join(pathTokens, "/")
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) jsonrpcPath(withoutPrefix ...bool) string {
@@ -108,9 +106,8 @@ func (m *method) jsonrpcPath(withoutPrefix ...bool) string {
 		elements = append(elements, "/")
 	}
 	prefix := m.svc.tags.Value(tagHttpPrefix)
-	globalPrefix := m.svc.tr.tags.Value(tagHttpPrefix)
 	urlPath := formatPathURL(m.tags.Value(tagHttpPath, path.Join("/", m.svc.lccName(), m.lccName())))
-	return path.Join(append(elements, globalPrefix, prefix, urlPath)...)
+	return path.Join(append(elements, prefix, urlPath)...)
 }
 
 func (m *method) httpMethod() string {
@@ -264,14 +261,18 @@ func (m *method) argFromString(typeName string, varMap map[string]string, strCod
 				argType = nestedType(vArg.Type, "", argTokens)
 				argTypeName = argType.String()
 			}
-			switch t := argType.(type) {
+			switch t := argType.(type) { // nolint:gocritic
 			case types.TPointer:
 				argID = Op("&").Add(argID)
 				argTypeName = t.NextType().String()
 			}
 			block.If(Id("_" + argVarName).Op(":=").Add(strCodeFn(srcName)).Op(";").Id("_" + argVarName).Op("!=").Lit("")).
 				BlockFunc(func(g *Group) {
-					g.Var().Id(argVarName).Id(argTypeName)
+					if pkg := importPackage(argType); pkg != "" {
+						g.Var().Id(argVarName).Qual(pkg, strings.Split(argTypeName, ".")[1])
+					} else {
+						g.Var().Id(argVarName).Id(argTypeName)
+					}
 					g.Add(m.argToTypeConverter(Id("_"+argVarName), argType, Id(argVarName), errStatement(argVarName, srcName)))
 					reqID := g.Id("request").Dot(utils.ToCamel(argName))
 					if len(argTokens) > 1 {
@@ -509,7 +510,7 @@ func (m *method) argsFieldsWithoutContext() (vars []types.Variable) {
 	}
 	for _, v := range argVars {
 		if m.isInlined(&v) {
-			switch vType := v.Type.(type) {
+			switch vType := v.Type.(type) { // nolint:gocritic
 			case types.TImport:
 				vars = append(vars, types.Variable{Base: types.Base{Name: vType.Next.String()}, Type: vType.Next})
 				continue
@@ -545,13 +546,19 @@ func (m *method) argToTypeConverter(from *Statement, vType types.Type, id *State
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(64)).Add(errStatement)
 	case "uint32":
 		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseUint").Call(from, Lit(10), Lit(32)).Add(errStatement)
+	case "float64":
+		return List(id, Err()).Op(op).Qual(packageStrconv, "ParseFloat").Call(from, Lit(64)).Add(errStatement)
+	case "float32":
+		temp64 := Id("temp64")
+		return List(temp64, Err()).Op(":=").Qual(packageStrconv, "ParseFloat").Call(from, Lit(32)).Add(errStatement).Add(Line()).Add(id.Op(op).Float32().Call(temp64))
 	case "UUID":
 		return List(id, Id("_")).Op(op).Qual(uuidPackage, "Parse").Call(from)
 
 	case "Time":
 		return List(id, Err()).Op(op).Qual(packageTime, "Parse").Call(Qual(packageTime, "RFC3339Nano"), from).Add(errStatement)
+	default:
+		return Op("_").Op("=").Qual(m.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Op("[]").Byte().Call(Op("`\"`").Op("+").Add(from).Op("+").Op("`\"`")), Op("&").Add(id))
 	}
-	return Line().Add(from)
 }
 
 func (m *method) varsToFields(vars []types.Variable, tags tags.DocTags, excludes ...map[string]string) (fields []types.StructField) {
@@ -608,4 +615,15 @@ func (m *method) isInlined(field *types.Variable) (isInlined bool) {
 		}
 	}
 	return
+}
+
+func importPackage(varType types.Type) string {
+
+	switch vType := varType.(type) {
+	case types.TImport:
+		return vType.Import.Package
+	case types.TPointer:
+		return importPackage(vType.Next)
+	}
+	return ""
 }

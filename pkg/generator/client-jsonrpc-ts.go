@@ -1,3 +1,6 @@
+// Copyright (c) 2020 Khramtsov Aleksei (seniorGolang@gmail.com).
+// This file (client-jsonrpc.go at 25.06.2020, 10:50) is subject to the terms and
+// conditions defined in file 'LICENSE', which is part of this project source code.
 package generator
 
 import (
@@ -84,7 +87,7 @@ func (ts *clientTS) renderService(svc *service, outDir string) (err error) {
 
 func (ts *clientTS) paramsToFuncParams(pkgPath string, tags tags.DocTags, vars []types.Variable) string {
 
-	var params []string
+	var params = make([]string, 0, len(vars))
 	for _, arg := range vars {
 		params = append(params, fmt.Sprintf("%s: %s", arg.Name, ts.walkVariable(arg.Name, pkgPath, arg.Type, tags).typeLink()))
 	}
@@ -234,7 +237,7 @@ func (ts *clientTS) walkVariable(typeName, pkgPath string, varType types.Type, v
 					schema.properties[fieldName] = embed
 					continue
 				}
-				inlineTokens := strings.Split(field.Variable.Type.String(), ".")
+				inlineTokens := strings.Split(field.Type.String(), ".")
 				embed = ts.typeDefTs[inlineTokens[len(inlineTokens)-1]]
 				for eField, def := range embed.properties {
 					schema.properties[eField] = def

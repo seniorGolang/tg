@@ -9,7 +9,7 @@ import (
 	"path"
 	"path/filepath"
 
-	. "github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
