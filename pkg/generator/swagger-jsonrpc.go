@@ -6,7 +6,8 @@ package generator
 func jsonrpcSchema(propName string, property swSchema) (schema swSchema) {
 
 	schema = swSchema{
-		Type: "object",
+		Type:     "object",
+		Required: []string{"id", "jsonrpc"},
 		Properties: swProperties{
 			"id": swSchema{
 				Example: 1,
@@ -26,7 +27,8 @@ func jsonrpcSchema(propName string, property swSchema) (schema swSchema) {
 func jsonrpcErrorSchema() (schema swSchema) {
 
 	schema = swSchema{
-		Type: "object",
+		Type:     "object",
+		Required: []string{"id", "jsonrpc", "error"},
 		Properties: swProperties{
 			"id": swSchema{
 				Example: 1,
@@ -37,8 +39,7 @@ func jsonrpcErrorSchema() (schema swSchema) {
 				Example: "2.0",
 			},
 			"error": swSchema{
-				Type:     "object",
-				Nullable: true,
+				Type: "object",
 				Properties: swProperties{
 					"code": swSchema{
 						Example: -32603,
