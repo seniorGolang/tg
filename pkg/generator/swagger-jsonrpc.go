@@ -37,8 +37,7 @@ func jsonrpcErrorSchema() (schema swSchema) {
 				Example: "2.0",
 			},
 			"error": swSchema{
-				Type:     "object",
-				Nullable: true,
+				Type: "object",
 				Properties: swProperties{
 					"code": swSchema{
 						Example: -32603,
