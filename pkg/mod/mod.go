@@ -62,6 +62,11 @@ func parseMod(modPath string) (pkgPath map[string]string) {
 	return
 }
 
+func GoProjectPath(from string) string {
+	modPath, _ := GoModPath(from)
+	return strings.TrimSuffix(modPath, "go.mod")
+}
+
 // empty if no go.mod, GO111MODULE=off or go without go modules support
 func GoModPath(root string) (string, error) {
 

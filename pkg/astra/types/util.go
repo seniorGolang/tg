@@ -22,6 +22,7 @@ var BuiltinTypes = map[string]bool{
 	"byte":       true,
 	"rune":       true,
 	"error":      true,
+	"any":        true,
 }
 
 // List of all builtin functions.

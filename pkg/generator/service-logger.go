@@ -12,7 +12,6 @@ import (
 
 	. "github.com/dave/jennifer/jen" // nolint:staticcheck
 
-	"github.com/seniorGolang/tg/v2/pkg/tags"
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
@@ -65,7 +64,7 @@ func (svc *service) loggerFuncBody(method *method, outDir string) func(g *Group)
 			g.Id("logHandle").Op(":=").Func().Params(Id("ev").Op("*").Qual(packageZeroLog, "Event")).BlockFunc(func(fg *Group) {
 				fg.Id("fields").Op(":=").Map(String()).Interface().Values(DictFunc(func(d Dict) {
 					d[Lit("method")] = Lit(method.fullName())
-					skipFields := strings.Split(tags.ParseTags(method.Docs).Value(tagLogSkip), ",")
+					skipFields := strings.Split(method.tags.Value(tagLogSkip), ",")
 					params := removeSkippedFields(method.argsFieldsWithoutContext(), skipFields)
 					originParams := removeSkippedFields(method.argsWithoutContext(), skipFields)
 					d[Lit("request")] = Qual(fmt.Sprintf("%s/viewer", svc.tr.pkgPath(outDir)), "Sprintf").Call(Lit("%+v"), Id(method.requestStructName()).Values(utils.DictByNormalVariables(params, originParams)))

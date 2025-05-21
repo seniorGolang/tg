@@ -302,7 +302,8 @@ func trimLocalPkg(pkg string) (pgkPath string) {
 
 func getModName() (module string) {
 
-	modFile, err := os.OpenFile("go.mod", os.O_RDONLY, os.ModePerm)
+	modPath, _ := mod.GoModPath(".")
+	modFile, err := os.OpenFile(modPath, os.O_RDONLY, os.ModePerm)
 
 	if err != nil {
 		return
@@ -325,7 +326,8 @@ func getModName() (module string) {
 
 func parseType(relPath, name string) (retType types.Type, constants []types.Constant) {
 
-	pkgPath, _ := filepath.Abs(relPath)
+	GoProjectPath := mod.GoProjectPath(".")
+	pkgPath := path.Join(GoProjectPath, relPath)
 	_ = filepath.Walk(pkgPath, func(filePath string, info os.FileInfo, err error) (retErr error) {
 		if err != nil {
 			return err

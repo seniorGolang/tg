@@ -137,8 +137,9 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		if nextType := searchType(pkgPath, vType.TypeName); nextType != nil {
 
 			doc.knownCount[typeName]++
+			typeName = doc.normalizeTypeName(vType.String(), pkgPath)
 			if _, found = doc.schemas[typeName]; !found {
-				doc.schemas[doc.normalizeTypeName(vType.String(), pkgPath)] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
+				doc.schemas[typeName] = doc.walkVariable(vType.TypeName, pkgPath, nextType, varTags)
 			}
 			return doc.toSchema(doc.normalizeTypeName(vType.String(), pkgPath))
 		}
@@ -286,7 +287,7 @@ func castType(originName string) (typeName, format string) {
 	switch originName {
 	case "bool":
 		typeName = "boolean"
-	case "Interface", "json.RawMessage":
+	case "any", "Interface", "json.RawMessage":
 		typeName = "object"
 	case "time.Time":
 		format = "date-time"

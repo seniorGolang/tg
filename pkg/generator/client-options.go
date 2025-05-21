@@ -28,7 +28,11 @@ func (tr *Transport) renderClientOptions(outDir string) (err error) {
 			Id("op").Call(Id("cli")),
 		),
 	)
-
+	srcFile.Line().Func().Id("ClientOption").Params(Id("option").Qual(fmt.Sprintf("%s/jsonrpc", tr.pkgPath(outDir)), "Option")).Params(Id("Option")).Block(
+		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
+			Id("cli").Dot("rpcOpts").Op("=").Append(Id("cli").Dot("rpcOpts"), Id("option")),
+		),
+	)
 	srcFile.Line().Func().Id("DecodeError").Params(Id("decoder").Id("ErrorDecoder")).Params(Id("Option")).Block(
 		Return(Func().Params(Id("cli").Op("*").Id("ClientJsonRPC"))).Block(
 			Id("cli").Dot("errorDecoder").Op("=").Id("decoder"),

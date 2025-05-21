@@ -1,6 +1,7 @@
 package jsonrpc
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 )
@@ -13,6 +14,8 @@ type options struct {
 	clientHTTP         *http.Client
 	headersFromCtx     []interface{}
 	customHeaders      map[string]string
+	before             func(ctx context.Context, req *http.Request) context.Context
+	after              func(ctx context.Context, res *http.Response) error
 }
 
 type Option func(ops *options)
@@ -26,7 +29,19 @@ func prepareOpts(opts []Option) (options options) {
 	return
 }
 
-func HeaderFromCtx(headers ...interface{}) Option {
+func BeforeRequest(before func(ctx context.Context, req *http.Request) context.Context) Option {
+	return func(ops *options) {
+		ops.before = before
+	}
+}
+
+func AfterRequest(after func(ctx context.Context, res *http.Response) error) Option {
+	return func(ops *options) {
+		ops.after = after
+	}
+}
+
+func HeaderFromCtx(headers ...any) Option {
 	return func(ops *options) {
 		ops.headersFromCtx = append(ops.headersFromCtx, headers...)
 	}

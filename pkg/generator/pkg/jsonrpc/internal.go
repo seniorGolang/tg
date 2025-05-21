@@ -47,6 +47,9 @@ func (client *ClientRPC) doCall(ctx context.Context, request *RequestRPC) (rpcRe
 		err = fmt.Errorf("rpc call %v() on %v: %v", request.Method, client.endpoint, err.Error())
 		return
 	}
+	if client.options.before != nil {
+		ctx = client.options.before(ctx, httpRequest)
+	}
 	if client.options.logRequests {
 		if cmd, cmdErr := toCurl(httpRequest); cmdErr == nil {
 			log.Ctx(ctx).Debug().Str("method", request.Method).Str("curl", cmd.String()).Msg("call")
@@ -65,6 +68,11 @@ func (client *ClientRPC) doCall(ctx context.Context, request *RequestRPC) (rpcRe
 		return
 	}
 	defer httpResponse.Body.Close()
+	if client.options.after != nil {
+		if err = client.options.after(ctx, httpResponse); err != nil {
+			return
+		}
+	}
 	decoder := json.NewDecoder(httpResponse.Body)
 	if !client.options.allowUnknownFields {
 		decoder.DisallowUnknownFields()
@@ -128,6 +136,9 @@ func (client *ClientRPC) doBatchCall(ctx context.Context, rpcRequests []*Request
 		err = fmt.Errorf("rpc batch call on %v: %v", client.endpoint, err.Error())
 		return
 	}
+	if client.options.before != nil {
+		ctx = client.options.before(ctx, httpRequest)
+	}
 	if client.options.logRequests {
 		if cmd, cmdErr := toCurl(httpRequest); cmdErr == nil {
 			log.Ctx(ctx).Debug().Str("method", "batch").Int("count", len(rpcRequests)).Str("curl", cmd.String()).Msg("call")
@@ -146,6 +157,11 @@ func (client *ClientRPC) doBatchCall(ctx context.Context, rpcRequests []*Request
 		return
 	}
 	defer httpResponse.Body.Close()
+	if client.options.after != nil {
+		if err = client.options.after(ctx, httpResponse); err != nil {
+			return
+		}
+	}
 	decoder := json.NewDecoder(httpResponse.Body)
 	if !client.options.allowUnknownFields {
 		decoder.DisallowUnknownFields()
