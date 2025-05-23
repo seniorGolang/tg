@@ -7,7 +7,7 @@ func jsonrpcSchema(propName string, property swSchema) (schema swSchema) {
 
 	schema = swSchema{
 		Type:     "object",
-		Required: []string{"id", "jsonrpc"},
+		Required: []string{"id", "jsonrpc", "result"},
 		Properties: swProperties{
 			"id": swSchema{
 				Example: 1,
