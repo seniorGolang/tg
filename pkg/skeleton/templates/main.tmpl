@@ -1,53 +1,63 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"runtime"
-	"syscall"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
 
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/rs/zerolog/log"
-	_ "go.uber.org/automaxprocs"
+    _ "github.com/KimMachineGun/automemlimit"
+    "github.com/rs/zerolog/log"
+    _ "go.uber.org/automaxprocs"
 
-	"{{.moduleName}}/internal/services/{{.serviceName}}"
-	"{{.moduleName}}/internal/transport"
-	"{{.moduleName}}/internal/utils/header"
+    "{{.moduleName}}/internal/services/{{.serviceName}}"
+    "{{.moduleName}}/internal/transport"
+    "{{.moduleName}}/internal/utils"
+    "{{.moduleName}}/internal/utils/header"
 
-	"{{.moduleName}}/internal/config"
+    "{{.moduleName}}/internal/config"
 )
 
-const serviceName = "{{.serviceName}}"
+const (
+    serviceName = "{{.serviceName}}"
+)
 
 func main() {
 
-	log.Logger = config.Service().Logger().With().Str("service", serviceName).Logger()
+    log.Logger = config.Service().Logger()
+    ctx := log.Logger.WithContext(context.Background())
 
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+    shutdown := make(chan os.Signal, 1)
+    signal.Notify(shutdown, syscall.SIGINT)
 
-	log.Info().Str("go", runtime.Version()).Send()
-	defer log.Info().Msg("goodbye")
+    log.Info().Str("service", serviceName).Msg("start service")
+    defer log.Info().Msg("shutdown server")
 
-	svc{{.serviceNameCamel}} := {{.serviceName}}.New()
+    liveness := utils.NewHealth("/liveness", "ok")
+    liveness.Start(ctx, config.Service().LivenessBind)
+    defer liveness.Stop(ctx)
 
-	options := []transport.Option{
-		transport.Use(cors.New()),
-		transport.WithRequestID(header.RequestID),
-		transport.Some(transport.New{{.serviceNameCamel}}(svc{{.serviceNameCamel}})),
-	}
+    svc{{.serviceNameCamel}} := {{.serviceName}}.New()
 
-	srv := transport.New(log.Logger, options...).WithMetrics().WithLog()
+    services := []transport.Option{
+        transport.WithRequestID(header.XRequestID.String()),
+        transport.{{.serviceNameCamel}}(transport.New{{.serviceNameCamel}}(svc{{.serviceNameCamel}})),
+    }
 
-	srv.ServeHealth(config.Service().HealthBind, "OK")
-	srv.ServeMetrics(log.Logger, "/", config.Service().MetricsBind)
+    srv := transport.New(log.Logger, services...).WithMetrics().WithLog()
 
-	go func() {
-		log.Info().Str("bind", config.Service().Bind).Msg("listen on")
-		if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
-			log.Panic().Err(err).Msg("server error")
-		}
-	}()
+    readiness := utils.NewHealth("/readiness", "ok")
+    readiness.Start(ctx, config.Service().ReadinessBind)
+    defer readiness.Stop(ctx)
 
-	<-shutdown
+    srv.ServeMetrics(log.Logger, "/", config.Service().MetricsBind)
+
+    go func() {
+        log.Info().Str("bind", config.Service().Bind).Msg("listen on")
+        if err := srv.Fiber().Listen(config.Service().Bind); err != nil {
+            log.Panic().Err(err).Stack().Msg("server error")
+        }
+    }()
+
+    <-shutdown
 }

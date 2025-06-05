@@ -1,55 +1,56 @@
 package config
 
 import (
-"io"
-"os"
-"time"
+    "io"
+    "os"
+    "time"
 
-"github.com/kelseyhightower/envconfig"
-"github.com/rs/zerolog"
-"github.com/rs/zerolog/pkgerrors"
+    "github.com/kelseyhightower/envconfig"
+    "github.com/rs/zerolog"
+    "github.com/rs/zerolog/pkgerrors"
 )
 
 const FormatJSON = "json"
 
-type ServiceConfig struct {
-LogLevel     string `envconfig:"LOG_LEVEL" default:"trace"`
-LogFormat    string `envconfig:"LOG_FORMAT" default:"console"`
-ReportCaller bool   `envconfig:"LOG_REPORT_CALLER" default:"false"`
+type CfgService struct {
+    LogLevel     string `envconfig:"LOG_LEVEL" default:"info"`
+    LogFormat    string `envconfig:"LOG_FORMAT" default:"console"`
+    ReportCaller bool   `envconfig:"LOG_REPORT_CALLER" default:"false"`
 
-HealthBind  string `envconfig:"BIND_HEALTH" default:":9091"`
-MetricsBind string `envconfig:"BIND_METRICS" default:":9090"`
-Bind        string `envconfig:"BIND_SERVICE" default:":9000"`
-}
-
-var service *ServiceConfig
-
-func Service() ServiceConfig {
-
-if service != nil {
-return *service
-}
-service = &ServiceConfig{}
-if err := envconfig.Process("", service); err != nil {
-panic(err)
-}
-return *service
+    Bind          string `envconfig:"BIND_SERVICE" default:":9000"`
+    MetricsBind   string `envconfig:"BIND_METRICS" default:":9090"`
+    LivenessBind  string `envconfig:"BIND_LIVENESS" default:":9091"`
+    ReadinessBind string `envconfig:"BIND_READINESS" default:":9092"`
 }
 
-func (cfg ServiceConfig) Logger() (logger zerolog.Logger) {
+var service *CfgService
 
-level := zerolog.InfoLevel
-if newLevel, err := zerolog.ParseLevel(cfg.LogLevel); err == nil {
-level = newLevel
+func Service() CfgService {
+
+    if service != nil {
+        return *service
+    }
+    service = &CfgService{}
+    if err := envconfig.Process("", service); err != nil {
+        panic(err)
+    }
+    return *service
 }
-var out io.Writer = os.Stdout
-if cfg.LogFormat != FormatJSON {
-out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.StampMicro}
-}
-zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-ctxLog := zerolog.New(out).Level(level).With().Timestamp().Stack()
-if cfg.ReportCaller {
-ctxLog = ctxLog.Caller()
-}
-return ctxLog.Logger()
+
+func (cfg CfgService) Logger() (logger zerolog.Logger) {
+
+    level := zerolog.InfoLevel
+    if newLevel, err := zerolog.ParseLevel(cfg.LogLevel); err == nil {
+        level = newLevel
+    }
+    var out io.Writer = os.Stdout
+    if cfg.LogFormat != FormatJSON {
+        out = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.StampMicro}
+    }
+    zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack // nolint:reassign
+    ctxLog := zerolog.New(out).Level(level).With().Timestamp().Stack()
+    if cfg.ReportCaller {
+        ctxLog = ctxLog.Caller()
+    }
+    return ctxLog.Logger()
 }

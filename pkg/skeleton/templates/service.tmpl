@@ -2,6 +2,8 @@ package {{.serviceName}}
 
 type Service struct{}
 
-func New() *Service {
-return &Service{}
+func New() (svc *Service) {
+
+    svc = &Service{}
+    return
 }

@@ -1,10 +1,14 @@
 package {{.serviceName}}
 
 import (
-"context"
+    "context"
+
+    "{{.moduleName}}/pkg/errors"
+    "{{.moduleName}}/contracts/dto"
 )
 
-func (svc *Service) Method(ctx context.Context) (err error) {
-//TODO implement me
-panic("implement me")
+func (svc *Service) SomeMethod(ctx context.Context) (data dto.SomeStruct, err error) {
+
+    err = errors.ErrNotImplemented
+    return
 }

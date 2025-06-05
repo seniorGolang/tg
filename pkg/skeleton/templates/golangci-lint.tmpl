@@ -1,0 +1,53 @@
+version: "2"
+linters:
+  default: none
+  enable:
+    - bidichk
+    - canonicalheader
+    - copyloopvar
+    - durationcheck
+    - errcheck
+    - fatcontext
+    - gocheckcompilerdirectives
+    - gocritic
+    - gosec
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - makezero
+    - mirror
+    - musttag
+    - prealloc
+    - predeclared
+    - reassign
+    - sloglint
+    - spancheck
+    - staticcheck
+    - unconvert
+    - unused
+    - usestdlibvars
+    - wastedassign
+    - zerologlint
+  settings:
+    gosec:
+      excludes:
+        - G114
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

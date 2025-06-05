@@ -1,11 +1,11 @@
 package header
 
 const (
-    XRequestID  contextKey = "X-Request-Id"
+XRequestID  contextKey = "X-Request-Id"
 )
 
 type contextKey string
 
 func (key contextKey) String() string {
-    return string(key)
+return string(key)
 }

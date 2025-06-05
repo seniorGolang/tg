@@ -64,16 +64,31 @@ func GenerateSkeleton(log logrus.FieldLogger, moduleName, projectName, serviceNa
 		log.WithError(err).Warning("render headers.go error")
 		return
 	}
-	log.Info("make interfaces")
-	if err = renderFile(tmpl, "interface.tmpl", path.Join(baseDir, "interfaces", fmt.Sprintf("%s.go", utils.ToLowerCamel(serviceName))), meta); err != nil {
-		log.WithError(err).Warning("render interface.go error")
+	if err = renderFile(tmpl, "golangci-lint.tmpl", path.Join(baseDir, ".golangci.yml"), meta); err != nil {
+		log.WithError(err).Warning("render .golangci.yml error")
 		return
 	}
-	if err = renderFile(tmpl, "tg.tmpl", path.Join(baseDir, "interfaces", "tg.go"), meta); err != nil {
+	if err = renderFile(tmpl, "ignore.tmpl", path.Join(baseDir, ".gitignore"), meta); err != nil {
+		log.WithError(err).Warning("render .gitignore error")
+		return
+	}
+	if err = renderFile(tmpl, "health.tmpl", path.Join(baseDir, "internal", "utils", "health.go"), meta); err != nil {
+		log.WithError(err).Warning("render health.go error")
+		return
+	}
+	log.Info("make contracts")
+	if err = renderFile(tmpl, "interface.tmpl", path.Join(baseDir, "contracts", fmt.Sprintf("%s.go", utils.ToLowerCamel(serviceName))), meta); err != nil {
+		log.WithError(err).Warning("render contracts error")
+		return
+	}
+	if err = pkgCopyTo("dto", path.Join(baseDir, "contracts")); err != nil {
+		return err
+	}
+	if err = renderFile(tmpl, "tg.tmpl", path.Join(baseDir, "contracts", "tg.go"), meta); err != nil {
 		log.WithError(err).Warning("render tg.go error")
 		return
 	}
-	if err = os.MkdirAll(path.Join(baseDir, "interfaces", "types"), 0777); err != nil {
+	if err = os.MkdirAll(path.Join(baseDir, "contracts", "dto"), 0777); err != nil {
 		log.WithError(err).Warning("make types dir error")
 		return
 	}
@@ -86,7 +101,11 @@ func GenerateSkeleton(log logrus.FieldLogger, moduleName, projectName, serviceNa
 		log.WithError(err).Warning("render some.go error")
 		return
 	}
-	_ = os.Chdir(path.Join(baseDir, "interfaces"))
+	log.Info("make errors")
+	if err = pkgCopyTo("errors", path.Join(baseDir, "pkg")); err != nil {
+		return err
+	}
+	_ = os.Chdir(path.Join(baseDir, "contracts"))
 	if err = exec.Command("go", "generate").Run(); err != nil {
 		log.WithError(err).Warning("tg generate error")
 		return

@@ -1,5 +1,4 @@
-// @tg version=0.0.1
-// @tg backend=project
+// @tg version=v0.0.1
 // @tg title=`{{.projectName}} API`
 // @tg description=`A service which provide {{.projectName}} API`
 // @tg servers=`http://{{.projectName}}-server:9000`
@@ -8,4 +7,4 @@
 //go:generate tg client -go --services . --outPath ../pkg/clients/{{.projectNameCamel}}
 //go:generate goimports -l -w ../internal/transport ../pkg/clients
 //go:generate tg swagger --services . --outFile ../api/swagger.yaml
-package interfaces
+package contracts

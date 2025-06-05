@@ -1,8 +1,13 @@
-package interfaces
+package contracts
 
-import "context"
+import (
+	"context"
 
-// @tg jsonRPC-server log trace metrics test
+	"{{.moduleName}}/contracts/dto"
+)
+
+// @tg http-prefix=api/v1
+// @tg jsonRPC-server log metrics
 type {{.serviceNameCamel}} interface {
-	Method(ctx context.Context) (err error)
+	SomeMethod(ctx context.Context) (data dto.SomeStruct, err error)
 }
