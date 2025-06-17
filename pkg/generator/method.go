@@ -163,7 +163,6 @@ func (m *method) arguments() (vars []types.StructField) {
 		_, inCookie := m.varCookieMap()[arg.Name]
 
 		if !inArgs && !inPath && !inHeader && !inCookie {
-
 			if jsonTags := arg.Tags["json"]; len(jsonTags) == 0 {
 				if arg.Tags == nil {
 					arg.Tags = map[string][]string{"json": {arg.Name}}
@@ -188,8 +187,13 @@ func (m *method) results() (vars []types.StructField) {
 		_, inCookie := m.varCookieMap()[arg.Name]
 
 		if !inHeader && !inCookie {
-			arg.Tags = map[string][]string{"json": {arg.Name}}
-			arg.Name = utils.ToCamel(arg.Name)
+			if jsonTags := arg.Tags["json"]; len(jsonTags) == 0 {
+				if arg.Tags == nil {
+					arg.Tags = map[string][]string{"json": {arg.Name}}
+				} else {
+					arg.Tags["json"] = []string{arg.Name}
+				}
+			}
 			vars = append(vars, arg)
 		}
 	}
