@@ -194,6 +194,7 @@ func (m *method) results() (vars []types.StructField) {
 					arg.Tags["json"] = []string{arg.Name}
 				}
 			}
+			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)
 		}
 	}
