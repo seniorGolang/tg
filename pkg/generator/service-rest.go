@@ -132,7 +132,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				if len(ex) > 0 {
 					bf.Add(&ex)
 				}
-				if len(method.resultsWithoutError()) == 1 {
+				if len(method.resultsWithoutError()) == 1 && !method.tags.IsSet(tagHttpDisableInlineSingle) {
 					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name)))
 				} else {
 					bf.Return().Id("sendResponse").Call(Id(_ctx_), Id("response"))

@@ -183,7 +183,7 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 				),
 				Return(),
 			)
-			if len(method.resultsWithoutError()) == 1 {
+			if len(method.resultsWithoutError()) == 1 && !method.tags.IsSet(tagHttpDisableInlineSingle) {
 				g.Var().Id("response").Id(method.responseStructName())
 				g.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("respBody"), Op("&").Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),

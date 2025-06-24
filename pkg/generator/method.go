@@ -194,6 +194,11 @@ func (m *method) results() (vars []types.StructField) {
 					arg.Tags["json"] = []string{arg.Name}
 				}
 			}
+			if !m.tags.IsSet(tagHttpDisableInlineSingle) {
+				if len(m.resultsWithoutError()) == 1 {
+					arg.Tags["json"] = []string{"", "inline"}
+				}
+			}
 			arg.Name = utils.ToCamel(arg.Name)
 			vars = append(vars, arg)
 		}
