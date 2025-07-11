@@ -90,12 +90,12 @@ func Middleware(opts ...Option) fiber.Handler {
 		copy(responseMetricAttrs, requestMetricsAttrs)
 		reqHeader := make(http.Header)
 		var reqHeaderAttrs []attribute.KeyValue
-		ftx.Request().Header.VisitAll(func(k, v []byte) {
+		for k, v := range ftx.Request().Header.All() {
 			reqHeader.Add(string(k), string(v))
 			if strings.HasPrefix(strings.ToLower(string(k)), "x-") {
 				reqHeaderAttrs = append(reqHeaderAttrs, attribute.String(fmt.Sprintf("header.%s", string(k)), string(v)))
 			}
-		})
+		}
 		req := http.Request{Header: reqHeader}
 		for _, cookie := range req.Cookies() {
 			if strings.HasPrefix(strings.ToLower(cookie.Name), "x-") {

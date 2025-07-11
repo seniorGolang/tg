@@ -78,13 +78,13 @@ func toCurlCommand(req *fasthttp.Request) (*bytes.Buffer, error) {
 	cmd.WriteString(" '")
 	cmd.WriteString(req.URI().String())
 	cmd.WriteString("'")
-	req.Header.VisitAll(func(key, value []byte) {
+	for key, value := range req.Header.All() {
 		cmd.WriteString(" -H '")
 		cmd.Write(key)
 		cmd.WriteString(": ")
 		cmd.Write(value)
 		cmd.WriteString("'")
-	})
+	}
 	if req.Body() != nil && len(req.Body()) > 0 {
 		cmd.WriteString(" -d '")
 		cmd.Write(req.Body())

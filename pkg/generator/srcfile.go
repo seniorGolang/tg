@@ -4,9 +4,10 @@
 package generator
 
 import (
-	"os/exec"
-
 	"github.com/dave/jennifer/jen"
+
+	"github.com/seniorGolang/tg/v2/pkg/goimports"
+	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
 type goFile struct {
@@ -27,17 +28,13 @@ func (src *goFile) Save(filepath string) (err error) {
 		return
 	}
 
-	if err = src.goImports(); err != nil {
+	var runner goimports.Runner
+	if runner, err = goimports.NewFromFile(filepath); err != nil {
+		return
+	}
+
+	if err = runner.Run(utils.GetModulePath(filepath)); err != nil {
 		return
 	}
 	return
-}
-
-func (src *goFile) goImports() (err error) {
-
-	var execPath string
-	if execPath, err = exec.LookPath("goimports"); err != nil {
-		return nil
-	}
-	return exec.Command(execPath, "-local", "-w", src.filepath).Run()
 }
