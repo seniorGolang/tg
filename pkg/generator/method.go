@@ -194,7 +194,7 @@ func (m *method) results() (vars []types.StructField) {
 					arg.Tags["json"] = []string{arg.Name}
 				}
 			}
-			if !m.tags.IsSet(tagHttpDisableInlineSingle) {
+			if m.tags.IsSet(tagHttpEnableInlineSingle) {
 				if len(m.resultsWithoutError()) == 1 {
 					arg.Tags["json"] = []string{"", "inline"}
 				}

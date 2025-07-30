@@ -114,13 +114,21 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 				if len(embed.AllOf) != 0 {
 					inlined = append(inlined, embed.AllOf...)
 				} else {
-					inlined = append(inlined, swSchema{Ref: embed.Ref})
+					if embed.Ref == "" {
+						inlined = append(inlined, embed)
+					} else {
+						inlined = append(inlined, swSchema{Ref: embed.Ref})
+					}
 				}
 			}
 		}
 		var allOf swSchema
 		if len(inlined) != 0 {
-			allOf.AllOf = append(allOf.AllOf, append(inlined, schema)...)
+			if schema.isEmpty() {
+				allOf.AllOf = inlined
+			} else {
+				allOf.AllOf = append(allOf.AllOf, append(inlined, schema)...)
+			}
 			schema = allOf
 		}
 	case types.TName:

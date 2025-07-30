@@ -111,6 +111,10 @@ type swSchema struct {
 	AdditionalProperties interface{} `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 }
 
+func (s swSchema) isEmpty() bool {
+	return (s.Ref == "" && (s.Type == "" || s.Type == "object") && len(s.AllOf) == 0 && len(s.OneOf) == 0) && len(s.Properties) == 0
+}
+
 type swVariable struct {
 	Enum        []string `json:"enum,omitempty" yaml:"enum,omitempty"`
 	Default     string   `json:"default,omitempty" yaml:"default,omitempty"`
