@@ -56,28 +56,28 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 		Params(funcDefinitionParams(ctx, method.Args)).Params(funcDefinitionParams(ctx, method.Results)).BlockFunc(func(bg *Group) {
 
 		bg.Line()
-		bg.Id("request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
+		bg.Id("_request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
 			for idx, arg := range method.fieldsArgument() {
 				dict[Id(utils.ToCamel(arg.Name))] = Id(method.argsWithoutContext()[idx].Name)
 			}
 		}))
-		bg.Var().Id("response").Id(method.responseStructName())
+		bg.Var().Id("_response").Id(method.responseStructName())
 		if svc.tags.Contains(tagEnableClientCB) {
 			bg.Var().Id("fallbackCheck").Func().Params(Error()).Bool()
 			bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
 				Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
 			)
-			bg.Id("callMethod").Op(":=").Func().Params(Id("request").Any()).Params(Id("response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"), Err().Error()).Block(
-				Return(Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request"))),
+			bg.Id("callMethod").Op(":=").Func().Params(Id("_request").Any()).Params(Id("_response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"), Err().Error()).Block(
+				Return(Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("_request"))),
 			)
 			bg.If(Err().Op("=").
-				Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Id("callMethod"), Id("request"), Id("fallbackCheck"), Op("&").Id("response")).
+				Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Id("callMethod"), Id("_request"), Id("fallbackCheck"), Op("&").Id("_response")).
 				Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
 			)
 		} else {
 			bg.Var().Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC")
-			bg.If(List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("request")).Op(";").Err().Op("!=").Nil().Op("||").Id("rpcResponse").Op("==").Nil()).Block(
+			bg.If(List(Id("rpcResponse"), Err()).Op("=").Id("cli").Dot("rpc").Dot("Call").Call(Id(_ctx_), Lit(svc.lcName()+"."+method.lcName()), Id("_request")).Op(";").Err().Op("!=").Nil().Op("||").Id("rpcResponse").Op("==").Nil()).Block(
 				Return(),
 			)
 			bg.If(Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
@@ -88,13 +88,17 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 				),
 				Return(),
 			)
-			bg.If(Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response")).Op(";").Err().Op("!=").Nil()).Block(
+			resp := Id("_response")
+			if len(method.resultsWithoutError()) == 1 && method.tags.IsSet(tagHttpEnableInlineSingle) {
+				resp = Id("_response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))
+			}
+			bg.If(Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Add(resp)).Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
 			)
 		}
 		bg.ReturnFunc(func(rg *Group) {
 			for _, ret := range method.resultsWithoutError() {
-				rg.Id("response").Dot(utils.ToCamel(ret.Name))
+				rg.Id("_response").Dot(utils.ToCamel(ret.Name))
 			}
 			rg.Err()
 		})
@@ -107,10 +111,10 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 	return Func().Params(Id("cli").Op("*").Id("Client"+svc.Name)).
 		Id("Req"+method.Name).
 		Params(ctxCode, Id("callback").Id("ret"+svc.Name+method.Name), funcDefinitionParams(ctx, method.argsWithoutContext())).
-		Params(Id("request").Id("RequestRPC")).BlockFunc(func(bg *Group) {
+		Params(Id("_request").Id("RequestRPC")).BlockFunc(func(bg *Group) {
 
 		bg.Line()
-		bg.Id("request").Op("=").Id("RequestRPC").Values(Dict{
+		bg.Id("_request").Op("=").Id("RequestRPC").Values(Dict{
 			Id("rpcRequest"): Op("&").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "RequestRPC").Values(Dict{
 				Id("ID"):      Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "NewID").Call(),
 				Id("JSONRPC"): Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "Version"),
@@ -122,9 +126,13 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 				})),
 			}),
 		})
+		resp := Id("_response")
+		if len(method.resultsWithoutError()) == 1 && method.tags.IsSet(tagHttpEnableInlineSingle) {
+			resp = Id("_response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))
+		}
 		bg.If(Id("callback").Op("!=").Nil()).Block(
-			Var().Id("response").Id(method.responseStructName()),
-			Id("request").Dot("retHandler").Op("=").Func().Params(
+			Var().Id("_response").Id(method.responseStructName()),
+			Id("_request").Dot("retHandler").Op("=").Func().Params(
 				Err().Error(),
 				Id("rpcResponse").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"),
 			).BlockFunc(func(bg *Group) {
@@ -133,7 +141,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 					bg.If(Id("cli").Dot("fallback" + svc.Name).Op("!=").Nil()).Block(
 						Id("fallbackCheck").Op("=").Id("cli").Dot("fallback" + svc.Name).Dot(method.Name),
 					)
-					bg.Id("callMethod").Op(":=").Func().Params(Id("request").Any()).Params(Id("response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"), Err().Error()).Block(
+					bg.Id("callMethod").Op(":=").Func().Params(Id("_request").Any()).Params(Id("_response").Op("*").Qual(fmt.Sprintf("%s/jsonrpc", svc.tr.pkgPath(outDir)), "ResponseRPC"), Err().Error()).Block(
 						If(Err().Op("==").Nil().Op("&&").Id("rpcResponse").Dot("Error").Op("!=").Nil()).Block(
 							If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
 								Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
@@ -141,14 +149,14 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 								Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 							),
 						).Else().Block(
-							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response")),
+							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Add(resp)),
 						),
 						Return(Id("rpcResponse"), Err()),
 					)
-					bg.Err().Op("=").Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Id("callMethod"), Id("request"), Id("fallbackCheck"), Op("&").Id("response"))
+					bg.Err().Op("=").Id("cli").Dot("proceedResponse").Call(Id(_ctx_), Id("callMethod"), Id("_request"), Id("fallbackCheck"), Op("&").Id("_response"))
 					bg.Id("callback").CallFunc(func(cg *Group) {
 						for _, ret := range method.fieldsResult() {
-							cg.Id("response").Dot(utils.ToCamel(ret.Name))
+							cg.Id("_response").Dot(utils.ToCamel(ret.Name))
 						}
 						cg.Err()
 					})
@@ -161,12 +169,12 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 								Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 							),
 						).Else().Block(
-							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Id("response")),
+							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Add(resp)),
 						),
 					)
 					bg.Id("callback").CallFunc(func(cg *Group) {
 						for _, ret := range method.fieldsResult() {
-							cg.Id("response").Dot(utils.ToCamel(ret.Name))
+							cg.Id("_response").Dot(utils.ToCamel(ret.Name))
 						}
 						cg.Err()
 					})

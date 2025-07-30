@@ -105,8 +105,8 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			argsMappings := varArgsMap(method.tags)
 			cookieMappings := varCookieMap(method.tags)
 			headerMappings := varHeaderMap(method.tags)
-			if len(method.arguments()) > 1 {
-				g.Id("request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
+			if len(method.argsFieldsWithoutContext()) > 0 {
+				g.Id("_request").Op(":=").Id(method.requestStructName()).Values(DictFunc(func(dict Dict) {
 					for idx, arg := range method.argsWithoutContext() {
 						if _, exists := argsMappings[arg.Name]; exists {
 							continue
@@ -123,13 +123,13 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 						dict[Id(utils.ToCamel(arg.Name))] = Id(method.argsWithoutContext()[idx].Name)
 					}
 				}))
-				g.Id("reqBody").Op(",").Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("request"))
+				g.Id("reqBody").Op(",").Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("_request"))
 				g.If(Err().Op("!=").Nil()).Block(
 					Return(),
 				)
 			}
-			g.Id("req").Op(":=").Qual(packageFasthttp, "AcquireRequest").Call()
-			g.Defer().Qual(packageFasthttp, "ReleaseRequest").Call(Id("req"))
+			g.Id("_req").Op(":=").Qual(packageFasthttp, "AcquireRequest").Call()
+			g.Defer().Qual(packageFasthttp, "ReleaseRequest").Call(Id("_req"))
 			urlPathFmt := methodPath
 			for placeholder := range pathParams {
 				urlPathFmt = strings.ReplaceAll(urlPathFmt, ":"+placeholder, "%v")
@@ -141,63 +141,63 @@ func (svc *service) httpClientMethodFunc(ctx context.Context, method *method, _ 
 			for _, paramName := range pathParams {
 				urlPathArgs = append(urlPathArgs, Id(paramName))
 			}
-			g.Id("req").Dot("SetRequestURI").Call(
+			g.Id("_req").Dot("SetRequestURI").Call(
 				Qual(packageFmt, "Sprintf").Call(urlPathArgs...),
 			)
-			g.Id("req").Dot("Header").Dot("SetMethod").Call(Lit(httpMethod))
-			g.Id("req").Dot("Header").Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
-			g.Id("req").Dot("SetBody").Call(Id("reqBody"))
+			g.Id("_req").Dot("Header").Dot("SetMethod").Call(Lit(httpMethod))
+			g.Id("_req").Dot("Header").Dot("Set").Call(Lit("Content-Type"), Lit("application/json"))
+			g.Id("_req").Dot("SetBody").Call(Id("reqBody"))
 			for paramName, cookieName := range cookieMappings {
-				g.Id("req").Dot("Header").Dot("SetCookie").Call(Lit(cookieName), varToString(method.argByName(paramName)))
+				g.Id("_req").Dot("Header").Dot("SetCookie").Call(Lit(cookieName), varToString(method.argByName(paramName)))
 			}
 			for paramName, headerName := range headerMappings {
-				g.Id("req").Dot("Header").Dot("Set").Call(Lit(headerName), varToString(method.argByName(paramName)))
+				g.Id("_req").Dot("Header").Dot("Set").Call(Lit(headerName), varToString(method.argByName(paramName)))
 			}
 			for paramName, argName := range argsMappings {
 				paramVar := method.argByName(paramName)
 				if isPointerType(paramVar.Type) {
 					g.If(Id(paramName).Op("!=").Nil()).Block(
-						Id("req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar)),
+						Id("_req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar)),
 					)
 				} else {
-					g.Id("req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar))
+					g.Id("_req").Dot("URI").Call().Dot("QueryArgs").Call().Dot("Set").Call(Lit(argName), varToString(paramVar))
 				}
 			}
-			g.Id("resp").Op(":=").Qual(packageFasthttp, "AcquireResponse").Call()
-			g.Defer().Qual(packageFasthttp, "ReleaseResponse").Call(Id("resp"))
+			g.Id("_resp").Op(":=").Qual(packageFasthttp, "AcquireResponse").Call()
+			g.Defer().Qual(packageFasthttp, "ReleaseResponse").Call(Id("_resp"))
 			g.If(List(Id("deadline"), Id("ok")).Op(":=").Id(_ctx_).Dot("Deadline").Call(), Id("ok")).Block(
 				Id("timeout").Op(":=").Qual(packageTime, "Until").Call(Id("deadline")),
 				Id("cli").Dot("httpClient").Dot("SetTimeout").Call(Id("timeout")),
 			)
-			g.If(Err().Op("=").Id("cli").Dot("httpClient").Dot("Do").Call(Id("ctx"), Id("req"), Id("resp")).Op(";").Err().Op("!=").Nil()).Block(
+			g.If(Err().Op("=").Id("cli").Dot("httpClient").Dot("Do").Call(Id("ctx"), Id("_req"), Id("_resp")).Op(";").Err().Op("!=").Nil()).Block(
 				Return(),
 			)
-			g.Id("respBody").Op(":=").Id("resp").Dot("Body").Call()
-			g.If(Id("resp").Dot("StatusCode").Call().Op("!=").Lit(successStatusCode)).Block(
+			g.Id("respBody").Op(":=").Id("_resp").Dot("Body").Call()
+			g.If(Id("_resp").Dot("StatusCode").Call().Op("!=").Lit(successStatusCode)).Block(
 				Err().Op("=").Qual(packageFmt, "Errorf").Call(
 					Lit("HTTP error: %d. URL: %s, Method: %s, Body: %s"),
-					Id("resp").Dot("StatusCode").Call(),
-					Id("req").Dot("URI").Call().Dot("String").Call(),
-					Id("req").Dot("Header").Dot("Method").Call(),
+					Id("_resp").Dot("StatusCode").Call(),
+					Id("_req").Dot("URI").Call().Dot("String").Call(),
+					Id("_req").Dot("Header").Dot("Method").Call(),
 					String().Call(Id("respBody")),
 				),
 				Return(),
 			)
 			if len(method.resultsWithoutError()) == 1 && method.tags.IsSet(tagHttpEnableInlineSingle) {
-				g.Var().Id("response").Id(method.responseStructName())
-				g.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("respBody"), Op("&").Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))).Op(";").Err().Op("!=").Nil()).Block(
+				g.Var().Id("_response").Id(method.responseStructName())
+				g.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("respBody"), Op("&").Id("_response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),
 				)
 				for _, ret := range method.resultsWithoutError() {
-					g.Id(ret.Name).Op("=").Id("response").Dot(utils.ToCamel(ret.Name))
+					g.Id(ret.Name).Op("=").Id("_response").Dot(utils.ToCamel(ret.Name))
 				}
 			} else {
-				g.Var().Id("response").Id(method.responseStructName())
-				g.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("respBody"), Op("&").Id("response")).Op(";").Err().Op("!=").Nil()).Block(
+				g.Var().Id("_response").Id(method.responseStructName())
+				g.If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("respBody"), Op("&").Id("_response")).Op(";").Err().Op("!=").Nil()).Block(
 					Return(),
 				)
 				for _, ret := range method.resultsWithoutError() {
-					g.Id(ret.Name).Op("=").Id("response").Dot(utils.ToCamel(ret.Name))
+					g.Id(ret.Name).Op("=").Id("_response").Dot(utils.ToCamel(ret.Name))
 				}
 			}
 			g.Return()

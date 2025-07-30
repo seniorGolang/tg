@@ -125,7 +125,11 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 			Id("ID"):      Id("requestBase").Dot("ID"),
 		})
 
-		bg.If(List(Id("responseBase").Dot("Result"), Err()).Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(Id("response")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
+		resp := Id("response")
+		if len(method.resultsWithoutError()) == 1 && method.tags.IsSet(tagHttpEnableInlineSingle) {
+			resp = Id("response").Dot(utils.ToCamel(method.resultsWithoutError()[0].Name))
+		}
+		bg.If(List(Id("responseBase").Dot("Result"), Err()).Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Marshal").Call(resp).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 		})
 		if len(method.retCookieMap()) > 0 {
