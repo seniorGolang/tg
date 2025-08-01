@@ -119,5 +119,12 @@ func (tr *Transport) renderOptions(outDir string) (err error) {
 			),
 		)),
 	)
+	srcFile.Line().Func().Id("Add").Params(Id("method").String(), Id("path").String(), Id("handlers").Op("...").Qual(packageFiber, "Handler")).Id("Option").Block(
+		Return(Func().Params(Id("srv").Op("*").Id("Server")).Block(
+			If(Id("srv").Dot("srvHTTP").Op("!=").Nil()).Block(
+				Id("srv").Dot("srvHTTP").Dot("Add").Call(Id("method"), Id("path"), Id("handlers").Op("...")),
+			),
+		)),
+	)
 	return srcFile.Save(path.Join(outDir, "options.go"))
 }
