@@ -84,7 +84,7 @@ func (svc *service) jsonrpcClientMethodFunc(ctx context.Context, method *method,
 				If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
 					Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
 				).Else().Block(
-					Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+					Err().Op("=").Qual(packageErrors, "New").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 				),
 				Return(),
 			)
@@ -146,7 +146,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 							If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
 								Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
 							).Else().Block(
-								Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+								Err().Op("=").Qual(packageErrors, "New").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 							),
 						).Else().Block(
 							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Add(resp)),
@@ -166,7 +166,7 @@ func (svc *service) jsonrpcClientRequestFunc(ctx context.Context, method *method
 							If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
 								Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
 							).Else().Block(
-								Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+								Err().Op("=").Qual(packageErrors, "New").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 							),
 						).Else().Block(
 							Err().Op("=").Id("rpcResponse").Dot("GetObject").Call(Op("&").Add(resp)),

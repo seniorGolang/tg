@@ -86,7 +86,7 @@ func (tr *Transport) jsonrpcClientProceedResponseFunc(outDir string) Code {
 					If(Id("cli").Dot("errorDecoder").Op("!=").Nil()).Block(
 						Err().Op("=").Id("cli").Dot("errorDecoder").Call(Id("rpcResponse").Dot("Error").Dot("Raw").Call()),
 					).Else().Block(
-						Err().Op("=").Qual(packageFmt, "Errorf").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
+						Err().Op("=").Qual(packageErrors, "New").Call(Id("rpcResponse").Dot("Error").Dot("Message")),
 					),
 					Return(),
 				),
