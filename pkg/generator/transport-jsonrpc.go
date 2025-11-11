@@ -188,6 +188,7 @@ func (tr *Transport) batchFunc() Code {
 			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(
 				Id("batchSize").Op("=").Len(Id("requests")),
 			)
+			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
 			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
 			bg.Id("responses").Op("=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
 			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
@@ -197,7 +198,9 @@ func (tr *Transport) batchFunc() Code {
 					For(Id("request").Op(":=").Range().Id("callCh").Block(
 						Id("response").Op(":=").Id("srv").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
 						If(Id("request").Dot("ID").Op("!=").Nil()).Block(
+							Id("mu").Id("Lock").Call(),
 							Id("responses").Dot("append").Call(Id("response")),
+							Id("mu").Id("Unlock").Call(),
 						),
 					)),
 				).Call(),
