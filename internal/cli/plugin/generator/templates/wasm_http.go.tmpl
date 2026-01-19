@@ -1,0 +1,496 @@
+//go:build wasip1
+
+package wasm
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+
+	"github.com/goccy/go-json"
+)
+
+// HTTPClient предоставляет функции выполнения HTTP запросов.
+type HTTPClient interface {
+	HTTPRequest(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+}
+
+var httpClient HTTPClient
+
+// SetHTTPClient устанавливает HTTP клиент.
+func SetHTTPClient(client HTTPClient) {
+
+	httpClient = client
+}
+
+// HTTPResponse представляет HTTP ответ.
+// Body передается через поток (streamID), а не кодируется.
+type HTTPResponse struct {
+	StatusCode   int
+	Headers      map[string]string
+	BodyStreamID *uint32 // ID потока для тела ответа
+	Error        string
+}
+
+// hostHTTPClientAdapter адаптирует функции хоста к интерфейсу HTTPClient.
+type hostHTTPClientAdapter struct{}
+
+func (a *hostHTTPClientAdapter) HTTPRequest(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, resultPtrPtr, resultSizePtr uint32) (resultCode uint32) {
+
+	return hostHTTPRequest(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, resultPtrPtr, resultSizePtr)
+}
+
+// HTTPRequest выполняет HTTP запрос через хост.
+// method - HTTP метод (GET, POST, etc.)
+// url - URL для запроса
+// headers - заголовки запроса в виде map[string]string
+// body - тело запроса
+// Возвращает HTTP ответ или ошибку.
+func HTTPRequest(method, url string, headers map[string]string, body string) (response *HTTPResponse, err error) {
+
+	if httpClient == nil {
+		return nil, fmt.Errorf("http client not initialized")
+	}
+
+	// Кодируем headers в JSON
+	var headersJSONBytes string
+	if len(headers) > 0 {
+		headersBytes, encodeErr := json.Marshal(headers)
+		if encodeErr != nil {
+			return nil, fmt.Errorf("failed to encode headers: %w", encodeErr)
+		}
+		headersJSONBytes = string(headersBytes)
+	}
+
+	// Выделяем память для строк
+	methodPtr, methodLen := WriteString(method)
+	defer Free(methodPtr)
+
+	urlPtr, urlLen := WriteString(url)
+	defer Free(urlPtr)
+
+	headersPtr, headersLen := WriteString(headersJSONBytes)
+	defer Free(headersPtr)
+
+	bodyPtr, bodyLen := WriteString(body)
+	defer Free(bodyPtr)
+
+	// Выделяем память для указателей результата
+	resultPtrPtr := Malloc(4)
+	resultSizePtr := Malloc(4)
+	defer Free(resultPtrPtr)
+	defer Free(resultSizePtr)
+
+	// Вызываем функцию хоста через адаптер
+	if httpClient.HTTPRequest(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, resultPtrPtr, resultSizePtr) != 0 {
+		return nil, fmt.Errorf("failed to execute http request")
+	}
+
+	// Читаем указатель и размер результата
+	resultPtr := ReadUint32(resultPtrPtr)
+	resultSize := ReadUint32(resultSizePtr)
+
+	if resultSize == 0 {
+		return nil, fmt.Errorf("empty response from host")
+	}
+
+	// Читаем результат
+	resultBytes := PtrToByte(resultPtr, resultSize)
+	defer Free(resultPtr)
+
+	// Декодируем ответ из JSON
+	var respJSON map[string]any
+	if err := json.Unmarshal(resultBytes, &respJSON); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	response = &HTTPResponse{
+		StatusCode: 0,
+		Headers:    make(map[string]string),
+		Error:      "",
+	}
+
+	if statusCode, ok := respJSON["statusCode"].(float64); ok {
+		response.StatusCode = int(statusCode)
+	} else if statusCode, ok := respJSON["statusCode"].(int); ok {
+		response.StatusCode = statusCode
+	}
+
+	if headers, ok := respJSON["headers"].(map[string]any); ok {
+		for k, v := range headers {
+			if str, ok := v.(string); ok {
+				response.Headers[k] = str
+			}
+		}
+	}
+
+	if errorStr, ok := respJSON["error"].(string); ok && errorStr != "" {
+		response.Error = errorStr
+		return response, fmt.Errorf("http request failed: %s", response.Error)
+	}
+
+	// Преобразуем streamID из int32 в uint32
+	if bodyStreamID, ok := respJSON["bodyStreamID"].(float64); ok {
+		//nolint:gosec // bodyStreamID всегда положительный, преобразование безопасно
+		bodyID := uint32(bodyStreamID)
+		response.BodyStreamID = &bodyID
+	} else if bodyStreamID, ok := respJSON["bodyStreamID"].(int32); ok {
+		//nolint:gosec // bodyStreamID всегда положительный, преобразование безопасно
+		bodyID := uint32(bodyStreamID)
+		response.BodyStreamID = &bodyID
+	}
+
+	return response, nil
+}
+
+// ReadBody читает тело ответа из потока.
+func (r *HTTPResponse) ReadBody() (body []byte, err error) {
+
+	if r.BodyStreamID == nil {
+		return nil, nil
+	}
+
+	return ReadStream(*r.BodyStreamID)
+}
+
+// streamBodyReader реализует io.Reader для чтения тела ответа из потока.
+// Скрывает все детали WASM (Malloc, Free, HostStreamReadChunk).
+type streamBodyReader struct {
+	streamID uint32
+	closed   bool
+}
+
+// Read читает данные из потока.
+func (r *streamBodyReader) Read(p []byte) (n int, err error) {
+
+	if r.closed {
+		return 0, io.EOF
+	}
+
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	//nolint:gosec // len(p) всегда <= MaxInt, преобразование безопасно
+	chunkSize := uint32(len(p))
+	chunkPtr := Malloc(chunkSize)
+	if chunkPtr == 0 {
+		return 0, fmt.Errorf("failed to allocate memory for stream chunk")
+	}
+	defer Free(chunkPtr)
+
+	bytesRead := HostStreamReadChunk(r.streamID, chunkPtr, chunkSize)
+	if bytesRead == 0 {
+		r.closed = true
+		return 0, io.EOF
+	}
+
+	chunkData := PtrToByte(chunkPtr, bytesRead)
+	copy(p, chunkData)
+
+	return int(bytesRead), nil
+}
+
+// Close закрывает поток.
+func (r *streamBodyReader) Close() (err error) {
+
+	if r.closed {
+		return nil
+	}
+
+	r.closed = true
+	HostStreamClose(r.streamID)
+	return nil
+}
+
+// BodyReader возвращает io.Reader для чтения тела ответа из потока.
+// Скрывает все детали WASM, позволяя использовать стандартный Go интерфейс.
+func (r *HTTPResponse) BodyReader() (reader io.ReadCloser, err error) {
+
+	if r.BodyStreamID == nil {
+		return nil, nil
+	}
+
+	return &streamBodyReader{
+		streamID: *r.BodyStreamID,
+		closed:   false,
+	}, nil
+}
+
+// wasmRoundTripper реализует http.RoundTripper для WASM окружения.
+type wasmRoundTripper struct{}
+
+// RoundTrip выполняет HTTP запрос через WASM адаптер с поддержкой стриминга.
+func (rt *wasmRoundTripper) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+
+	// Преобразуем заголовки в map
+	headers := make(map[string]string)
+	for k, v := range req.Header {
+		if len(v) > 0 {
+			headers[k] = v[0]
+		}
+	}
+
+	// Выполняем запрос через WASM адаптер с поддержкой стриминга
+	var wasmResp *HTTPResponse
+	if req.Body != nil {
+		// Используем HTTPRequestWithBody для стриминга request body
+		wasmResp, err = HTTPRequestWithBody(req.Method, req.URL.String(), headers, req.Body)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Нет тела запроса, используем обычный HTTPRequest
+		wasmResp, err = HTTPRequest(req.Method, req.URL.String(), headers, "")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Получаем BodyReader для стриминга response body
+	var bodyReader io.ReadCloser
+	if wasmResp.BodyStreamID != nil {
+		bodyReader, err = wasmResp.BodyReader()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get response body reader: %w", err)
+		}
+	}
+
+	// Определяем ContentLength из заголовков
+	var contentLength int64 = -1
+	if cl, ok := wasmResp.Headers["Content-Length"]; ok {
+		if parsed, parseErr := strconv.ParseUint(cl, 10, 64); parseErr == nil {
+			//nolint:gosec // parsed из Content-Length заголовка, преобразование безопасно
+			contentLength = int64(parsed)
+		}
+	}
+
+	// Создаем http.Response с стримингом тела ответа
+	resp = &http.Response{
+		Status:        fmt.Sprintf("%d %s", wasmResp.StatusCode, http.StatusText(wasmResp.StatusCode)),
+		StatusCode:    wasmResp.StatusCode,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        make(http.Header),
+		Body:          bodyReader,
+		ContentLength: contentLength,
+		Request:       req,
+	}
+
+	// Копируем заголовки ответа
+	for k, v := range wasmResp.Headers {
+		resp.Header.Set(k, v)
+	}
+
+	return resp, nil
+}
+
+// streamBodyWriter реализует io.Writer для записи тела запроса в поток.
+// Скрывает все детали WASM (Malloc, Free, HostStreamWriteChunk).
+type streamBodyWriter struct {
+	streamID uint32
+}
+
+// Write записывает данные в поток.
+func (w *streamBodyWriter) Write(p []byte) (n int, err error) {
+
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	//nolint:gosec // len(p) всегда <= MaxInt, преобразование безопасно
+	chunkSize := uint32(len(p))
+	chunkPtr := Malloc(chunkSize)
+	if chunkPtr == 0 {
+		return 0, fmt.Errorf("failed to allocate memory for stream chunk")
+	}
+	defer Free(chunkPtr)
+
+	// Копируем данные в WASM память
+	copy(PtrToByte(chunkPtr, chunkSize), p)
+
+	// Записываем данные в поток
+	bytesWritten := HostStreamWriteChunk(w.streamID, chunkPtr, chunkSize)
+	if bytesWritten != chunkSize {
+		return int(bytesWritten), fmt.Errorf("failed to write all data to stream: wrote %d of %d", bytesWritten, chunkSize)
+	}
+
+	return int(bytesWritten), nil
+}
+
+// HTTPRequestWithBody выполняет HTTP запрос с телом запроса из io.Reader.
+// Скрывает все детали WASM, позволяя использовать стандартный Go интерфейс.
+// method - HTTP метод (GET, POST, etc.)
+// url - URL для запроса
+// headers - заголовки запроса в виде map[string]string
+// bodyReader - io.Reader для тела запроса (может быть nil)
+// Возвращает HTTP ответ или ошибку.
+func HTTPRequestWithBody(method, url string, headers map[string]string, bodyReader io.Reader) (response *HTTPResponse, err error) {
+
+	if httpClient == nil {
+		return nil, fmt.Errorf("http client not initialized")
+	}
+
+	// Создаем метаданные запроса
+	reqMeta := map[string]any{
+		"method":  method,
+		"path":    url,
+		"headers": headers,
+	}
+	reqMetaJSON, marshalErr := json.Marshal(reqMeta)
+	if marshalErr != nil {
+		return nil, fmt.Errorf("failed to marshal request metadata: %w", marshalErr)
+	}
+
+	// Создаем поток с пустым body
+	streamID := hostNewStreamFromBody(0, 0)
+	if streamID == 0 {
+		return nil, fmt.Errorf("failed to create stream")
+	}
+	defer func() {
+		// Закрываем поток при выходе
+		HostStreamClose(streamID)
+	}()
+
+	// Записываем метаданные запроса в WASM память
+	//nolint:gosec // len(reqMetaJSON) всегда <= MaxInt, преобразование безопасно
+	metaPtr := Malloc(uint32(len(reqMetaJSON)))
+	if metaPtr == 0 {
+		return nil, fmt.Errorf("failed to allocate memory for request metadata")
+	}
+	defer Free(metaPtr)
+	//nolint:gosec // len(reqMetaJSON) всегда <= MaxInt, преобразование безопасно
+	copy(PtrToByte(metaPtr, uint32(len(reqMetaJSON))), reqMetaJSON)
+
+	// Устанавливаем метаданные запроса в поток
+	//nolint:gosec // len(reqMetaJSON) всегда <= MaxInt, преобразование безопасно
+	if hostSetRequestMeta(streamID, metaPtr, uint32(len(reqMetaJSON))) != 0 {
+		return nil, fmt.Errorf("failed to set request metadata")
+	}
+
+	// Записываем тело запроса в поток порциями, если оно есть
+	if bodyReader != nil {
+		bodyWriter := &streamBodyWriter{streamID: streamID}
+		// Сигнализируем о завершении метаданных и начале тела
+		if HostStreamEndMetadata(streamID) != 0 {
+			return nil, fmt.Errorf("failed to end metadata")
+		}
+		// КРИТИЧНО: Запускаем io.Copy в горутине ДО вызова hostHTTPRequestStream,
+		// чтобы данные начали писаться в буфер, пока хост читает их
+		// Это предотвращает deadlock, так как плагин и хост работают асинхронно через буфер
+		copyDone := make(chan error, 1)
+		go func() {
+			_, copyErr := io.Copy(bodyWriter, bodyReader)
+			if copyErr != nil {
+				copyErr = fmt.Errorf("failed to write request body: %w", copyErr)
+				copyDone <- copyErr
+				return
+			}
+			// Закрываем writer потока, чтобы сигнализировать о завершении записи
+			if HostStreamCloseWriter(streamID) != 0 {
+				copyDone <- fmt.Errorf("failed to close stream writer")
+				return
+			}
+			copyDone <- nil
+		}()
+
+		// Выполняем HTTP запрос - хост начнет читать из буфера, пока плагин пишет данные
+		if hostHTTPRequestStream(streamID) != 0 {
+			return nil, fmt.Errorf("failed to execute http request stream")
+		}
+
+		// Ждем завершения копирования данных
+		if copyErr := <-copyDone; copyErr != nil {
+			return nil, copyErr
+		}
+	} else if hostHTTPRequestStream(streamID) != 0 {
+		// Нет тела запроса, выполняем HTTP запрос сразу
+		return nil, fmt.Errorf("failed to execute http request stream")
+	}
+
+	// Читаем метаданные ответа из потока через host_get_stream_metadata
+	// Метаданные записываются в ResponseMeta через host_stream_write_chunk на стороне хоста
+	// После выполнения HTTP запроса они перемещаются в FinalMetadata
+	response = &HTTPResponse{
+		StatusCode: 0,
+		Headers:    make(map[string]string),
+		Error:      "",
+	}
+
+	// Выделяем память для указателей результата
+	resultPtrPtr := Malloc(4)
+	resultSizePtr := Malloc(4)
+	defer Free(resultPtrPtr)
+	defer Free(resultSizePtr)
+
+	// Получаем метаданные ответа (читает из FinalMetadata или ResponseMeta)
+	// hostHTTPRequestStream выполняется синхронно и записывает метаданные в FinalMetadata
+	if hostGetStreamMetadata(streamID, resultPtrPtr, resultSizePtr) != 0 {
+		return nil, fmt.Errorf("failed to get response metadata")
+	}
+
+	// Читаем указатель и размер результата
+	resultPtr := ReadUint32(resultPtrPtr)
+	resultSize := ReadUint32(resultSizePtr)
+
+	if resultSize > 0 {
+		// Читаем результат
+		resultBytes := PtrToByte(resultPtr, resultSize)
+		defer Free(resultPtr)
+
+		// Декодируем метаданные ответа
+		var respMeta map[string]any
+		if unmarshalErr := json.Unmarshal(resultBytes, &respMeta); unmarshalErr != nil {
+			return nil, fmt.Errorf("failed to decode response metadata: %w", unmarshalErr)
+		}
+
+		if statusCode, ok := respMeta["statusCode"].(float64); ok {
+			response.StatusCode = int(statusCode)
+		} else if statusCode, ok := respMeta["statusCode"].(int); ok {
+			response.StatusCode = statusCode
+		}
+
+		if headers, ok := respMeta["headers"].(map[string]any); ok {
+			for k, v := range headers {
+				if str, ok := v.(string); ok {
+					response.Headers[k] = str
+				}
+			}
+		}
+
+		if errorStr, ok := respMeta["error"].(string); ok && errorStr != "" {
+			response.Error = errorStr
+			return response, fmt.Errorf("http request failed: %s", response.Error)
+		}
+	}
+
+	// Тело ответа доступно через streamID
+	bodyStreamID := streamID
+	response.BodyStreamID = &bodyStreamID
+
+	// НЕ закрываем поток здесь - он будет закрыт при чтении BodyReader
+
+	return response, nil
+}
+
+//go:wasmimport env host_new_stream_from_body
+func hostNewStreamFromBody(bodyPtr, bodyLen uint32) (streamID uint32)
+
+//go:wasmimport env host_stream_set_request_meta
+func hostSetRequestMeta(streamID, metaPtr, metaLen uint32) (resultCode uint32)
+
+//go:wasmimport env host_get_stream_metadata
+func hostGetStreamMetadata(streamID, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+
+//go:wasmimport env host_http_request_stream
+func hostHTTPRequestStream(streamID uint32) (resultCode uint32)
+
+// DefaultHTTPClient возвращает дефолтный HTTP клиент для WASM окружения.
+func DefaultHTTPClient() (client *http.Client) {
+
+	return &http.Client{
+		Transport: &wasmRoundTripper{},
+	}
+}

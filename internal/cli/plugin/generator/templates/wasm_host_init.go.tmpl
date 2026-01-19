@@ -1,0 +1,10 @@
+//go:build !wasip1
+
+package wasm
+
+// InitHostAdapters инициализирует адаптеры хоста.
+// Для не-WASM сборок ничего не делает.
+func InitHostAdapters() {
+
+	// Для не-WASM сборок ничего не делаем
+}

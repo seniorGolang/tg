@@ -1,0 +1,177 @@
+package wasm
+
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/goccy/go-json"
+)
+
+// CommandExecutor предоставляет функции выполнения команд.
+type CommandExecutor interface {
+	ExecuteCommand(commandPtr, commandLen, argsPtr, argsLen, workDirPtr, workDirLen, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+}
+
+var commandExecutor CommandExecutor
+
+// SetCommandExecutor устанавливает исполнитель команд.
+func SetCommandExecutor(ce CommandExecutor) {
+
+	commandExecutor = ce
+}
+
+// WriteString выделяет память и записывает строку. Память должна быть освобождена через Free.
+func WriteString(s string) (ptr uint32, length uint32) {
+
+	bytes := []byte(s)
+	if len(bytes) == 0 {
+		return 0, 0
+	}
+	if len(bytes) > int(^uint32(0)) {
+		return 0, 0
+	}
+	//nolint:gosec // Преобразование int -> uint32 безопасно, так как размеры проверяются выше
+	ptr = Malloc(uint32(len(bytes)))
+	if ptr == 0 {
+		return 0, 0
+	}
+	//nolint:gosec // Преобразование int -> uint32 безопасно, так как размеры проверяются выше
+	copy(PtrToByte(ptr, uint32(len(bytes))), bytes)
+	//nolint:gosec // Преобразование int -> uint32 безопасно, так как размеры проверяются выше
+	length = uint32(len(bytes))
+	return ptr, length
+}
+
+// ReadUint32 читает uint32 из памяти (little-endian, 4 байта).
+func ReadUint32(ptr uint32) (value uint32) {
+
+	bytes := PtrToByte(ptr, 4)
+	return binary.LittleEndian.Uint32(bytes)
+}
+
+// CommandResponse представляет результат выполнения команды через хост.
+// Stdout и Stderr передаются через потоки (streamID), а не кодируются.
+type CommandResponse struct {
+	ExitCode       int
+	StdoutStreamID *uint32 // ID потока для stdout
+	StderrStreamID *uint32 // ID потока для stderr
+	Error          string
+}
+
+// ExecuteCommandInDir выполняет команду через хост в указанной директории.
+// command - имя команды (например, "go")
+// args - аргументы команды
+// workDir - рабочая директория (относительно rootDir)
+// Возвращает результат выполнения команды или ошибку.
+func ExecuteCommandInDir(command string, args []string, workDir string) (response *CommandResponse, err error) {
+
+	if commandExecutor == nil {
+		return nil, fmt.Errorf("command executor not initialized")
+	}
+
+	// Кодируем args в JSON
+	argsJSONBytes, err := json.Marshal(args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode args: %w", err)
+	}
+
+	// Выделяем память для строк
+	commandPtr, commandLen := WriteString(command)
+	defer Free(commandPtr)
+
+	argsPtr, argsLen := WriteString(string(argsJSONBytes))
+	defer Free(argsPtr)
+
+	workDirPtr, workDirLen := WriteString(workDir)
+	defer Free(workDirPtr)
+
+	// Выделяем память для указателей результата
+	resultPtrPtr := Malloc(4)
+	resultSizePtr := Malloc(4)
+	defer Free(resultPtrPtr)
+	defer Free(resultSizePtr)
+
+	// Вызываем функцию хоста через адаптер
+	if commandExecutor.ExecuteCommand(commandPtr, commandLen, argsPtr, argsLen, workDirPtr, workDirLen, resultPtrPtr, resultSizePtr) != 0 {
+		return nil, fmt.Errorf("failed to execute command")
+	}
+
+	// Читаем указатель и размер результата
+	resultPtr := ReadUint32(resultPtrPtr)
+	resultSize := ReadUint32(resultSizePtr)
+
+	if resultSize == 0 {
+		return nil, fmt.Errorf("empty response from host")
+	}
+
+	// Читаем результат
+	resultBytes := PtrToByte(resultPtr, resultSize)
+	defer Free(resultPtr)
+
+	// Декодируем ответ из JSON
+	var respJSON map[string]any
+	if err := json.Unmarshal(resultBytes, &respJSON); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	response = &CommandResponse{
+		ExitCode: 0,
+		Error:    "",
+	}
+
+	if exitCode, ok := respJSON["exitCode"].(float64); ok {
+		response.ExitCode = int(exitCode)
+	} else if exitCode, ok := respJSON["exitCode"].(int); ok {
+		response.ExitCode = exitCode
+	}
+
+	if errorStr, ok := respJSON["error"].(string); ok && errorStr != "" {
+		response.Error = errorStr
+		return response, fmt.Errorf("command execution failed: %s", response.Error)
+	}
+
+	// Преобразуем streamID из int32 в uint32
+	if stdoutStreamID, ok := respJSON["stdoutStreamID"].(float64); ok {
+		if stdoutStreamID < 0 {
+			return nil, fmt.Errorf("invalid stdout stream ID: %d", int32(stdoutStreamID))
+		}
+		stdoutID := uint32(stdoutStreamID)
+		response.StdoutStreamID = &stdoutID
+	} else if stdoutStreamID, ok := respJSON["stdoutStreamID"].(int32); ok {
+		if stdoutStreamID < 0 {
+			return nil, fmt.Errorf("invalid stdout stream ID: %d", stdoutStreamID)
+		}
+		stdoutID := uint32(stdoutStreamID)
+		response.StdoutStreamID = &stdoutID
+	}
+	if stderrStreamID, ok := respJSON["stderrStreamID"].(float64); ok {
+		if stderrStreamID < 0 {
+			return nil, fmt.Errorf("invalid stderr stream ID: %d", int32(stderrStreamID))
+		}
+		stderrID := uint32(stderrStreamID)
+		response.StderrStreamID = &stderrID
+	} else if stderrStreamID, ok := respJSON["stderrStreamID"].(int32); ok {
+		if stderrStreamID < 0 {
+			return nil, fmt.Errorf("invalid stderr stream ID: %d", stderrStreamID)
+		}
+		stderrID := uint32(stderrStreamID)
+		response.StderrStreamID = &stderrID
+	}
+
+	return response, nil
+}
+
+// ReadCommandOutput читает stdout или stderr из потока.
+func ReadCommandOutput(streamID *uint32) (output string, err error) {
+
+	if streamID == nil {
+		return "", nil
+	}
+
+	data, err := ReadStream(*streamID)
+	if err != nil {
+		return "", fmt.Errorf("failed to read stream: %w", err)
+	}
+
+	return string(data), nil
+}

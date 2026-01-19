@@ -1,0 +1,16 @@
+package wasm
+
+import "{{.ModuleName}}/core/data"
+
+// ExecuteRequest содержит аргументы для Execute.
+type ExecuteRequest struct {
+	RootDir string       `json:"rootDir"`
+	Request data.Storage `json:"request"`        // data.Storage напрямую
+	Path    []string     `json:"path,omitempty"` // путь команды, которая была вызвана
+}
+
+// ExecuteResponse содержит результат выполнения Execute.
+type ExecuteResponse struct {
+	Error    string       `json:"error,omitempty"`
+	Response data.Storage `json:"response,omitempty"` // data.Storage напрямую
+}

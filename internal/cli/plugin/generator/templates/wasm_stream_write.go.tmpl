@@ -1,0 +1,22 @@
+//go:build wasip1
+
+package wasm
+
+// HostStreamWriteChunk записывает данные в stream.
+func HostStreamWriteChunk(streamID, ptr, size uint32) (bytesWritten uint32) {
+
+	return hostStreamWriteChunk(streamID, ptr, size)
+}
+
+// HostStreamEndMetadata сигнализирует о завершении записи метаданных и начале записи тела.
+func HostStreamEndMetadata(streamID uint32) (resultCode uint32) {
+
+	return hostStreamEndMetadata(streamID)
+}
+
+// HostStreamCloseWriter закрывает writer потока, если он реализует io.Closer.
+// Это необходимо для pipe-based потоков, чтобы сигнализировать о завершении записи.
+func HostStreamCloseWriter(streamID uint32) (resultCode uint32) {
+
+	return hostStreamCloseWriter(streamID)
+}

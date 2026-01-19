@@ -1,0 +1,90 @@
+package main
+
+import (
+	"errors"
+
+	"github.com/goccy/go-json"
+)
+
+// Storage определяет интерфейс хранилища для запросов и ответов плагинов.
+// Request и Response должны быть одного типа, реализующего интерфейс Storage.
+type Storage interface {
+	// Get возвращает значение поля по имени.
+	Get(name string) (value any, ok bool)
+
+	// Set устанавливает значение поля по имени.
+	Set(name string, value any) (err error)
+
+	// Has проверяет наличие поля по имени.
+	Has(name string) (has bool)
+
+	// MarshalJSON сериализует хранилище в JSON.
+	MarshalJSON() (data []byte, err error)
+
+	// UnmarshalJSON десериализует хранилище из JSON.
+	UnmarshalJSON(data []byte) (err error)
+}
+
+// MapStorage - универсальная реализация Storage на основе map[string]any.
+// Используется для всех плагинов как Request и Response.
+type MapStorage map[string]any
+
+// NewStorage создает новый экземпляр Storage.
+func NewStorage() (storage Storage) {
+
+	s := make(MapStorage)
+	return &s
+}
+
+// Get возвращает значение поля по имени.
+func (s MapStorage) Get(name string) (value any, ok bool) {
+
+	if s == nil {
+		return nil, false
+	}
+	value, ok = s[name]
+	return
+}
+
+// Set устанавливает значение поля по имени.
+func (s MapStorage) Set(name string, value any) (err error) {
+
+	if s == nil {
+		return errors.New("storage is nil")
+	}
+	s[name] = value
+	return nil
+}
+
+// Has проверяет наличие поля по имени.
+func (s MapStorage) Has(name string) (has bool) {
+
+	if s == nil {
+		return false
+	}
+	_, has = s[name]
+	return
+}
+
+// MarshalJSON сериализует хранилище в JSON.
+func (s MapStorage) MarshalJSON() (data []byte, err error) {
+
+	if s == nil {
+		return json.Marshal(map[string]any{})
+	}
+	return json.Marshal(map[string]any(s))
+}
+
+// UnmarshalJSON десериализует хранилище из JSON.
+func (s *MapStorage) UnmarshalJSON(data []byte) (err error) {
+
+	if s == nil {
+		return errors.New("storage is nil")
+	}
+	var m map[string]any
+	if err = json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	*s = MapStorage(m)
+	return nil
+}

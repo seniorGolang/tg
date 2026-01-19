@@ -1,0 +1,531 @@
+# Руководство по работе с плагинами
+
+## Что такое плагин?
+
+Плагин — это WASM (WebAssembly) модуль, который расширяет функциональность приложения `tg`. Плагины компилируются в файлы с расширением `.tgp` (TG Plugin) и выполняются в изолированной WASM среде для обеспечения безопасности.
+
+Плагины позволяют:
+- Добавлять новые команды в CLI
+- Автоматизировать повторяющиеся задачи
+- Интегрироваться с внешними сервисами
+- Генерировать код и документацию
+- Выполнять любые манипуляции на основе описания проекта
+
+## Создание нового плагина
+
+### Инициализация плагина
+
+Для создания нового плагина используйте команду `tg plugin init`:
+
+```bash
+tg plugin init \
+  --name my-plugin \
+  --command my-command \
+  --kind pre \
+  --deploy-type github \
+  --license MIT \
+  --module-name tgp
+```
+
+**Параметры:**
+- `--name` (обязательно) — имя плагина (только буквы, цифры, дефисы и подчеркивания)
+- `--command` (опционально) — имя CLI команды, которую будет предоставлять плагин
+- `--kind` (опционально) — тип плагина: `pre`, `stage`, `command`, `post`
+- `--deploy-type` (опционально) — тип публикации: `gitlab`, `github`, `none`
+- `--license` (опционально) — лицензия плагина (по умолчанию: MIT)
+- `--module-name` (опционально) — имя модуля для общего кода (по умолчанию: tgp)
+
+Команда создаст структуру плагина:
+```
+plugins/{{.PluginNameSnakeCase}}/
+├── plugin.go      # Основной код плагина
+├── wasm.go        # WASM экспорты
+├── tgp.go         # Регистрация плагина
+├── plugin.json    # Манифест плагина
+└── dist/          # Директория для сборки (создаётся при build)
+```
+
+Если это первый плагин в репозитории, также будут созданы:
+- `core/` — общий код для плагинов
+- `go.mod` — файл модуля Go
+- `.github/workflows/deploy.yml` или `.gitlab-ci.yml` — конфигурация CI/CD (если указан deploy-type)
+
+### Добавление плагина в существующий репозиторий
+
+Если в репозитории уже есть плагины, используйте команду `tg plugin add`:
+
+```bash
+tg plugin add \
+  --name new-plugin \
+  --command new-cmd \
+  --dir plugins/new-plugin \
+  --license MIT \
+  --module-name tgp
+```
+
+**Параметры:**
+- `--name` (обязательно) — имя плагина
+- `--command` (опционально) — имя CLI команды
+- `--dir` (опционально) — директория плагина (по умолчанию: `plugins/{name}`)
+- `--license` (опционально) — лицензия
+- `--module-name` (опционально) — имя модуля
+
+## Реализация плагина
+
+### Интерфейс плагина
+
+Плагин должен реализовать интерфейс `Plugin` из пакета `{{.ModuleName}}/core/plugin`:
+
+```go
+type Plugin interface {
+    Info() (info Info, err error)
+    Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error)
+}
+```
+
+### Метод `Info()`
+
+Возвращает метаданные плагина, включая список команд, опции и права доступа:
+
+```go
+import "{{.ModuleName}}/core/plugin"
+
+func (p *{{.PluginNameTitleCase}}Plugin) Info() (info plugin.Info, err error) {
+
+    return plugin.Info{
+        Name:        "{{.PluginName}}",
+        Description: "{{.Description}}",
+        Author:      "{{.Author}}",
+        License:     "{{.License}}",
+        Category:    "{{.Category}}",
+        Commands: []plugin.Command{
+            {{"{{"}}Path:        []string{"{{.Command}}"},
+                Description: "{{.Description}}",
+                Options:     []plugin.Option{},
+            },
+        },
+        // Права доступа
+        AllowedHosts:     []string{}, // Белый список хостов для сетевых подключений
+        AllowedShellCMDs: []string{}, // Белый список команд для выполнения через хост
+        AllowedEnvVars:   []string{}, // Белый список переменных окружения
+        AllowedPaths:     map[string]string{}, // Доступные пути файловой системы
+        InitPkgs:         []string{}, // Пакеты для генерации при plugin init
+    }, nil
+}
+```
+
+### Метод `Execute()`
+
+Содержит основную логику плагина:
+
+```go
+import (
+    "log/slog"
+    "{{.ModuleName}}/core/data"
+)
+
+func (p *{{.PluginNameTitleCase}}Plugin) Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error) {
+
+    slog.Info("{{.PluginName}} плагин запущен")
+
+    // Создаём response
+    response = data.NewStorage()
+
+    // Получаем опции из request
+    options := make(map[string]any)
+    if request != nil {
+        if storageMap, ok := request.(*data.MapStorage); ok {
+            for k, v := range *storageMap {
+                options[k] = v
+            }
+        }
+    }
+
+    // Реализуйте вашу логику здесь
+    // - Работа с файлами через os.ReadFile(), os.WriteFile()
+    // - Логирование через slog.Info(), slog.Error()
+    // - Сохранение результатов в response через response.Set("key", value)
+
+    slog.Info("{{.PluginName}} плагин завершён")
+    return response, nil
+}
+```
+
+### Регистрация плагина
+
+Плагин регистрируется автоматически через `init()` функцию в `tgp.go`:
+
+```go
+var pluginInstance plugin.Plugin = &{{.PluginNameTitleCase}}Plugin{}
+
+func init() {
+
+    core.InitPlugin(pluginInstance)
+}
+```
+
+## Манифест плагина
+
+Манифест — это файл `plugin.json` в директории плагина, который содержит метаданные о плагине.
+
+### Формат манифеста
+
+```json
+{
+  "name": "{{.PluginName}}",
+  "description": "{{.Description}}",
+  "author": "{{.Author}}",
+  "license": "{{.License}}"{{if .Kind}},
+  "kind": "{{.Kind}}"{{end}}
+}
+```
+
+### Обязательные поля
+
+- **`name`** — должно совпадать с именем директории в `plugins/{plugin-name}/`
+- **`description`** — краткое описание назначения плагина
+- **`author`** — имя автора или организации
+- **`license`** — лицензия плагина
+
+## Команды плагина
+
+Плагины могут предоставлять команды, которые становятся доступными в CLI через единую систему команд.
+
+### Объявление команд
+
+Команды объявляются в методе `Info()` в поле `Commands`:
+
+```go
+Commands: []plugin.Command{
+    {{"{{"}}Path:        []string{"my-command"},
+        Description: "Моя команда",
+        Options:     []plugin.Option{
+            {{"{{"}}Name:        "output",
+                Short:       "o",
+                Type:        "string",
+                Description: "Путь к выходному файлу",
+                Required:    true,
+            },
+            {{"{{"}}Name:        "verbose",
+                Short:       "v",
+                Type:        "bool",
+                Description: "Подробный вывод",
+                Required:    false,
+                Default:     false,
+            },
+        },
+    },
+}
+```
+
+### Опции команд
+
+Опции могут быть:
+- **Флагами** — передаются через `--name` или `-s` (если указан Short)
+- **Позиционными аргументами** — передаются без флагов
+
+**Пример использования:**
+```bash
+tg my-command --output file.txt -v
+```
+
+**Позиционные аргументы:**
+```go
+Options: []plugin.Option{
+    {{"{{"}}Name:         "package",
+        Type:         "string",
+        Description:  "URL пакета для установки",
+        Required:     true,
+        IsPositional: true, // Позиционный аргумент
+    },
+}
+```
+
+**Использование:**
+```bash
+tg install https://github.com/user/repo
+```
+
+
+## Сборка плагина
+
+Для сборки плагина в `.tgp` файл используйте команду `tg plugin build`:
+
+```bash
+# Из директории плагина
+cd plugins/{{.PluginNameSnakeCase}}
+tg plugin build
+
+# Или указав путь
+tg plugin build plugins/{{.PluginNameSnakeCase}}
+```
+
+Команда создаст в директории `dist/`:
+- `{plugin-name}.tgp` — скомпилированный WASM модуль
+- `{plugin-name}.sha256` — SHA256 контрольная сумма
+- `{plugin-name}.json` — копия `plugin.json`
+
+## Установка плагинов
+
+### Добавление каталога
+
+Перед установкой плагинов нужно добавить каталог (источник плагинов):
+
+```bash
+# Добавить каталог из GitHub
+tg pkg repo https://github.com/user/catalog
+
+# Добавить каталог из GitLab
+tg pkg repo https://gitlab.com/user/catalog
+
+# Принудительно перезагрузить каталог
+tg pkg repo <url> --force
+```
+
+### Обновление каталогов
+
+После добавления каталога обновите его:
+
+```bash
+# Обновить все каталоги
+tg pkg update
+
+# Принудительное обновление
+tg pkg update --force
+```
+
+### Установка плагина
+
+```bash
+# Установить плагин
+tg pkg add <package>
+
+# Установить конкретную версию
+tg pkg add <package>@1.0.0
+
+# Или через опцию
+tg pkg add <package> --version 1.0.0
+
+# Принудительная установка (перезаписать существующий)
+tg pkg add <package> --force
+```
+
+**Примеры:**
+```bash
+tg pkg add github.com/user/plugin-name
+tg pkg add gitlab.com/user/plugin-name@1.2.3
+```
+
+### Управление установленными плагинами
+
+```bash
+# Список установленных плагинов
+tg pkg list
+
+# Информация о плагине
+tg pkg info <package>
+
+# Удаление плагина
+tg pkg del <package>
+
+# Обновление плагинов
+tg pkg upgrade
+
+# Обновление конкретного плагина
+tg pkg upgrade <package>
+```
+
+### Просмотр документации плагина
+
+```bash
+# Показать документацию плагина
+tg plugin doc <plugin-name>
+
+# Показать документацию конкретной версии
+tg plugin doc <plugin-name>@1.0.0
+```
+
+## Публикация плагина
+
+{{if eq .DeployType "gitlab"}}
+### Публикация в GitLab
+
+#### Подготовка
+
+1. Обновите версию в `plugins/{{.PluginNameSnakeCase}}/plugin.json`:
+```json
+{
+  "version": "1.2.3"
+}
+```
+
+2. Закоммитьте и запушьте изменения:
+```bash
+git add plugins/{{.PluginNameSnakeCase}}/plugin.json
+git commit -m "Release v1.2.3"
+git push origin main
+```
+
+#### Формат тега
+
+GitLab CI/CD поддерживает формат тега: `v{version}`
+- Пример: `v1.2.3`
+- Публикует **все** плагины в репозитории с одной версией
+
+#### Процесс публикации
+
+```bash
+# Создайте и запушьте тег
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+#### Что происходит автоматически
+
+После пуша тега GitLab CI/CD автоматически:
+
+1. **Собирает все плагины**:
+   - Компилирует каждый плагин в WASM модуль (`.tgp`)
+   - Генерирует SHA256 checksum для каждого
+   - Копирует `plugin.json` из директории каждого плагина
+
+2. **Публикует артефакты** в GitLab Generic Packages:
+   - Для каждого плагина: URL `{CI_API_V4_URL}/projects/{CI_PROJECT_ID}/packages/generic/{plugin-name}/{version}/`
+   - Файлы: `{plugin-name}.json`, `{plugin-name}.tgp`, `{plugin-name}.sha256`
+
+#### Доступ к плагину
+
+После публикации плагин доступен по URL:
+```
+https://gitlab.com/{group}/{project}/-/packages
+```
+
+Или напрямую:
+```
+https://gitlab.com/api/v4/projects/{project_id}/packages/generic/{{.PluginNameSnakeCase}}/{version}/{filename}
+```
+{{else if eq .DeployType "github"}}
+### Публикация в GitHub
+
+#### Подготовка
+
+1. Обновите версию в `plugins/{{.PluginNameSnakeCase}}/plugin.json`:
+```json
+{
+  "version": "1.2.3"
+}
+```
+
+2. Закоммитьте и запушьте изменения:
+```bash
+git add plugins/{{.PluginNameSnakeCase}}/plugin.json
+git commit -m "Release v1.2.3"
+git push origin main
+```
+
+#### Формат тега
+
+GitHub Actions поддерживает формат тега: `v{version}`
+- Пример: `v1.2.3`
+- Публикует **все** плагины в репозитории с одной версией
+
+#### Процесс публикации
+
+```bash
+# Создайте и запушьте тег
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+#### Что происходит автоматически
+
+После пуша тега GitHub Actions автоматически:
+
+1. **Собирает все плагины**:
+   - Компилирует каждый плагин в WASM модуль (`.tgp`)
+   - Генерирует SHA256 checksum для каждого
+
+2. **Создаёт GitHub Release**:
+   - Создаёт релиз с тегом `v1.2.3`
+   - Создаёт `manifest.json` со списком всех плагинов
+   - Прикрепляет файлы: для каждого плагина `{plugin-name}.json`, `{plugin-name}.tgp`, `{plugin-name}.sha256`
+
+#### Доступ к плагину
+
+После публикации плагины доступны в разделе Releases:
+```
+https://github.com/{owner}/{repo}/releases/tag/v{version}
+```
+
+Файлы можно скачать напрямую из релиза.
+{{else}}
+### Публикация
+
+Для публикации плагина настройте CI/CD вручную или используйте команду `tg plugin init` с опцией `--deploy-type gitlab` или `--deploy-type github` для автоматической генерации конфигурации.
+{{end}}
+
+## Ограничения и возможности плагинов
+
+### Что можно делать
+
+✅ **Можно**:
+- Использовать стандартные библиотеки Go (strings, json, encoding и т.д.)
+- Работать с файлами через `os.ReadFile()`, `os.WriteFile()`, `os.Open()` и т.д. (через WASI)
+- Делать сетевые подключения к хостам из `AllowedHosts` (через функции хоста)
+- Использовать логирование через `slog` (настроен через хост)
+- Получать переменные окружения из `AllowedEnvVars`
+- Выполнять команды из `AllowedShellCMDs` (через функции хоста)
+- Использовать доступные пути из `AllowedPaths` и пакеты из `InitPkgs`
+
+### Что нельзя делать
+
+❌ **Нельзя**:
+- Использовать `net/http` напрямую — только через функции хоста
+- Выполнять системные команды через `exec` — нет прямого доступа к процессам
+- Использовать `runtime.Gosched()` или другие примитивы синхронизации — WASM однопоточный
+- Использовать горутины для параллелизма — WASM однопоточный, горутины выполняются асинхронно
+- Делать сетевые подключения к хостам, не указанным в `AllowedHosts`
+- Получать доступ к файлам вне разрешённых путей — файловая система изолирована через WASI
+- Получать переменные окружения, не указанные в `AllowedEnvVars`
+
+### Особенности работы
+
+1. **Однопоточность**: WASM выполняется в одном потоке, горутины технически можно создавать, но они не дают параллелизма и выполняются асинхронно
+
+2. **Изоляция файловой системы**: Доступ только к файлам проекта через WASI (монтируется через `os.DirFS(rootDir)`) и путям из `AllowedPaths`
+
+3. **Безопасность**: Все внешние операции контролируются хостом:
+   - Сетевые подключения валидируются по `AllowedHosts`
+   - Команды выполняются только из `AllowedShellCMDs`
+   - Переменные окружения доступны только из `AllowedEnvVars`
+
+4. **Память**: Память управляется автоматически, но избегайте частых вызовов функций хоста в циклах
+
+5. **Доступные системные функции**:
+   - **Системное время** — доступ к системному времени (wall clock time)
+   - **Монотонное время** — доступ к монотонному времени в наносекундах
+   - **Задержки** — возможность использовать функции задержки/сна
+   - **Генератор случайных чисел** — доступ к криптографически стойкому генератору случайных чисел
+   - **Файловая система** — доступ к файлам проекта через WASI
+   - **Инициализация** — автоматическая инициализация при загрузке модуля
+
+## Встроенные команды для работы с плагинами
+
+Система `tg` предоставляет встроенные команды для управления плагинами:
+
+- `tg plugin init` — создание нового плагина
+- `tg plugin add` — добавление плагина в существующий репозиторий
+- `tg plugin doc` — просмотр документации плагина
+- `tg pkg add` — установка плагина
+- `tg pkg del` — удаление плагина
+- `tg pkg list` — список установленных плагинов
+- `tg pkg info` — информация о плагине
+- `tg pkg repo` — добавление каталога плагинов
+- `tg pkg update` — обновление каталогов
+- `tg pkg upgrade` — обновление установленных плагинов
+
+## Дополнительные ресурсы
+
+- Документация по WASM плагинам: `tg plugin doc <plugin-name>`
+- Примеры плагинов в репозитории
+- Документация по архитектуре системы команд

@@ -1,0 +1,11 @@
+//go:build wasip1
+
+package wasm
+
+// GetAllocationsStats возвращает статистику выделений памяти (для отладки).
+func GetAllocationsStats() (totalAllocs, totalFrees uint64, currentAllocs, maxAllocs int) {
+
+	allocationsMu.Lock()
+	defer allocationsMu.Unlock()
+	return totalAllocs, totalFrees, currentAllocs, maxAllocs
+}

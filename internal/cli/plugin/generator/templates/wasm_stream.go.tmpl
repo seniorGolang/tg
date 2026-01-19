@@ -1,0 +1,142 @@
+//go:build wasip1
+
+package wasm
+
+import (
+	"fmt"
+	"io"
+)
+
+// StreamReader предоставляет функции для чтения потоков.
+type StreamReader interface {
+	ReadChunk(streamID, ptr, size uint32) (bytesRead uint32)
+	Close(streamID uint32) (resultCode uint32)
+}
+
+var streamReader StreamReader
+
+// SetStreamReader устанавливает читатель потоков.
+func SetStreamReader(sr StreamReader) {
+
+	streamReader = sr
+}
+
+// streamReaderImpl реализует io.Reader для чтения из потока.
+type streamReaderImpl struct {
+	streamID uint32
+	closed   bool
+}
+
+// NewStreamReader создает новый io.Reader для чтения из потока.
+func NewStreamReader(streamID uint32) (reader io.ReadCloser) {
+
+	return &streamReaderImpl{
+		streamID: streamID,
+		closed:   false,
+	}
+}
+
+// Read читает данные из потока.
+func (r *streamReaderImpl) Read(p []byte) (n int, err error) {
+
+	if r.closed {
+		return 0, io.EOF
+	}
+
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	//nolint:gosec // len(p) всегда <= MaxInt, преобразование безопасно
+	chunkSize := uint32(len(p))
+	chunkPtr := Malloc(chunkSize)
+	if chunkPtr == 0 {
+		return 0, fmt.Errorf("failed to allocate memory for stream chunk")
+	}
+	defer Free(chunkPtr)
+
+	bytesRead := HostStreamReadChunk(r.streamID, chunkPtr, chunkSize)
+	if bytesRead == 0 {
+		r.closed = true
+		return 0, io.EOF
+	}
+
+	chunkData := PtrToByte(chunkPtr, bytesRead)
+	copy(p, chunkData)
+
+	return int(bytesRead), nil
+}
+
+// Close закрывает поток.
+func (r *streamReaderImpl) Close() (err error) {
+
+	if r.closed {
+		return nil
+	}
+
+	r.closed = true
+	if HostStreamClose(r.streamID) != 0 {
+		return fmt.Errorf("failed to close stream")
+	}
+
+	return nil
+}
+
+// ReadStream читает весь поток в память.
+func ReadStream(streamID uint32) (data []byte, err error) {
+
+	if streamReader == nil {
+		return nil, fmt.Errorf("stream reader not initialized")
+	}
+
+	const chunkSize = 4096
+	var allData []byte
+
+	for {
+		chunkPtr := Malloc(chunkSize)
+		if chunkPtr == 0 {
+			return nil, fmt.Errorf("failed to allocate memory for stream chunk")
+		}
+
+		bytesRead := streamReader.ReadChunk(streamID, chunkPtr, chunkSize)
+		if bytesRead == 0 {
+			Free(chunkPtr)
+			break // EOF
+		}
+
+		chunkData := PtrToByte(chunkPtr, bytesRead)
+		allData = append(allData, chunkData...)
+		Free(chunkPtr)
+	}
+
+	// Закрываем поток
+	streamReader.Close(streamID)
+
+	return allData, nil
+}
+
+// HostStreamReadChunk читает порцию данных из потока.
+// streamID - идентификатор потока
+// ptr - указатель в WASM памяти для записи данных
+// size - максимальный размер данных для чтения
+// Возвращает количество прочитанных байт (0 = EOF)
+func HostStreamReadChunk(streamID, ptr, size uint32) (bytesRead uint32) {
+
+	if streamReader == nil {
+		return 0
+	}
+
+	return streamReader.ReadChunk(streamID, ptr, size)
+}
+
+// HostStreamClose закрывает поток.
+// streamID - идентификатор потока
+// Возвращает 0 при успехе, 1 при ошибке
+func HostStreamClose(streamID uint32) (resultCode uint32) {
+
+	if streamReader == nil {
+		return 1
+	}
+
+	return streamReader.Close(streamID)
+}

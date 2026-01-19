@@ -1,0 +1,198 @@
+// Copyright (c) 2025 Khramtsov Aleksei (seniorGolang@gmail.com).
+// This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this project source code.
+package download
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/seniorGolang/tg/v3/internal/i18n"
+	"github.com/seniorGolang/tg/v3/internal/installer/managers"
+)
+
+const (
+	protocolFile = "file://"
+)
+
+// manager реализует DownloadManager.
+type manager struct {
+	httpClient *http.Client
+}
+
+func NewManager() managers.DownloadManager {
+	return &manager{
+		httpClient: &http.Client{},
+	}
+}
+
+// Download загружает файл по URL.
+func (m *manager) Download(ctx context.Context, url string, destination string) (err error) {
+
+	if strings.HasPrefix(url, protocolFile) {
+		path := strings.TrimPrefix(url, protocolFile)
+		return m.copyFile(path, destination)
+	}
+
+	var req *http.Request
+	if req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "request", err)
+		return
+	}
+
+	var resp *http.Response
+	if resp, err = m.httpClient.Do(req); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
+		return
+	}
+
+	if err = os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
+		return
+	}
+
+	var file *os.File
+	if file, err = os.Create(destination); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
+		return
+	}
+	defer file.Close()
+
+	if _, err = io.Copy(file, resp.Body); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to write file: %w"), err)
+		return
+	}
+
+	return
+}
+
+// DownloadWithProgress загружает файл с отслеживанием прогресса.
+func (m *manager) DownloadWithProgress(ctx context.Context, url string, destination string, progress chan<- int) (err error) {
+
+	if strings.HasPrefix(url, protocolFile) {
+		path := strings.TrimPrefix(url, protocolFile)
+		return m.copyFile(path, destination)
+	}
+
+	var req *http.Request
+	if req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "request", err)
+		return
+	}
+
+	var resp *http.Response
+	if resp, err = m.httpClient.Do(req); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
+		return
+	}
+
+	if err = os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
+		return
+	}
+
+	var file *os.File
+	if file, err = os.Create(destination); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
+		return
+	}
+	defer file.Close()
+
+	totalSize := resp.ContentLength
+	downloaded := int64(0)
+
+	buf := make([]byte, 32*1024)
+	for {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		default:
+		}
+
+		var n int
+		var readErr error
+		if n, readErr = resp.Body.Read(buf); n > 0 {
+			var writeErr error
+			if _, writeErr = file.Write(buf[:n]); writeErr != nil {
+				err = fmt.Errorf(i18n.Msg("Failed to write file: %w"), writeErr)
+				return
+			}
+			downloaded += int64(n)
+
+			if totalSize > 0 && progress != nil {
+				percent := int((downloaded * 100) / totalSize)
+				select {
+				case progress <- percent:
+				default:
+				}
+			}
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			err = fmt.Errorf(i18n.Msg("Read error: %w"), readErr)
+			return
+		}
+	}
+
+	// Отправляем финальное значение прогресса перед закрытием канала
+	if progress != nil {
+		// Отправляем 100% чтобы показать завершение (независимо от того, известен ли размер)
+		select {
+		case progress <- 100:
+		default:
+		}
+		close(progress)
+	}
+
+	return
+}
+
+// copyFile копирует файл из источника в назначение.
+func (m *manager) copyFile(src string, dst string) (err error) {
+
+	if err = os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
+		return
+	}
+
+	var sourceFile *os.File
+	if sourceFile, err = os.Open(src); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to open source file: %w"), err)
+		return
+	}
+	defer sourceFile.Close()
+
+	var destFile *os.File
+	if destFile, err = os.Create(dst); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "destination file", err)
+		return
+	}
+	defer destFile.Close()
+
+	if _, err = io.Copy(destFile, sourceFile); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
+		return
+	}
+
+	return
+}
