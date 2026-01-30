@@ -135,12 +135,12 @@ func (l *DatabasePluginLoader) LoadExecutor(name string) (executor PluginExecuto
 	var wasmHost *host.Host
 	var hostErr error
 	if compilationCache != nil {
-		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, "", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath)); hostErr != nil {
+		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath)); hostErr != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 			return
 		}
 	} else {
-		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, "", loggerAdapter, wasm.WithTGPath(tgPath)); hostErr != nil {
+		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, ".", loggerAdapter, wasm.WithTGPath(tgPath)); hostErr != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 			return
 		}
@@ -223,12 +223,12 @@ func (l *DatabasePluginLoader) LoadHost(name string, useInitPkgs bool) (wasmHost
 
 	var hostErr error
 	if compilationCache != nil {
-		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, "", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath)); hostErr != nil {
+		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath)); hostErr != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 			return
 		}
 	} else {
-		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, "", loggerAdapter, wasm.WithTGPath(tgPath)); hostErr != nil {
+		if wasmHost, hostErr = wasm.New(ctx, wasmBytes, info, ".", loggerAdapter, wasm.WithTGPath(tgPath)); hostErr != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 			return
 		}

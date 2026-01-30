@@ -452,9 +452,9 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			var hostErr error
 			tgPath := scopeConfig.ConfigDir
 			if compilationCache != nil {
-				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, "", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath))
+				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath))
 			} else {
-				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, "", loggerAdapter, wasm.WithTGPath(tgPath))
+				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithTGPath(tgPath))
 			}
 			if hostErr != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
@@ -481,12 +481,15 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 
 			installation.Commands = convertCommandsToModel(info.Commands)
 			installation.Options = convertOptionsToModel(info.Options)
-			installation.AllowedPaths = info.AllowedPaths
-			installation.AllowedEnvVars = info.AllowedEnvVars
-			installation.AllowedHosts = info.AllowedHosts
-			installation.AllowedShellCMDs = info.AllowedShellCMDs
+			installation.Kind = info.Kind
+			installation.Silent = info.Silent
+			installation.Always = info.Always
 			installation.InitPkgs = info.InitPkgs
+			installation.AllowedHosts = info.AllowedHosts
+			installation.AllowedPaths = info.AllowedPaths
 			installation.Dependencies = info.Dependencies
+			installation.AllowedEnvVars = info.AllowedEnvVars
+			installation.AllowedShellCMDs = info.AllowedShellCMDs
 
 			break
 		}
