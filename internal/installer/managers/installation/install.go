@@ -490,6 +490,8 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			installation.Dependencies = info.Dependencies
 			installation.AllowedEnvVars = info.AllowedEnvVars
 			installation.AllowedShellCMDs = info.AllowedShellCMDs
+			installation.AllowedStdOut = info.AllowedStdOut
+			installation.AllowedStdErr = info.AllowedStdErr
 
 			break
 		}

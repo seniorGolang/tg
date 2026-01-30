@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
+	"runtime"
 
 	"{{.ModuleName}}/core/i18n"
 	"{{.ModuleName}}/core/wasm"
@@ -94,27 +94,18 @@ func (c *Cmd) Wait() (err error) {
 		return fmt.Errorf(i18n.Msg("command failed: %s"), c.cmdResp.Error)
 	}
 
-	// Пытаемся получить обновленный CommandResponse из хоста с несколькими попытками
-	// Команда выполняется асинхронно, поэтому exitCode может быть доступен не сразу
-	// Начальное значение exitCode = -2 означает "команда еще не завершена"
+	// Ждём финальный exitCode от хоста. Команда выполняется асинхронно.
+	// exitCode = -2 означает "команда еще не завершена"; опрашиваем до получения реального кода.
 	if c.cmdResp.StdoutStreamID > 0 {
-		// streamID всегда положительный, безопасное преобразование int32 -> uint32
 		stdoutStreamID := uint32(c.cmdResp.StdoutStreamID) //nolint:gosec // streamID всегда > 0
-		maxRetries := 100                                  // Максимум 100 попыток
-		for i := 0; i < maxRetries; i++ {
+		for {
 			if updatedResp, err := wasm.GetCommandResponse(stdoutStreamID); err == nil {
-				// Обновляем exitCode в cmdResp для последующего использования
 				c.cmdResp.ExitCode = updatedResp.ExitCode
-				// Если exitCode != -2, команда завершилась (может быть 0 для успеха или другой код)
-				// -2 - специальное значение для "команда еще не завершена"
 				if updatedResp.ExitCode != -2 {
 					break
 				}
 			}
-			// Ждем немного перед следующей попыткой (кроме первой)
-			if i > 0 {
-				time.Sleep(time.Millisecond * 5)
-			}
+			runtime.Gosched()
 		}
 	}
 

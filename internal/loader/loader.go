@@ -114,6 +114,8 @@ func (l *DatabasePluginLoader) LoadExecutor(name string) (executor PluginExecuto
 		AllowedEnvVars:   installation.AllowedEnvVars,
 		AllowedHosts:     installation.AllowedHosts,
 		AllowedShellCMDs: installation.AllowedShellCMDs,
+		AllowedStdOut:    installation.AllowedStdOut,
+		AllowedStdErr:    installation.AllowedStdErr,
 	}
 
 	var tgPath string
@@ -203,6 +205,8 @@ func (l *DatabasePluginLoader) LoadHost(name string, useInitPkgs bool) (wasmHost
 		AllowedEnvVars:   installation.AllowedEnvVars,
 		AllowedHosts:     installation.AllowedHosts,
 		AllowedShellCMDs: installation.AllowedShellCMDs,
+		AllowedStdOut:    installation.AllowedStdOut,
+		AllowedStdErr:    installation.AllowedStdErr,
 	}
 
 	var tgPath string

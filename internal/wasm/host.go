@@ -119,9 +119,17 @@ func New(ctx context.Context, wasmBytes []byte, info plugin.Info, rootDir string
 		WithSysWalltime().
 		WithSysNanotime().
 		WithSysNanosleep().
-		WithRandSource(rand.Reader).
 		WithFSConfig(fsConfig).
+		WithRandSource(rand.Reader).
 		WithStartFunctions(FuncInitialize)
+
+	if info.AllowedStdOut {
+		cfg = cfg.WithStdout(os.Stdout)
+	}
+
+	if info.AllowedStdErr {
+		cfg = cfg.WithStderr(os.Stderr)
+	}
 
 	cfg = env.Apply(cfg, h.Info.AllowedEnvVars)
 	logPluginPermissions(h.Info, rootDir, hostOpts.TGPath)

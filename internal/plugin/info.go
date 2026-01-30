@@ -17,6 +17,8 @@ type Info struct {
 
 	Kind             string            `json:"kind,omitempty"`
 	Silent           bool              `json:"silent,omitempty"`
+	AllowedStdOut    bool              `json:"allowed_std_out,omitempty"`
+	AllowedStdErr    bool              `json:"allowed_std_err,omitempty"`
 	AllowedHosts     []string          `json:"allowedHosts,omitempty"`
 	AllowedShellCMDs []string          `json:"allowedShellCMDs,omitempty"`
 	AllowedEnvVars   []string          `json:"allowedEnvVars,omitempty"`

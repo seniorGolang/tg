@@ -109,6 +109,8 @@ func (p *{{.PluginNameTitleCase}}Plugin) Info() (info plugin.Info, err error) {
         AllowedShellCMDs: []string{}, // Белый список команд для выполнения через хост
         AllowedEnvVars:   []string{}, // Белый список переменных окружения
         AllowedPaths:     map[string]string{}, // Доступные пути файловой системы
+        AllowedStdOut:    false,      // Разрешить плагину вывод в stdout
+        AllowedStdErr:    false,      // Разрешить плагину вывод в stderr
         InitPkgs:         []string{}, // Пакеты для генерации при plugin init
     }, nil
 }
