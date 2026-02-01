@@ -33,6 +33,25 @@ func extractGlobalOptions(cmd *cobra.Command) (globalOpts GlobalOptions) {
 	}
 }
 
+func globalOptsToMap(opts GlobalOptions) (m map[string]any) {
+
+	m = make(map[string]any, 4)
+	if opts.LogLevel != "" {
+		m[GlobalFlagLogLevel] = opts.LogLevel
+	}
+	if opts.HideCmd {
+		m[GlobalFlagHideCmd] = true
+	}
+	if opts.FailOnMissing {
+		m[GlobalFlagFailOnMissing] = true
+	}
+	if opts.Scope != "" {
+		m[GlobalFlagScope] = opts.Scope
+	}
+
+	return m
+}
+
 func createLoggerWithLevel(level string) (log plugin.Logger) {
 
 	// Преобразуем строковый уровень в slog.Level

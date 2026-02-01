@@ -77,14 +77,19 @@ func (c *lazyPluginCommand) Execute(ctx types.CommandContext) (err error) {
 	exec := executor.NewExecutorWithContext(ctx.RootDir, ctx.Logger, ctx.Context, c.loader)
 	planner := executor.NewPlanner(c.loader)
 
-	initialRequest := plugin.NewStorage()
+	mergedOptions := globalOptsToMap(ctx.GlobalOpts)
 	for k, v := range ctx.Options {
+		mergedOptions[k] = v
+	}
+
+	initialRequest := plugin.NewStorage()
+	for k, v := range mergedOptions {
 		if err = initialRequest.Set(k, v); err != nil {
 			return fmt.Errorf(i18n.Msg("error setting option %s: %w"), k, err)
 		}
 	}
 
-	commandArgs := buildCommandArgs(ctx.Options, ctx.Args, ctx.GlobalOpts)
+	commandArgs := buildCommandArgs(mergedOptions, ctx.Args)
 	var plan executor.Plan
 	if plan, err = planner.Plan(c.metadata.pluginName, initialRequest, ctx.RootDir, c.metadata.command.Path, commandArgs); err != nil {
 		err = fmt.Errorf(i18n.Msg("error planning execution: %w"), err)

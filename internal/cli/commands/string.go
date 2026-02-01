@@ -12,9 +12,6 @@ import (
 
 const (
 	commandStringSeparator = " "
-	globalOptLogLevel      = "log-level"
-	globalOptHideCmd       = "hide-cmd"
-	globalOptFailOnMissing = "fail-on-missing"
 	flagPrefix             = "--"
 )
 
@@ -74,16 +71,13 @@ func buildCommandString(commandPath []string, options map[string]any, args []str
 	return
 }
 
-// buildCommandArgs строит список аргументов команды из опций, позиционных аргументов и глобальных опций.
-// Возвращает массив строк без пути команды (только аргументы и флаги).
-func buildCommandArgs(options map[string]any, args []string, globalOpts GlobalOptions) (commandArgs []string) {
+func buildCommandArgs(options map[string]any, args []string) (commandArgs []string) {
 
 	commandArgs = make([]string, 0)
 
-	// Добавляем позиционные аргументы
 	commandArgs = append(commandArgs, args...)
 
-	// Добавляем опции команды (флаги) без префиксов --
+	// Добавляем опции (флаги) без префиксов --
 	for key, value := range options {
 		if value != nil && value != "" && value != false && value != 0 {
 			switch v := value.(type) {
@@ -99,17 +93,6 @@ func buildCommandArgs(options map[string]any, args []string, globalOpts GlobalOp
 				commandArgs = append(commandArgs, key, fmt.Sprintf("%v", v))
 			}
 		}
-	}
-
-	// Добавляем глобальные опции, если они заданы (не по умолчанию), без префиксов --
-	if globalOpts.LogLevel != "" && globalOpts.LogLevel != logLevelInfo {
-		commandArgs = append(commandArgs, globalOptLogLevel, globalOpts.LogLevel)
-	}
-	if globalOpts.HideCmd {
-		commandArgs = append(commandArgs, globalOptHideCmd)
-	}
-	if globalOpts.FailOnMissing {
-		commandArgs = append(commandArgs, globalOptFailOnMissing)
 	}
 
 	return
