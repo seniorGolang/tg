@@ -9,6 +9,7 @@ import (
 	"log/slog"
 
 	"github.com/seniorGolang/tg/v3/internal/cli/commands/builtin"
+	"github.com/seniorGolang/tg/v3/internal/executor"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/installer/managers/database"
 	"github.com/seniorGolang/tg/v3/internal/installer/storage"
@@ -22,7 +23,6 @@ var (
 	globalRootCmd *cobra.Command
 )
 
-// RegisterAllCommands регистрирует все команды (встроенные и из плагинов)
 func RegisterAllCommands(rootCmd *cobra.Command, rootDir string) {
 
 	globalRootCmd = rootCmd
@@ -51,20 +51,25 @@ func RegisterAllCommands(rootCmd *cobra.Command, rootDir string) {
 		scopeName = storage.DefaultScopeName
 	}
 	dbManager := database.NewManager(scopeName)
-	var pluginLoader *loader.DatabasePluginLoader
+	var plugLoader *loader.DatabasePluginLoader
 	var loaderErr error
-	if pluginLoader, loaderErr = loader.New(scopeName, dbManager); loaderErr != nil {
+	if plugLoader, loaderErr = loader.New(scopeName, dbManager); loaderErr != nil {
 		slog.Warn(fmt.Sprintf(i18n.Msg("Failed to create %s"), "plugin loader, skipping plugin commands"), "error", loaderErr)
-	} else {
-		if err := registerPluginCommands(tree, pluginLoader); err != nil {
+	}
+
+	var planner *executor.Planner
+	if plugLoader != nil {
+		planner = executor.NewPlanner(plugLoader)
+		if err := registerPluginCommands(tree, plugLoader); err != nil {
 			slog.Error(i18n.Msg("Error registering plugin commands"), "error", err)
 		}
 	}
 
-	buildCobraCommands(rootCmd, tree, rootDir)
+	if err := buildCobraCommands(rootCmd, tree, rootDir, planner); err != nil {
+		slog.Error(i18n.Msg("Error building cobra commands"), "error", err)
+	}
 }
 
-// cobraCompletionAdapter адаптирует cobra.Command к интерфейсу CompletionGenerator
 type cobraCompletionAdapter struct {
 	cmd *cobra.Command
 }

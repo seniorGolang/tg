@@ -8,15 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getCommandPath исключает корневую "tg" и плейсхолдеры позиционных аргументов.
 func getCommandPath(cmd *cobra.Command) (commandPath []string) {
 
 	commandPath = make([]string, 0)
 	current := cmd
 	for current != nil && current.Use != "" {
-		// Пропускаем корневую команду
 		if current.Use != cmdNameTG {
-			// Извлекаем только имя команды, убирая плейсхолдеры позиционных аргументов (<arg>, [arg])
 			cmdName := extractCommandName(current.Use)
 			commandPath = append([]string{cmdName}, commandPath...)
 		}
@@ -25,12 +22,8 @@ func getCommandPath(cmd *cobra.Command) (commandPath []string) {
 	return
 }
 
-// extractCommandName извлекает имя команды из Use строки, убирая плейсхолдеры
-// "install <package>" -> "install"
-// "init [name]" -> "init"
 func extractCommandName(useStr string) (cmdName string) {
 
-	// Разбиваем по пробелам и берём только первую часть (имя команды)
 	parts := strings.Fields(useStr)
 	if len(parts) > 0 {
 		cmdName = parts[0]
@@ -40,10 +33,8 @@ func extractCommandName(useStr string) (cmdName string) {
 	return
 }
 
-// addFlagFromOption добавляет флаг в команду на основе опции
 func addFlagFromOption(cmd *cobra.Command, opt Option) {
 
-	// Пропускаем позиционные опции - они обрабатываются отдельно
 	if opt.IsPositional {
 		return
 	}

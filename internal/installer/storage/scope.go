@@ -10,16 +10,13 @@ import (
 )
 
 const (
-	// DefaultScopeName имя scope по умолчанию.
 	DefaultScopeName = "default"
 )
 
-// GlobalConfig представляет глобальную конфигурацию.
 type GlobalConfig struct {
 	CurrentScope string `yaml:"current_scope"`
 }
 
-// ScopeConfig представляет конфигурацию scope.
 type ScopeConfig struct {
 	Name          string `yaml:"name"`
 	InstallPrefix string `yaml:"install_prefix"`
@@ -89,7 +86,6 @@ func SetCurrentScope(scopeName string) (err error) {
 	return
 }
 
-// LoadScopeConfig загружает конфигурацию scope.
 func LoadScopeConfig(scopeName string) (config *ScopeConfig, err error) {
 
 	configFile := GetConfigFile(scopeName)
@@ -114,7 +110,6 @@ func LoadScopeConfig(scopeName string) (config *ScopeConfig, err error) {
 	return
 }
 
-// SaveScopeConfig сохраняет конфигурацию scope.
 func SaveScopeConfig(scopeName string, config *ScopeConfig) (err error) {
 
 	configFile := GetConfigFile(scopeName)

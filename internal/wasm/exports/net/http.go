@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tetratelabs/wazero/sys"
+
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
@@ -230,7 +232,6 @@ func (hm *httpManager) StartProcessor(ctx context.Context, h *host.Host) {
 	}()
 }
 
-// StopProcessor останавливает WASM-процессор.
 func (hm *httpManager) StopProcessor() {
 
 	hm.mu.Lock()
@@ -238,51 +239,47 @@ func (hm *httpManager) StopProcessor() {
 	hm.mu.Unlock()
 
 	if processorCancel == nil {
-		return // Процессор не запущен
+		return
 	}
 
-	// Отменяем контекст процессора
 	processorCancel()
 
-	// Закрываем канал остановки (только один раз)
 	select {
 	case <-hm.processorStop:
-		// Уже закрыт
 	default:
 		close(hm.processorStop)
 	}
 
-	// Ждем завершения процессора
 	<-hm.processorDone
 
-	// Пересоздаем каналы для следующего запуска
 	hm.mu.Lock()
 	hm.processorStop = make(chan struct{})
 	hm.processorDone = make(chan struct{})
 	hm.mu.Unlock()
 }
 
-// processRequest обрабатывает один запрос, вызывая _dispatch в WASM.
 func (hm *httpManager) processRequest(ctx context.Context, h *host.Host) {
 
-	// Проверяем, что модуль готов
 	if h.Module == nil {
 		slog.Error(i18n.Msg("processRequest: module is not initialized"))
 		return
 	}
 
-	// Вызываем экспортируемую функцию _dispatch в WASM
-	// _dispatch сама вызовет host_get_next_request для получения request_id и handler_id
 	dispatchFunc := h.Module.ExportedFunction("_dispatch")
 	if dispatchFunc == nil {
 		slog.Error(i18n.Msg("processRequest: _dispatch function not found"))
 		return
 	}
 
-	// Вызываем _dispatch (без параметров)
-	// _dispatch будет блокировать в host_get_next_request до получения запроса из очереди
 	_, callErr := dispatchFunc.Call(ctx)
 	if callErr != nil {
+		if errors.Is(callErr, context.Canceled) {
+			return
+		}
+		var exitErr *sys.ExitError
+		if errors.As(callErr, &exitErr) && (exitErr.ExitCode() == 0 || exitErr.ExitCode() == sys.ExitCodeContextCanceled) {
+			return
+		}
 		slog.Error(i18n.Msg("processRequest: failed to call _dispatch"), "error", callErr)
 		return
 	}
@@ -291,7 +288,6 @@ func (hm *httpManager) processRequest(ctx context.Context, h *host.Host) {
 func (reqCtx *RequestContext) readRequestBody(buf []byte) (n int, err error) {
 
 	if reqCtx.BodyOffset >= len(reqCtx.BodyBuffer) {
-		// Читаем следующий чанк из BodyReader
 		if reqCtx.BodyReader != nil {
 			var readErr error
 			reqCtx.BodyBuffer = make([]byte, 8192) // Буфер 8KB
@@ -310,7 +306,6 @@ func (reqCtx *RequestContext) readRequestBody(buf []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	// Копируем данные из буфера в buf
 	copyLen := len(reqCtx.BodyBuffer) - reqCtx.BodyOffset
 	if copyLen > len(buf) {
 		copyLen = len(buf)
@@ -327,21 +322,18 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 
 	req := reqCtx.Request
 
-	// Подготавливаем данные
 	methodBytes := []byte(req.Method)
 	urlBytes := []byte(req.URL.String())
 
-	// Подсчитываем размер заголовков
 	headersSize := 0
 	for key, values := range req.Header {
 		keyBytes := []byte(key)
 		for _, value := range values {
 			valueBytes := []byte(value)
-			headersSize += 4 + len(keyBytes) + 4 + len(valueBytes) // key_len + key + value_len + value
+			headersSize += 4 + len(keyBytes) + 4 + len(valueBytes)
 		}
 	}
 
-	// Общий размер: method_len(4) + method + url_len(4) + url + headers_count(4) + headers
 	totalSize := 4 + len(methodBytes) + 4 + len(urlBytes) + 4 + headersSize
 
 	var totalSizeU32 uint32
@@ -358,10 +350,8 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 		return 0, errors.New(i18n.Msg("memory is not available"))
 	}
 
-	// Собираем все данные в один буфер
 	buf := make([]byte, 0, totalSize)
 
-	// method_len и method
 	methodLen := len(methodBytes)
 	if methodLen > int(^uint32(0)) {
 		return 0, errors.New(i18n.Msg("method length exceeds uint32 maximum"))
@@ -371,7 +361,6 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 	buf = append(buf, methodLenBytes...)
 	buf = append(buf, methodBytes...)
 
-	// url_len и url
 	urlLen := len(urlBytes)
 	if urlLen > int(^uint32(0)) {
 		return 0, errors.New(i18n.Msg("url length exceeds uint32 maximum"))
@@ -381,7 +370,6 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 	buf = append(buf, urlLenBytes...)
 	buf = append(buf, urlBytes...)
 
-	// headers_count
 	headerCount := 0
 	for _, values := range req.Header {
 		valuesCount := len(values)
@@ -398,7 +386,6 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 	binary.LittleEndian.PutUint32(headerCountBytes, headerCountU32)
 	buf = append(buf, headerCountBytes...)
 
-	// Заголовки
 	for key, values := range req.Header {
 		keyBytes := []byte(key)
 		keyLen := len(keyBytes)
@@ -412,13 +399,11 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 				return 0, errors.New(i18n.Msg("header value length exceeds uint32 maximum"))
 			}
 
-			// key_len и key
 			keyLenBytes := make([]byte, 4)
 			binary.LittleEndian.PutUint32(keyLenBytes, uint32(keyLen))
 			buf = append(buf, keyLenBytes...)
 			buf = append(buf, keyBytes...)
 
-			// value_len и value
 			valueLenBytes := make([]byte, 4)
 			binary.LittleEndian.PutUint32(valueLenBytes, uint32(valueLen))
 			buf = append(buf, valueLenBytes...)
@@ -426,7 +411,6 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 		}
 	}
 
-	// Записываем весь буфер в память
 	if !mem.Write(infoBufPtr, buf) {
 		return 0, errors.New(i18n.Msg("failed to write request info"))
 	}
@@ -439,11 +423,9 @@ func writeRequestInfo(h *host.Host, reqCtx *RequestContext, infoBufPtr uint32, i
 	return uint32(bufLen), nil
 }
 
-// hostListenAndServe регистрирует обработчик и запускает HTTP сервер на хосте.
-// Неблокирующая функция - возвращает управление сразу после запуска сервера.
+// hostListenAndServe: неблокирующая — возвращает управление сразу после запуска сервера; обработка в плагине через _dispatch.
 func hostListenAndServe(ctx context.Context, h *host.Host, hm *httpManager, addrPtr uint32, addrLen uint32, handlerID uint64) (result uint64) {
 
-	// Читаем адрес из памяти
 	var addrBytes []byte
 	var err error
 	if addrBytes, err = memory.Read(h, addrPtr, addrLen); err != nil {
@@ -452,13 +434,10 @@ func hostListenAndServe(ctx context.Context, h *host.Host, hm *httpManager, addr
 
 	addr := string(addrBytes)
 
-	// Создаём HTTP сервер
-	// Handler не нужен на хосте - обработка происходит в плагине через _dispatch
 	server := &http.Server{
 		Addr:              addr,
-		ReadHeaderTimeout: 30 * time.Second, // Защита от Slowloris атаки
+		ReadHeaderTimeout: 30 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Создаём контекст запроса
 			bodyReader := bufio.NewReader(r.Body)
 			reqCtx := &RequestContext{
 				Request:        r,
@@ -467,33 +446,24 @@ func hostListenAndServe(ctx context.Context, h *host.Host, hm *httpManager, addr
 				BodyReader:     bodyReader,
 				BodyBuffer:     nil,
 				BodyOffset:     0,
-				HandlerID:      handlerID, // Сохраняем handlerID в контексте
+				HandlerID:      handlerID,
 			}
 
-			// Сохраняем контекст и получаем request_id
 			requestID := hm.StoreRequest(reqCtx)
-
-			// Помещаем request_id в очередь
 			hm.EnqueueRequest(requestID)
-
-			// Ждём завершения обработки
 			<-reqCtx.DoneChan
 		}),
 	}
 
-	// Сохраняем сервер (handler не нужен на хосте)
 	serverID := hm.StoreServer(server, addr, nil)
 
-	// Запускаем процессор при запуске первого сервера
 	hm.mu.RLock()
 	serverCount := len(hm.serverMap)
 	hm.mu.RUnlock()
 	if serverCount == 1 {
-		// Это первый сервер - запускаем процессор
 		hm.StartProcessor(ctx, h)
 	}
 
-	// Запускаем сервер в отдельной горутине
 	h.ActiveServers.Add(1)
 	go func() {
 		defer h.ActiveServers.Done()
@@ -503,23 +473,19 @@ func hostListenAndServe(ctx context.Context, h *host.Host, hm *httpManager, addr
 		hm.DelServer(serverID)
 	}()
 
-	// Возвращаем serverID в формате: младшие 32 бита = serverID, старшие 32 бита = 0 (успех)
 	return serverID
 }
 
-// hostStopServer останавливает HTTP сервер по его ID.
 func hostStopServer(ctx context.Context, h *host.Host, hm *httpManager, serverID uint64) (result uint64) {
 
 	slog.Info(i18n.Msg("host_stop_server: stopping server"), "serverID", serverID)
 
-	// Получаем сервер по ID
 	serverState, err := hm.GetServer(serverID)
 	if err != nil {
 		slog.Error(i18n.Msg("host_stop_server: server not found"), "serverID", serverID, "error", err)
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("server id %d does not exist"), serverID))
 	}
 
-	// Останавливаем сервер через Shutdown
 	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -529,7 +495,6 @@ func hostStopServer(ctx context.Context, h *host.Host, hm *httpManager, serverID
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to shutdown server: %w"), shutdownErr))
 	}
 
-	// Удаляем сервер из карты
 	hm.DelServer(serverID)
 
 	slog.Info(i18n.Msg("host_stop_server: server stopped successfully"), "serverID", serverID)
@@ -539,7 +504,6 @@ func hostStopServer(ctx context.Context, h *host.Host, hm *httpManager, serverID
 // hostGetNextRequest вызывается из _dispatch в WASM; блокируется до появления запроса в очереди.
 func hostGetNextRequest(ctx context.Context, h *host.Host, hm *httpManager, requestIDPtr uint32, handlerIDPtr uint32) (result uint64) {
 
-	// Проверяем, что модуль готов
 	if h.Module == nil {
 		return writeError(ctx, h, errors.New(i18n.Msg("module is not initialized")))
 	}
@@ -547,12 +511,10 @@ func hostGetNextRequest(ctx context.Context, h *host.Host, hm *httpManager, requ
 	var requestID uint64
 	select {
 	case requestID = <-hm.requestQueue:
-		// Получили request_id из очереди
 	case <-ctx.Done():
 		return writeError(ctx, h, errors.New(i18n.Msg("context cancelled while waiting for request")))
 	}
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
@@ -563,7 +525,6 @@ func hostGetNextRequest(ctx context.Context, h *host.Host, hm *httpManager, requ
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))
 	}
 
-	// Записываем request_id (проверяем переполнение)
 	if requestID > uint64(^uint32(0)) {
 		return writeError(ctx, h, errors.New(i18n.Msg("request id exceeds uint32 maximum")))
 	}
@@ -571,7 +532,6 @@ func hostGetNextRequest(ctx context.Context, h *host.Host, hm *httpManager, requ
 		return writeError(ctx, h, errors.New(i18n.Msg("failed to write request id")))
 	}
 
-	// Записываем handler_id из контекста запроса (проверяем переполнение)
 	if reqCtx.HandlerID > uint64(^uint32(0)) {
 		return writeError(ctx, h, errors.New(i18n.Msg("handler id exceeds uint32 maximum")))
 	}
@@ -584,31 +544,26 @@ func hostGetNextRequest(ctx context.Context, h *host.Host, hm *httpManager, requ
 
 func hostGetRequestInfo(ctx context.Context, h *host.Host, hm *httpManager, requestID uint64, infoBufPtr uint32, infoBufLen uint32) (result uint64) {
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Записываем информацию о запросе
 	var bytesWritten uint32
 	if bytesWritten, err = writeRequestInfo(h, reqCtx, infoBufPtr, infoBufLen); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Возвращаем количество записанных байт
 	return uint64(bytesWritten)
 }
 
 func hostReadRequestBody(ctx context.Context, h *host.Host, hm *httpManager, requestID uint64, bufPtr uint32, bufLen uint32) (result uint64) {
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Читаем чанк данных
 	buf := make([]byte, bufLen)
 	var bytesRead int
 	if bytesRead, err = reqCtx.readRequestBody(buf); err != nil && err != io.EOF {
@@ -616,62 +571,53 @@ func hostReadRequestBody(ctx context.Context, h *host.Host, hm *httpManager, req
 	}
 
 	if bytesRead == 0 {
-		// Тело закончилось
 		return 0
 	}
 
-	// Записываем данные в WASM память
 	if err = memory.Write(h, bufPtr, buf[:bytesRead]); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Проверяем переполнение при конвертации int -> uint64
 	if bytesRead < 0 {
 		return writeError(ctx, h, errors.New(i18n.Msg("negative bytes read")))
 	}
 	return uint64(bytesRead)
 }
 
+// hostWriteResponseHeaders: WriteHeader должен быть вызван после установки заголовков (требование net/http).
 func hostWriteResponseHeaders(ctx context.Context, h *host.Host, hm *httpManager, requestID uint64, statusCode int32, headersPtr uint32, headersLen uint32) (result uint64) {
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Читаем заголовки из памяти (если есть)
 	if headersLen > 0 {
 		var headersBytes []byte
 		if headersBytes, err = memory.Read(h, headersPtr, headersLen); err != nil {
 			return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read headers: %w"), err))
 		}
 
-		// Парсим заголовки (формат: key_len(4) + key + value_len(4) + value повторяется)
 		offset := 0
 		for offset < len(headersBytes) {
-			// Читаем key_len
 			if offset+4 > len(headersBytes) {
 				break
 			}
 			keyLen := int(binary.LittleEndian.Uint32(headersBytes[offset : offset+4]))
 			offset += 4
 
-			// Читаем key
 			if offset+keyLen > len(headersBytes) {
 				break
 			}
 			key := string(headersBytes[offset : offset+keyLen])
 			offset += keyLen
 
-			// Читаем value_len
 			if offset+4 > len(headersBytes) {
 				break
 			}
 			valueLen := int(binary.LittleEndian.Uint32(headersBytes[offset : offset+4]))
 			offset += 4
 
-			// Читаем value
 			if offset+valueLen > len(headersBytes) {
 				break
 			}
@@ -682,53 +628,43 @@ func hostWriteResponseHeaders(ctx context.Context, h *host.Host, hm *httpManager
 		}
 	}
 
-	// Устанавливаем статус-код (WriteHeader должен быть вызван после установки заголовков)
 	reqCtx.ResponseWriter.WriteHeader(int(statusCode))
 
 	return 0
 }
 
-// hostWriteResponseBody пишет чанк тела ответа.
 func hostWriteResponseBody(ctx context.Context, h *host.Host, hm *httpManager, requestID uint64, dataPtr uint32, dataLen uint32) (result uint64) {
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Читаем данные из WASM памяти
 	var data []byte
 	if data, err = memory.Read(h, dataPtr, dataLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read response body: %w"), err))
 	}
 
-	// Записываем данные в ResponseWriter
 	var bytesWritten int
 	if bytesWritten, err = reqCtx.ResponseWriter.Write(data); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Проверяем переполнение при конвертации int -> uint64
 	if bytesWritten < 0 {
 		return writeError(ctx, h, errors.New(i18n.Msg("negative bytes written")))
 	}
 	return uint64(bytesWritten)
 }
 
-// hostFinishRequest завершает обработку запроса.
+// hostFinishRequest: close(DoneChan) разблокирует горутину сервера, ожидающую завершения обработки.
 func hostFinishRequest(ctx context.Context, h *host.Host, hm *httpManager, requestID uint64) (result uint64) {
 
-	// Получаем контекст запроса
 	reqCtx, err := hm.GetRequest(requestID)
 	if err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Удаляем контекст
 	hm.DelRequest(requestID)
-
-	// Сигнализируем о завершении обработки (разблокируем горутину сервера)
 	close(reqCtx.DoneChan)
 
 	return 0

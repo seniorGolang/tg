@@ -131,3 +131,43 @@ func (p *Planner) collectDirectChainSet(pluginName string, dependencyGraph map[s
 		}
 	}
 }
+
+// collectCommandBoundPrePost: обратная зависимость — плагин зависит от команды => включаем плагин при запуске этой команды.
+func (p *Planner) collectCommandBoundPrePost(allInstallations map[string]*models.Installation, dependencyGraph map[string][]string, dependencySpecs map[string][]string, directChainSet map[string]bool) (err error) {
+
+	var allList []models.Installation
+	var listErr error
+	if allList, listErr = p.loader.GetList(); listErr != nil {
+		err = fmt.Errorf(i18n.Msg("failed to list plugins: %w"), listErr)
+		return
+	}
+
+	for i := range allList {
+		inst := &allList[i]
+		if allInstallations[inst.Package] != nil {
+			continue
+		}
+
+		kind := detectKind(inst)
+		if kind != KindPre && kind != KindPost {
+			continue
+		}
+
+		for _, depSpec := range inst.Dependencies {
+			var depName string
+			if depName, _, err = ParseDependency(depSpec); err != nil {
+				err = fmt.Errorf(i18n.Msg("error parsing dependency %s: %w"), depSpec, err)
+				return
+			}
+			if !directChainSet[depName] {
+				continue
+			}
+			if err = p.collectDirectChain(inst.Package, allInstallations, dependencyGraph, dependencySpecs); err != nil {
+				return
+			}
+			break
+		}
+	}
+
+	return
+}

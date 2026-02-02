@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// Installation представляет запись об установленном пакете.
 type Installation struct {
 	ID           string          `yaml:"id"`
 	Source       string          `yaml:"source,omitempty"`
@@ -17,7 +16,6 @@ type Installation struct {
 	Files        []InstalledFile `yaml:"files"`
 	Dependencies []string        `yaml:"dependencies,omitempty"`
 
-	// Поля плагина (заполняются только если пакет является плагином)
 	Commands         []CommandInfo     `yaml:"commands,omitempty"`
 	Options          []OptionInfo      `yaml:"options,omitempty"`
 	Kind             string            `yaml:"kind,omitempty"`
@@ -32,7 +30,6 @@ type Installation struct {
 	InitPkgs         []string          `yaml:"init_pkgs,omitempty"`
 }
 
-// InstalledFile описывает установленный файл.
 type InstalledFile struct {
 	Path     string `yaml:"path"`
 	Source   string `yaml:"source,omitempty"`
@@ -40,25 +37,22 @@ type InstalledFile struct {
 	Size     int64  `yaml:"size"`
 }
 
-// CommandInfo описывает команду плагина для регистрации.
 type CommandInfo struct {
 	Path        []string     `yaml:"path"`
 	Description string       `yaml:"description"`
 	Options     []OptionInfo `yaml:"options,omitempty"`
 }
 
-// OptionInfo описывает опцию плагина.
 type OptionInfo struct {
 	Name         string `yaml:"name"`
 	Short        string `yaml:"short,omitempty"`
-	Type         string `yaml:"type"`
-	Description  string `yaml:"description"`
+	Type         string `yaml:"type,omitempty"`
+	Description  string `yaml:"description,omitempty"`
 	Required     bool   `yaml:"required,omitempty"`
 	Default      any    `yaml:"default,omitempty"`
 	IsPositional bool   `yaml:"is_positional,omitempty"`
 }
 
-// InstallationDatabase представляет базу данных установок.
 type InstallationDatabase struct {
 	Version   string         `yaml:"version"`
 	Installed []Installation `yaml:"installed"`

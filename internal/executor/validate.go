@@ -9,7 +9,7 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// checkCycles ищет циклы в графе зависимостей через DFS; recStack отмечает узлы текущего пути — попадание в уже помеченный узел даёт цикл.
+// checkCycles: DFS; recStack — узлы текущего пути, попадание в уже помеченный узел даёт цикл.
 func (p *Planner) checkCycles(dependencyGraph map[string][]string) (err error) {
 
 	visited := make(map[string]bool)
@@ -89,10 +89,15 @@ func (p *Planner) validatePlan(allInstallations map[string]*models.Installation,
 				continue
 			}
 			depKind := detectKind(depInst)
-			if depKind == KindCommand {
-				err = fmt.Errorf(i18n.Msg("plugin %s cannot depend on command %s: commands cannot be dependencies of other plugins"), name, dep)
-				return
+			if depKind != KindCommand {
+				continue
 			}
+			// Pre/post могут объявлять зависимость от текущей команды (обратная привязка: «запускай меня при этой команде»).
+			if dep == commandPluginName && (kind == KindPre || kind == KindPost) {
+				continue
+			}
+			err = fmt.Errorf(i18n.Msg("plugin %s cannot depend on command %s: commands cannot be dependencies of other plugins"), name, dep)
+			return
 		}
 	}
 

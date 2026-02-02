@@ -31,8 +31,6 @@ func (e *Executor) ExecuteWithPlan(plan Plan) (err error) {
 	var commandResponse plugin.Storage
 	commandStatus := commandStatusSuccess
 
-	// Разбиваем план на: pre/stage до команды, сама команда, post после команды.
-	// Post-шаги получают объединённый контекст (последний stage + результат команды + статус).
 	var preStageSteps []Step
 	var commandStep *Step
 	var postSteps []Step
@@ -150,7 +148,7 @@ func (e *Executor) ExecuteWithPlan(plan Plan) (err error) {
 	return
 }
 
-// buildPostRequest собирает вход для post-хуков: данные последнего stage, статус команды (success/error) и ответ команды.
+// buildPostRequest: вход для post-хуков — последний stage + статус команды (success/error) + ответ команды.
 func buildPostRequest(lastStageResponse plugin.Storage, commandStatus string, commandResponse plugin.Storage) (postRequest plugin.Storage, err error) {
 
 	postRequest = plugin.NewStorage()

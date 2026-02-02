@@ -15,17 +15,10 @@ import (
 )
 
 const (
-	// RingBufferHeaderSize размер заголовка кольцевого буфера в байтах.
-	RingBufferHeaderSize = 20
-
-	// DefaultRingBufferSize размер кольцевого буфера по умолчанию (64KB).
+	RingBufferHeaderSize  = 20
 	DefaultRingBufferSize = 64 * 1024
-
-	// MinRingBufferSize минимальный размер кольцевого буфера (4KB).
-	MinRingBufferSize = 4 * 1024
-
-	// MaxRingBufferSize максимальный размер кольцевого буфера (1MB).
-	MaxRingBufferSize = 1024 * 1024
+	MinRingBufferSize     = 4 * 1024
+	MaxRingBufferSize     = 1024 * 1024
 )
 
 // RingBufferHeader представляет заголовок кольцевого буфера в WASM памяти.
@@ -47,7 +40,6 @@ func RingBufferOffset() uint32 {
 	return RingBufferHeaderSize
 }
 
-// ReadHeader только при создании буфера; для чтения/записи используйте ReadIndicesAndClosed.
 func ReadHeader(ctx context.Context, h *host.Host, bufferPtr uint32) (header *RingBufferHeader, err error) {
 
 	if bufferPtr == 0 {
@@ -89,7 +81,6 @@ func ReadIndicesAndClosed(ctx context.Context, h *host.Host, bufferPtr uint32) (
 		return 0, 0, 0, errors.New("host is nil")
 	}
 
-	// Читаем только 12 байт: ReadIndex (8-11) + WriteIndex (12-15) + Closed (16-19)
 	var data []byte
 	if data, err = memory.Read(h, bufferPtr+8, 12); err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to read indices and closed flag: %w", err)
@@ -134,7 +125,6 @@ func WriteHeader(ctx context.Context, h *host.Host, bufferPtr uint32, header *Ri
 	return nil
 }
 
-// UpdateReadIndex атомарно обновляет индекс чтения в WASM памяти.
 func UpdateReadIndex(ctx context.Context, h *host.Host, bufferPtr uint32, readIndex uint32) (err error) {
 
 	if bufferPtr == 0 {
@@ -157,7 +147,6 @@ func UpdateReadIndex(ctx context.Context, h *host.Host, bufferPtr uint32, readIn
 	return nil
 }
 
-// UpdateWriteIndex атомарно обновляет индекс записи в WASM памяти.
 func UpdateWriteIndex(ctx context.Context, h *host.Host, bufferPtr uint32, writeIndex uint32) (err error) {
 
 	if bufferPtr == 0 {
@@ -202,48 +191,38 @@ func SetClosed(ctx context.Context, h *host.Host, bufferPtr uint32) (err error) 
 	return nil
 }
 
-// AvailableWrite вычисляет доступное место для записи в кольцевой буфер.
-// Инвариант: один байт всегда остается свободным для различения полного/пустого буфера.
+// AvailableWrite: инвариант — один байт всегда свободен для различения полного/пустого буфера.
 func AvailableWrite(readIdx uint32, writeIdx uint32, dataSize uint32) (available uint32) {
 
 	if writeIdx >= readIdx {
-		// Обычный случай: writeIdx >= readIdx
 		available = dataSize - (writeIdx - readIdx)
 		if available > 0 {
-			available-- // Оставляем один байт для различения полного/пустого буфера
+			available--
 		}
 	} else {
-		// Wrap-around: writeIdx < readIdx (запись обогнала чтение)
 		available = readIdx - writeIdx - 1
 	}
 
 	return available
 }
 
-// AvailableRead вычисляет доступные данные для чтения из кольцевого буфера.
 func AvailableRead(readIdx uint32, writeIdx uint32, dataSize uint32) (available uint32) {
 
 	if writeIdx >= readIdx {
-		// Обычный случай: writeIdx >= readIdx
 		available = writeIdx - readIdx
 	} else {
-		// Wrap-around: writeIdx < readIdx
 		available = dataSize - (readIdx - writeIdx)
 	}
 
 	return available
 }
 
-// WriteToRingBuffer оптимизировано для минимизации операций с памятью.
-// dataSize - кэшированный размер области данных (константа для буфера).
-// memory.Write выполняет валидацию указателей перед записью.
 func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dataSize uint32, data []byte) (written int, err error) {
 
 	if len(data) == 0 {
 		return 0, nil
 	}
 
-	// Проверяем контекст перед началом операции
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -254,7 +233,6 @@ func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, data
 		return 0, errors.New("invalid buffer pointer: zero")
 	}
 
-	// Читаем только индексы и флаг закрытия (12 байт вместо 20)
 	var readIdx, writeIdx, closed uint32
 	if readIdx, writeIdx, closed, err = ReadIndicesAndClosed(ctx, h, bufferPtr); err != nil {
 		return 0, fmt.Errorf("failed to read indices and closed flag: %w", err)
@@ -264,14 +242,11 @@ func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, data
 		return 0, io.EOF
 	}
 
-	// Вычисляем доступное место, используя кэшированный dataSize
 	available := AvailableWrite(readIdx, writeIdx, dataSize)
 	if available == 0 {
-		return 0, nil // Буфер полон
+		return 0, nil
 	}
 
-	// Ограничиваем размер данных доступным местом
-	// Проверяем переполнение при конвертации int -> uint32
 	dataLen := len(data)
 	if dataLen < 0 || dataLen > int(^uint32(0)) {
 		return 0, errors.New("data length out of range")
@@ -283,26 +258,21 @@ func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, data
 
 	dataOffset := bufferPtr + RingBufferHeaderSize
 
-	// Записываем данные с учетом wrap-around
 	if writeIdx+toWrite <= dataSize {
-		// Обычный случай: данные не пересекают границу буфера
 		dataPtr := dataOffset + writeIdx
 		if err = memory.Write(h, dataPtr, data[:toWrite]); err != nil {
 			return 0, fmt.Errorf("failed to write data: %w", err)
 		}
 		writeIdx += toWrite
 	} else {
-		// Wrap-around: данные пересекают границу буфера
 		firstPart := dataSize - writeIdx
 		secondPart := toWrite - firstPart
 
-		// Записываем первую часть
 		dataPtr1 := dataOffset + writeIdx
 		if err = memory.Write(h, dataPtr1, data[:firstPart]); err != nil {
 			return 0, fmt.Errorf("failed to write first part: %w", err)
 		}
 
-		// Записываем вторую часть
 		dataPtr2 := dataOffset
 		if err = memory.Write(h, dataPtr2, data[firstPart:firstPart+secondPart]); err != nil {
 			return 0, fmt.Errorf("failed to write second part: %w", err)
@@ -310,7 +280,6 @@ func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, data
 		writeIdx = secondPart
 	}
 
-	// Атомарно обновляем WriteIndex
 	if err = UpdateWriteIndex(ctx, h, bufferPtr, writeIdx); err != nil {
 		return 0, fmt.Errorf("failed to update write index: %w", err)
 	}
@@ -319,16 +288,12 @@ func WriteToRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, data
 	return
 }
 
-// ReadFromRingBuffer оптимизировано для минимизации копирований и аллокаций.
-// dataSize - кэшированный размер области данных (константа для буфера).
-// memory.Read выполняет валидацию указателей перед чтением.
 func ReadFromRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dataSize uint32, data []byte) (read int, err error) {
 
 	if len(data) == 0 {
 		return 0, nil
 	}
 
-	// Проверяем контекст перед началом операции
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
@@ -339,23 +304,19 @@ func ReadFromRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dat
 		return 0, errors.New("invalid buffer pointer: zero")
 	}
 
-	// Читаем только индексы и флаг закрытия (12 байт вместо 20)
 	var readIdx, writeIdx, closed uint32
 	if readIdx, writeIdx, closed, err = ReadIndicesAndClosed(ctx, h, bufferPtr); err != nil {
 		return 0, fmt.Errorf("failed to read indices and closed flag: %w", err)
 	}
 
-	// Вычисляем доступные данные, используя кэшированный dataSize
 	available := AvailableRead(readIdx, writeIdx, dataSize)
 	if available == 0 {
 		if closed != 0 {
 			return 0, io.EOF
 		}
-		return 0, nil // Буфер пуст
+		return 0, nil
 	}
 
-	// Ограничиваем размер данных доступными данными
-	// Проверяем переполнение при конвертации int -> uint32
 	dataLen := len(data)
 	if dataLen < 0 || dataLen > int(^uint32(0)) {
 		return 0, errors.New("data length out of range")
@@ -367,24 +328,18 @@ func ReadFromRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dat
 
 	dataOffset := bufferPtr + RingBufferHeaderSize
 
-	// Читаем данные с учетом wrap-around, минимизируя копирования
 	if readIdx+toRead <= dataSize {
-		// Обычный случай: данные не пересекают границу буфера
 		dataPtr := dataOffset + readIdx
 		var readData []byte
 		if readData, err = memory.Read(h, dataPtr, toRead); err != nil {
 			return 0, fmt.Errorf("failed to read data: %w", err)
 		}
-		// Копируем напрямую в выходной буфер
 		copy(data, readData)
 		readIdx += toRead
 	} else {
-		// Wrap-around: данные пересекают границу буфера
-		// Читаем напрямую в выходной буфер двумя частями
 		firstPart := dataSize - readIdx
 		secondPart := toRead - firstPart
 
-		// Читаем первую часть напрямую в начало выходного буфера
 		dataPtr1 := dataOffset + readIdx
 		var firstData []byte
 		if firstData, err = memory.Read(h, dataPtr1, firstPart); err != nil {
@@ -392,7 +347,6 @@ func ReadFromRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dat
 		}
 		copy(data, firstData)
 
-		// Читаем вторую часть напрямую в продолжение выходного буфера
 		dataPtr2 := dataOffset
 		var secondData []byte
 		if secondData, err = memory.Read(h, dataPtr2, secondPart); err != nil {
@@ -403,7 +357,6 @@ func ReadFromRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32, dat
 		readIdx = secondPart
 	}
 
-	// Атомарно обновляем ReadIndex
 	if err = UpdateReadIndex(ctx, h, bufferPtr, readIdx); err != nil {
 		return 0, fmt.Errorf("failed to update read index: %w", err)
 	}
@@ -418,7 +371,6 @@ func CreateRingBuffer(ctx context.Context, h *host.Host, size uint32) (bufferPtr
 		return 0, errors.New("host is nil")
 	}
 
-	// Нормализуем размер буфера
 	if size < MinRingBufferSize {
 		size = MinRingBufferSize
 	}
@@ -426,15 +378,12 @@ func CreateRingBuffer(ctx context.Context, h *host.Host, size uint32) (bufferPtr
 		size = MaxRingBufferSize
 	}
 
-	// Вычисляем общий размер (заголовок + данные)
 	totalSize := RingBufferHeaderSize + size
 
-	// Выделяем память в WASM
 	if bufferPtr, err = memory.Allocate(ctx, h, uint64(totalSize)); err != nil {
 		return 0, fmt.Errorf("failed to allocate ring buffer: %w", err)
 	}
 
-	// Инициализируем заголовок
 	header := &RingBufferHeader{
 		BufferSize: totalSize,
 		DataSize:   size,
@@ -451,7 +400,6 @@ func CreateRingBuffer(ctx context.Context, h *host.Host, size uint32) (bufferPtr
 	return
 }
 
-// IsReadBufferEmpty: true, если ReadIndex == WriteIndex; используется для синхронизации хост/плагин.
 func IsReadBufferEmpty(ctx context.Context, h *host.Host, bufferPtr uint32) (isEmpty bool, err error) {
 
 	if bufferPtr == 0 {
@@ -462,26 +410,17 @@ func IsReadBufferEmpty(ctx context.Context, h *host.Host, bufferPtr uint32) (isE
 		return false, errors.New("host is nil")
 	}
 
-	// Читаем только индексы (8 байт) вместо всего заголовка
 	var readIdx, writeIdx, closed uint32
 	if readIdx, writeIdx, closed, err = ReadIndicesAndClosed(ctx, h, bufferPtr); err != nil {
 		return false, fmt.Errorf("failed to read indices: %w", err)
 	}
 
-	// Буфер пуст, если ReadIndex == WriteIndex
-	// closed не используется, но уже прочитан в ReadIndicesAndClosed
 	_ = closed
 	isEmpty = readIdx == writeIdx
 	return
 }
 
-// WaitForBufferEmpty ждёт, пока буфер не станет пустым (ReadIndex == WriteIndex).
-// Отслеживает изменение ReadIndex для определения зависшего плагина.
-// Если ReadIndex не меняется в течение stuckTimeout, значит плагин завис и функция завершается.
-// Если ReadIndex меняется, значит плагин читает данные, и функция ждёт дольше.
-// checkInterval - интервал проверки состояния буфера.
-// stuckTimeout - таймаут для определения зависшего плагина (если ReadIndex не меняется).
-// maxWaitTime - максимальное время ожидания (защита от бесконечного цикла).
+// WaitForBufferEmpty: если ReadIndex не меняется в течение stuckTimeout — плагин считаем зависшим; maxWaitTime — защита от бесконечного цикла.
 func WaitForBufferEmpty(ctx context.Context, h *host.Host, bufferPtr uint32, checkInterval time.Duration, stuckTimeout time.Duration, maxWaitTime time.Duration) (err error) {
 
 	if bufferPtr == 0 {
@@ -497,53 +436,42 @@ func WaitForBufferEmpty(ctx context.Context, h *host.Host, bufferPtr uint32, che
 	startTime := time.Now()
 
 	for {
-		// Проверяем контекст
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		// Проверяем максимальное время ожидания
 		if time.Since(startTime) > maxWaitTime {
 			return fmt.Errorf("max wait time exceeded: %v", maxWaitTime)
 		}
 
-		// Читаем индексы напрямую для отслеживания изменения ReadIndex
 		var readIdx, writeIdx uint32
 		if readIdx, writeIdx, _, err = ReadIndicesAndClosed(ctx, h, bufferPtr); err != nil {
 			return fmt.Errorf("failed to read indices: %w", err)
 		}
 
-		// Если буфер пуст (ReadIndex == WriteIndex), все данные прочитаны - выходим
 		if readIdx == writeIdx {
 			return nil
 		}
 
-		// Отслеживаем изменение ReadIndex
 		switch {
 		case readIdx != lastReadIdx:
-			// ReadIndex изменился - плагин читает данные, сбрасываем таймер
 			lastReadIdx = readIdx
 			lastReadIdxTime = time.Now()
 		case !lastReadIdxTime.IsZero():
-			// ReadIndex не меняется - проверяем, не завис ли плагин
 			if time.Since(lastReadIdxTime) > stuckTimeout {
-				// ReadIndex не менялся в течение stuckTimeout - плагин завис
 				return fmt.Errorf("buffer read index not changed for %v, plugin may be stuck", stuckTimeout)
 			}
 		default:
-			// Первая итерация - инициализируем
 			lastReadIdx = readIdx
 			lastReadIdxTime = time.Now()
 		}
 
-		// Ждём перед следующей проверкой
 		time.Sleep(checkInterval)
 	}
 }
 
-// DestroyRingBuffer освобождает память кольцевого буфера.
 func DestroyRingBuffer(ctx context.Context, h *host.Host, bufferPtr uint32) {
 
 	if bufferPtr == 0 {

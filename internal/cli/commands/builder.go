@@ -3,12 +3,15 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/seniorGolang/tg/v3/internal/executor"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
+	"github.com/seniorGolang/tg/v3/internal/installer/models"
 	"github.com/seniorGolang/tg/v3/internal/wasm/imports"
 
 	"github.com/spf13/cobra"
@@ -21,19 +24,19 @@ const (
 	optionalArgSuffix = "]"
 )
 
-// buildCobraCommands строит cobra команды из дерева команд
-func buildCobraCommands(rootCmd *cobra.Command, tree *CommandTree, rootDir string) {
+func buildCobraCommands(rootCmd *cobra.Command, tree *CommandTree, rootDir string, planner *executor.Planner) (err error) {
 
-	// Рекурсивно строим команды из дерева
-	var buildNode func(parent *cobra.Command, node *CommandNode, nodePath []string)
-	buildNode = func(parent *cobra.Command, node *CommandNode, nodePath []string) {
+	var buildNode func(parent *cobra.Command, node *CommandNode, nodePath []string) (err error)
+	buildNode = func(parent *cobra.Command, node *CommandNode, nodePath []string) (err error) {
 		if node == nil {
 			return
 		}
 
 		var cobraCmd *cobra.Command
 		if node.command != nil {
-			cobraCmd = buildCobraCommand(node.command, rootDir, parent)
+			if cobraCmd, err = buildCobraCommand(node.command, rootDir, parent, planner); err != nil {
+				return
+			}
 		} else {
 			cobraCmd = &cobra.Command{
 				Use:   node.name,
@@ -50,7 +53,9 @@ func buildCobraCommands(rootCmd *cobra.Command, tree *CommandTree, rootDir strin
 			if childNode.alias != "" && childName == childNode.alias {
 				continue
 			}
-			buildNode(cobraCmd, childNode, append(nodePath, childName))
+			if err = buildNode(cobraCmd, childNode, append(nodePath, childName)); err != nil {
+				return
+			}
 		}
 
 		if parent != nil {
@@ -58,30 +63,51 @@ func buildCobraCommands(rootCmd *cobra.Command, tree *CommandTree, rootDir strin
 		} else {
 			rootCmd.AddCommand(cobraCmd)
 		}
+
+		return
 	}
 
 	for name, node := range tree.root {
 		if node.alias != "" && name == node.alias {
 			continue
 		}
-		buildNode(nil, node, []string{name})
+		if err = buildNode(nil, node, []string{name}); err != nil {
+			return
+		}
 	}
+
+	return
 }
 
-func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command) (cobraCmd *cobra.Command) {
+func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command, planner *executor.Planner) (cobraCmd *cobra.Command, err error) {
 
 	path := cmd.GetPath()
 	if len(path) == 0 {
-		cobraCmd = nil
-		return
+		return nil, nil
 	}
 
 	lastElem := path[len(path)-1]
 
 	cmdName, alias := parsePathElement(lastElem)
 
+	var options []Option
+	if planner != nil {
+		if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
+			var mergedOpts []models.OptionInfo
+			mergedOpts, err = planner.GetMergedOptionsForCommand(pluginCmd.metadata.pluginName, pluginCmd.metadata.command.Path)
+			if err != nil {
+				return nil, err
+			}
+			options = convertOptionInfoToOptions(mergedOpts)
+		} else {
+			options = cmd.GetOptions()
+		}
+	} else {
+		options = cmd.GetOptions()
+	}
+
+	positionalOptions := getPositionalOptions(options)
 	useStr := cmdName
-	positionalOptions := getPositionalOptions(cmd.GetOptions())
 	if len(positionalOptions) > 0 {
 		argParts := make([]string, 0, len(positionalOptions))
 		for _, opt := range positionalOptions {
@@ -97,7 +123,7 @@ func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command) (cobr
 	cobraCmd = &cobra.Command{
 		Use:   useStr,
 		Short: cmd.GetDescription(),
-		Run:   createCommandRunner(cmd, rootDir),
+		Run:   createCommandRunner(cmd, rootDir, planner),
 	}
 
 	if len(positionalOptions) > 0 {
@@ -108,8 +134,8 @@ func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command) (cobr
 			}
 		}
 		if requiredCount > 0 {
-			cobraCmd.Args = func(cmd *cobra.Command, args []string) (err error) {
-				rootCmd := cmd.Root()
+			cobraCmd.Args = func(c *cobra.Command, args []string) (err error) {
+				rootCmd := c.Root()
 				failOnMissing, _ := rootCmd.PersistentFlags().GetBool(GlobalFlagFailOnMissing)
 
 				if failOnMissing && len(args) < requiredCount {
@@ -125,14 +151,13 @@ func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command) (cobr
 		cobraCmd.Aliases = []string{alias}
 	}
 
-	for _, opt := range cmd.GetOptions() {
+	for _, opt := range options {
 		addFlagFromOption(cobraCmd, opt)
 	}
 
 	return
 }
 
-// createSubcommandSelector используется, когда команда вызывается без подкоманды (например, "tg plugin").
 func createSubcommandSelector(node *CommandNode, rootDir string) (selector func(cobraCmd *cobra.Command, args []string)) {
 	return func(cobraCmd *cobra.Command, args []string) {
 		cmdPath := getCommandPath(cobraCmd)
@@ -155,6 +180,9 @@ func createSubcommandSelector(node *CommandNode, rootDir string) (selector func(
 			selectedCobraCmd.Run(selectedCobraCmd, []string{})
 		} else if selectedCobraCmd.RunE != nil {
 			if err := selectedCobraCmd.RunE(selectedCobraCmd, []string{}); err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
 				var pluginErr *imports.PluginError
 				if errors.As(err, &pluginErr) {
 					slog.Error(pluginErr.Message)

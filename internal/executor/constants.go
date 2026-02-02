@@ -3,8 +3,6 @@
 package executor
 
 const (
-	dependencyVersionSeparator = "@"
-
 	versionPrefixV                = "v"
 	requirementPrefixCaret        = "^"
 	requirementPrefixTilde        = "~"

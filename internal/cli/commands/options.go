@@ -12,26 +12,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// extractOptionsFromFlags извлекает опции из флагов команды (исключая позиционные)
 func extractOptionsFromFlags(cobraCmd *cobra.Command, commandOptions []Option) (options map[string]any) {
 
 	options = make(map[string]any)
 
 	for _, opt := range commandOptions {
-		// Пропускаем позиционные опции - они обрабатываются отдельно
 		if opt.IsPositional {
 			continue
 		}
 
-		// Проверяем, был ли флаг реально задан пользователем
 		wasChanged := cobraCmd.Flags().Changed(opt.Name)
 
 		switch opt.Type {
 		case optionTypeString:
 			val, _ := cobraCmd.Flags().GetString(opt.Name)
-			// Добавляем опцию только если:
-			// 1. Флаг был задан пользователем (wasChanged), или
-			// 2. Есть значение по умолчанию (opt.Default != nil)
 			if wasChanged {
 				options[opt.Name] = val
 			} else if opt.Default != nil {
@@ -46,7 +40,6 @@ func extractOptionsFromFlags(cobraCmd *cobra.Command, commandOptions []Option) (
 			}
 		case optionTypeBool:
 			val, _ := cobraCmd.Flags().GetBool(opt.Name)
-			// Для bool всегда добавляем значение, так как оно имеет явное значение по умолчанию
 			options[opt.Name] = val
 		}
 	}
@@ -76,18 +69,13 @@ func getPositionalOptions(options []Option) (positionalOptions []Option) {
 	return
 }
 
-// PromptCommandOptions запрашивает опции для любой команды
-func PromptCommandOptions(cmd Command, currentOptions map[string]any, commandPath []string) (options map[string]any) {
+func PromptCommandOptions(cmd Command, commandOptions []Option, currentOptions map[string]any, commandPath []string) (options map[string]any) {
 
-	commandOptions := cmd.GetOptions()
-
-	// Если опций нет, возвращаем текущие опции
 	if len(commandOptions) == 0 {
 		options = currentOptions
 		return
 	}
 
-	// Специальная логика для команды plugin init
 	if len(commandPath) == 2 && commandPath[0] == "plugin" && commandPath[1] == "init" {
 		return promptPluginInitOptions(commandOptions, currentOptions, commandPath)
 	}
@@ -95,10 +83,8 @@ func PromptCommandOptions(cmd Command, currentOptions map[string]any, commandPat
 	return promptOptions(commandOptions, currentOptions)
 }
 
-// promptOptions запрашивает опции интерактивно
 func promptOptions(commandOptions []Option, currentOptions map[string]any) (options map[string]any) {
 
-	// Запрашиваем каждую опцию интерактивно
 	options = make(map[string]any)
 
 	for _, opt := range commandOptions {
@@ -124,9 +110,7 @@ func promptOptions(commandOptions []Option, currentOptions map[string]any) (opti
 			val, _ := pterm.DefaultInteractiveTextInput.
 				WithDefaultValue(defaultStr).
 				Show(promptText)
-			// Для обязательных опций не разрешаем пустое значение
 			if opt.Required && val == "" {
-				// Повторяем запрос, пока не получим непустое значение
 				for val == "" {
 					pterm.Warning.Println(i18n.Msg("This field is required"))
 					val, _ = pterm.DefaultInteractiveTextInput.
@@ -140,7 +124,6 @@ func promptOptions(commandOptions []Option, currentOptions map[string]any) (opti
 			case opt.Default != nil:
 				options[opt.Name] = opt.Default
 			case opt.Required:
-				// Если опция обязательна, но значение пустое и нет Default, всё равно добавляем
 				options[opt.Name] = val
 			}
 		case optionTypeInt:
@@ -183,18 +166,14 @@ func promptOptions(commandOptions []Option, currentOptions map[string]any) (opti
 	return
 }
 
-// promptPluginInitOptions запрашивает опции для команды plugin init с особой логикой:
-// сначала спрашивает kind (выбор из списка), затем command только если kind == "command"
 func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]any, commandPath []string) (options map[string]any) {
 
 	options = make(map[string]any)
 
-	// Копируем текущие опции
 	for k, v := range currentOptions {
 		options[k] = v
 	}
 
-	// 1. Сначала спрашиваем kind (выбор из списка)
 	kindOptions := []string{"pre", "stage", "command", "post"}
 	currentKind, hasKind := currentOptions["kind"].(string)
 	defaultIndex := 0
@@ -214,17 +193,15 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 		Show(i18n.Msg("Plugin kind (required)"))
 
 	if selectedKind == "" {
-		// Если пользователь отменил, возвращаем nil
 		return nil
 	}
 
 	options["kind"] = selectedKind
 
-	// 2. Спрашиваем deploy-type (выбор из списка), если не указан
 	currentDeployType, hasDeployType := currentOptions["deploy-type"].(string)
 	if !hasDeployType || currentDeployType == "" {
 		deployTypeOptions := []string{"none", "gitlab", "github"}
-		deployTypeDefaultIndex := 0 // по умолчанию "none"
+		deployTypeDefaultIndex := 0
 
 		selectedDeployType, _ := pterm.DefaultInteractiveSelect.
 			WithOptions(deployTypeOptions).
@@ -233,17 +210,14 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 			Show(i18n.Msg("Deploy type"))
 
 		if selectedDeployType == "" {
-			// Если пользователь отменил, возвращаем nil
 			return nil
 		}
 
 		options["deploy-type"] = selectedDeployType
 	} else {
-		// Если deploy-type уже указан, используем его
 		options["deploy-type"] = currentDeployType
 	}
 
-	// 3. Если kind == "command", спрашиваем command
 	if selectedKind == "command" {
 		currentCommand, hasCommand := currentOptions["command"].(string)
 		defaultCommand := ""
@@ -255,7 +229,6 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 			WithDefaultValue(defaultCommand).
 			Show(i18n.Msg("CLI command name (required)"))
 
-		// Для command требуем непустое значение
 		for commandVal == "" {
 			pterm.Warning.Println(i18n.Msg("This field is required"))
 			commandVal, _ = pterm.DefaultInteractiveTextInput.
@@ -268,9 +241,7 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 		}
 	}
 
-	// 4. Запрашиваем остальные опции в обычном порядке
 	for _, opt := range commandOptions {
-		// Пропускаем kind, command и deploy-type, так как они уже обработаны
 		if opt.Name == "kind" || opt.Name == "command" || opt.Name == "deploy-type" {
 			continue
 		}
@@ -355,16 +326,13 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 	return
 }
 
-// PromptCommandOptionsFromPlugin запрашивает опции плагина интерактивно (для update команды)
 func PromptCommandOptionsFromPlugin(commandOptions []Option, currentOptions map[string]any, commandPath []string) (options map[string]any) {
 
-	// Если опций нет, возвращаем текущие опции
 	if len(commandOptions) == 0 {
 		options = currentOptions
 		return
 	}
 
-	// Специальная логика для команды plugin init
 	if len(commandPath) == 2 && commandPath[0] == "plugin" && commandPath[1] == "init" {
 		return promptPluginInitOptions(commandOptions, currentOptions, commandPath)
 	}

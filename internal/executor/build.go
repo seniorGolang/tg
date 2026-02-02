@@ -27,7 +27,27 @@ func (p *Planner) buildSteps(allInstallations map[string]*models.Installation, d
 		p.collectDirectChainSet(name, dependencyGraph, alwaysPostSet)
 	}
 
-	// Группы: preAlways/postAlways — плагины с always=true; preChain/stageChain/postChain — цепочка зависимостей команды.
+	commandBoundPrePostSet := make(map[string]bool)
+	for name, inst := range allInstallations {
+		if name == commandPluginName {
+			continue
+		}
+		if directChainSet[name] || alwaysPreSet[name] || alwaysPostSet[name] {
+			continue
+		}
+		kind := detectKind(inst)
+		if kind != KindPre && kind != KindPost {
+			continue
+		}
+		for _, dep := range dependencyGraph[name] {
+			if directChainSet[dep] {
+				commandBoundPrePostSet[name] = true
+				break
+			}
+		}
+	}
+
+	// Группы: preAlways/postAlways — плагины с always=true; preChain/stageChain/postChain — цепочка команды и привязанные pre/post.
 	// Итоговый порядок шагов: preAlways → preChain → stageChain → command → postChain → postAlways.
 	var preAlways []string
 	var preChain []string
@@ -41,9 +61,10 @@ func (p *Planner) buildSteps(allInstallations map[string]*models.Installation, d
 		}
 
 		kind := detectKind(inst)
-		inDirectChain := directChainSet[name]
 		inAlwaysPre := alwaysPreSet[name]
 		inAlwaysPost := alwaysPostSet[name]
+		inDirectChain := directChainSet[name]
+		inCommandBoundPrePost := commandBoundPrePostSet[name]
 
 		switch {
 		case inDirectChain:
@@ -72,6 +93,15 @@ func (p *Planner) buildSteps(allInstallations map[string]*models.Installation, d
 				stageChain = append(stageChain, name)
 			case KindPre:
 				preChain = append(preChain, name)
+			}
+		case inCommandBoundPrePost && !inDirectChain && !inAlwaysPre && !inAlwaysPost:
+			switch kind {
+			case KindPre:
+				preChain = append(preChain, name)
+			case KindPost:
+				postChain = append(postChain, name)
+			case KindStage:
+				stageChain = append(stageChain, name)
 			}
 		}
 	}

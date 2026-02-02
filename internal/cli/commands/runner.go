@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/seniorGolang/tg/v3/internal/executor"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
+	"github.com/seniorGolang/tg/v3/internal/installer/models"
 	"github.com/seniorGolang/tg/v3/internal/state"
 	"github.com/seniorGolang/tg/v3/internal/wasm/imports"
 
@@ -16,13 +18,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func createCommandRunner(cmd Command, rootDir string) (runner func(cobraCmd *cobra.Command, args []string)) {
+func getEffectiveOptions(cmd Command, planner *executor.Planner) (effectiveOptions []Option) {
+
+	if planner != nil {
+		if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
+			var merged []models.OptionInfo
+			var err error
+			if merged, err = planner.GetMergedOptionsForCommand(pluginCmd.metadata.pluginName, pluginCmd.metadata.command.Path); err != nil {
+				slog.Error(i18n.Msg("Failed to get merged options for command"), "error", err)
+				effectiveOptions = cmd.GetOptions()
+				return
+			}
+			effectiveOptions = convertOptionInfoToOptions(merged)
+			return
+		}
+	}
+
+	effectiveOptions = cmd.GetOptions()
+	return
+}
+
+func createCommandRunner(cmd Command, rootDir string, planner *executor.Planner) (runner func(cobraCmd *cobra.Command, args []string)) {
 	return func(cobraCmd *cobra.Command, args []string) {
-		// 0. Проверяем флаг --version на корневой команде (до всех остальных действий)
-		// Проверяем, был ли флаг установлен явно пользователем
+		effectiveOptions := getEffectiveOptions(cmd, planner)
 		rootCmd := cobraCmd.Root()
 		if rootCmd.PersistentFlags().Changed("version") {
-			// Проверяем, является ли команда плагином
 			if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
 				var pluginVersion string
 				var err error
@@ -35,39 +55,24 @@ func createCommandRunner(cmd Command, rootDir string) (runner func(cobraCmd *cob
 				pterm.Print(pterm.Green(versionText), " ", pterm.Cyan(pluginName), " ", pluginVersion, "\n")
 				return
 			}
-			// Для встроенных команд версия не поддерживается
 			slog.Error(i18n.Msg("Version information is not available for builtin commands"))
 			return
 		}
 
-		// 1. Извлекаем глобальные опции из корневой команды
 		globalOpts := extractGlobalOptions(cobraCmd)
-
-		// 2. Настраиваем уровень логирования на основе глобальной опции
 		logger := createLoggerWithLevel(globalOpts.LogLevel)
-
-		// Обновляем глобальный slog для всех мест, которые используют slog напрямую
-		// Это нужно, чтобы --log-level работал для всех логов, не только для ctx.Logger
 		updateGlobalSlogLevel(globalOpts.LogLevel)
 
-		// 3. Извлекаем опции команды из флагов (исключая позиционные)
-		options := extractOptionsFromFlags(cobraCmd, cmd.GetOptions())
-
-		// 4. Получаем путь команды
+		options := extractOptionsFromFlags(cobraCmd, effectiveOptions)
 		commandPath := getCommandPath(cobraCmd)
 
-		// 5. Проверяем, нужен ли интерактивный режим для опций
-		// Если команда не имеет опций или все опции имеют значения → выполняем сразу
-		// Исключаем позиционные опции из проверки
-		nonPositionalOptions := getNonPositionalOptions(cmd.GetOptions())
+		nonPositionalOptions := getNonPositionalOptions(effectiveOptions)
 		hasOptions := len(nonPositionalOptions) > 0
 		hasRequiredNonPositionalOptions := hasRequiredOptions(nonPositionalOptions)
 		allOptionsProvided := validateRequiredOptions(options, nonPositionalOptions)
 
 		if hasOptions && hasRequiredNonPositionalOptions && !allOptionsProvided {
-			// Обработка отсутствующих обязательных опций
 			if globalOpts.FailOnMissing {
-				// Выводим ошибку вместо интерактивного режима
 				requiredOpts := getRequiredOptions(nonPositionalOptions)
 				slog.Error(i18n.Msg("Required options are missing"),
 					"command", strings.Join(commandPath, " "),
@@ -75,20 +80,15 @@ func createCommandRunner(cmd Command, rootDir string) (runner func(cobraCmd *cob
 				return
 			}
 
-			// Запускаем интерактивный режим
-			options = PromptCommandOptions(cmd, options, commandPath)
+			options = PromptCommandOptions(cmd, effectiveOptions, options, commandPath)
 			if options == nil {
 				return // Пользователь отменил
 			}
 		}
-		// Если опций нет или все опции предоставлены → выполняем сразу
 
-		// 6. Проверяем позиционные аргументы
-		// Если команда требует позиционные аргументы, но они не переданы, запрашиваем интерактивно
-		positionalOptions := getPositionalOptions(cmd.GetOptions())
+		positionalOptions := getPositionalOptions(effectiveOptions)
 		hasRequiredPositional := hasRequiredOptions(positionalOptions)
 
-		// Проверяем, достаточно ли передано аргументов для обязательных позиционных опций
 		needsInteractiveArgs := false
 		if hasRequiredPositional {
 			requiredCount := 0
@@ -102,7 +102,6 @@ func createCommandRunner(cmd Command, rootDir string) (runner func(cobraCmd *cob
 			}
 		}
 
-		// Если есть валидатор cobra, проверяем через него
 		if cobraCmd.Args != nil {
 			if err := cobraCmd.Args(cobraCmd, args); err != nil {
 				needsInteractiveArgs = true
@@ -110,51 +109,46 @@ func createCommandRunner(cmd Command, rootDir string) (runner func(cobraCmd *cob
 		}
 
 		if needsInteractiveArgs {
-			// Если аргументы не соответствуют требованиям, запрашиваем интерактивно
 			if globalOpts.FailOnMissing {
 				slog.Error(i18n.Msg("Required positional arguments are missing"),
 					"command", strings.Join(commandPath, " "))
 				return
 			}
 
-			// Запрашиваем позиционные аргументы интерактивно
-			args = PromptCommandArgs(cmd, cobraCmd, commandPath)
+			args = PromptCommandArgs(cmd, cobraCmd, effectiveOptions, commandPath)
 			if args == nil {
 				return // Пользователь отменил
 			}
 		}
 
-		// 7. Показываем собранную команду после всех интерактивных запросов (если не скрыто)
 		if !globalOpts.HideCmd {
 			showBuiltCommand(cmd, options, args, commandPath)
 		}
 
-		// 8. Получаем контекст из cobra команды (если установлен) или создаем новый
 		cmdCtx := cobraCmd.Context()
 		if cmdCtx == nil {
 			cmdCtx = context.Background()
 		}
 
-		// 9. Создаём контекст выполнения
 		ctx := CommandContext{
 			Context:      cmdCtx,
 			RootDir:      rootDir,
 			Options:      options,
-			Args:         args, // Позиционные аргументы
+			Args:         args,
 			CommandPath:  commandPath,
 			Logger:       logger,
 			StateManager: state.New(rootDir),
 			GlobalOpts:   globalOpts,
 		}
 
-		// 10. Выполняем команду
 		if err := cmd.Execute(ctx); err != nil {
-			// Извлекаем оригинальное сообщение из ошибки плагина, если это ошибка плагина
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			var pluginErr *imports.PluginError
 			if errors.As(err, &pluginErr) {
 				slog.Error(pluginErr.Message)
 			} else {
-				// Для других ошибок выводим полное сообщение
 				slog.Error(i18n.Msg("Command execution error"), "error", err)
 			}
 		}

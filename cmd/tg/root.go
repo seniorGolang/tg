@@ -35,7 +35,6 @@ func runRoot(cmd *cobra.Command, _ []string) {
 		return
 	}
 
-	// Команда выбрана интерактивно, дополнительных аргументов нет — передаём пустой slice.
 	if selectedCobraCmd.Run != nil {
 		selectedCobraCmd.Run(selectedCobraCmd, []string{})
 	} else if selectedCobraCmd.RunE != nil {

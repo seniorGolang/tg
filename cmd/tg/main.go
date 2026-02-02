@@ -55,7 +55,6 @@ func main() {
 
 	rootCmd.SetContext(ctx)
 
-	// Добавляем флаг --version как PersistentFlag, чтобы он был доступен для всех команд
 	rootCmd.PersistentFlags().Bool("version", false, i18n.Msg("Show version information"))
 
 	commands.RegisterAllCommands(rootCmd, wd)
