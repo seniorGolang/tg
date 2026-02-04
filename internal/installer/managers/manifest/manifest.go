@@ -29,7 +29,6 @@ const (
 	protocolFile = "file://"
 )
 
-// cachedManifest содержит кешированный манифест с метаданными.
 type cachedManifest struct {
 	manifest *models.Manifest
 	path     string
@@ -37,7 +36,6 @@ type cachedManifest struct {
 	modTime  time.Time
 }
 
-// manifestIndex содержит индекс всех манифестов в каталоге.
 type manifestIndex struct {
 	byPackageName map[string][]*cachedManifest
 	bySource      map[string][]*cachedManifest
@@ -46,7 +44,6 @@ type manifestIndex struct {
 	mu            sync.RWMutex
 }
 
-// manager реализует ManifestManager.
 type manager struct {
 	scopeName     string
 	loadedURLs    map[string]bool
@@ -68,7 +65,6 @@ func NewManager(scopeName string) managers.ManifestManager {
 	}
 }
 
-// ensureIndex загружает индекс, если он ещё не загружен.
 func (m *manager) ensureIndex(ctx context.Context) (err error) {
 	m.indexOnce.Do(func() {
 		err = m.loadIndex(ctx)
@@ -76,12 +72,10 @@ func (m *manager) ensureIndex(ctx context.Context) (err error) {
 	return
 }
 
-// ReloadIndex принудительно перезагружает индекс всех манифестов из каталога.
 func (m *manager) ReloadIndex(ctx context.Context) (err error) {
 	return m.loadIndex(ctx)
 }
 
-// loadIndex загружает индекс всех манифестов из каталога.
 func (m *manager) loadIndex(ctx context.Context) (err error) {
 	m.index.mu.Lock()
 	defer m.index.mu.Unlock()
@@ -156,7 +150,6 @@ func (m *manager) loadIndex(ctx context.Context) (err error) {
 	return
 }
 
-// LoadManifest загружает манифест по URL.
 func (m *manager) LoadManifest(ctx context.Context, url string) (manifest *models.Manifest, err error) {
 
 	var content []byte
@@ -179,12 +172,10 @@ func (m *manager) LoadManifest(ctx context.Context, url string) (manifest *model
 	return
 }
 
-// LoadManifestCascade выполняет каскадную загрузку манифеста и всех связанных.
 func (m *manager) LoadManifestCascade(ctx context.Context, manifestURL string, source string, force bool) (loadedSources map[string]bool, err error) {
 
 	m.loadedURLs = make(map[string]bool)
 	m.loadedSources = make(map[string]bool)
-	// Версия не была явно указана, передаем пустую строку
 	if err = m.loadManifestCascadeRecursive(ctx, manifestURL, source, force, ""); err != nil {
 		return
 	}
@@ -193,7 +184,6 @@ func (m *manager) LoadManifestCascade(ctx context.Context, manifestURL string, s
 	return
 }
 
-// UpdateManifest обновляет манифест с учётом версий согласно архитектуре.
 func (m *manager) UpdateManifest(ctx context.Context, source string, force bool) (err error) {
 
 	slog.Debug(i18n.Msg("Updating manifest"), slog.String("source", source), slog.Bool("force", force))
@@ -210,7 +200,6 @@ func (m *manager) UpdateManifest(ctx context.Context, source string, force bool)
 	normalizedSource := storage.NormalizeSource(source)
 	manifestDir := storage.GetManifestDir(m.scopeName, normalizedSource)
 
-	// Если force=false, проверяем версию и пропускаем, если новая версия меньше
 	if !force {
 		var existingVersion string
 		if existingVersion, err = m.getExistingManifestVersion(manifestDir); err == nil {
@@ -298,7 +287,6 @@ func (m *manager) ListPackagesFromSources(ctx context.Context, sources map[strin
 	return
 }
 
-// SearchPackages ищет пакеты по запросу.
 func (m *manager) SearchPackages(ctx context.Context, query string) (packages []models.Package, err error) {
 
 	var allPackages []models.Package
@@ -321,7 +309,6 @@ func (m *manager) SearchPackages(ctx context.Context, query string) (packages []
 	return
 }
 
-// ValidateManifest валидирует манифест.
 func (m *manager) ValidateManifest(ctx context.Context, manifest *models.Manifest) (err error) {
 
 	if manifest.Version == "" {
@@ -456,7 +443,6 @@ func (m *manager) GetAllManifests(ctx context.Context) (manifests []managers.Man
 	return
 }
 
-// CompareVersions сравнивает две версии.
 func (m *manager) CompareVersions(ctx context.Context, v1 string, v2 string) (result int, err error) {
 
 	var version1 models.Version
@@ -475,7 +461,6 @@ func (m *manager) CompareVersions(ctx context.Context, v1 string, v2 string) (re
 	return
 }
 
-// buildManifestURLForUpdate формирует URL манифеста для обновления из source.
 func (m *manager) buildManifestURLForUpdate(ctx context.Context, source string) (manifestURL string, err error) {
 
 	slog.Debug(i18n.Msg("Building manifest URL for update"), slog.String("source", source))
@@ -496,7 +481,6 @@ func (m *manager) buildManifestURLForUpdate(ctx context.Context, source string) 
 	return
 }
 
-// downloadManifest загружает манифест по URL.
 func (m *manager) downloadManifest(ctx context.Context, url string) (content []byte, err error) {
 
 	slog.Debug(i18n.Msg("Downloading manifest"), slog.String("url", url))

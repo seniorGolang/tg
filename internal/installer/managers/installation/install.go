@@ -33,14 +33,37 @@ import (
 )
 
 const (
-	tempDirPrefix     = "draft"
-	protocolFile      = "file://"
-	packageVersionSep = "@"
-	extractedDirName  = "extracted"
-	unknownVersion    = "unknown"
-	// noSourcePlaceholder плейсхолдер для отсутствующего источника
+	tempDirPrefix       = "draft"
+	protocolFile        = "file://"
+	packageVersionSep   = "@"
+	extractedDirName    = "extracted"
+	unknownVersion      = "unknown"
 	noSourcePlaceholder = "(no source)"
+
+	installStatusUnchanged = "unchanged"
+	installStatusNew       = "new"
+	installStatusUpdated   = "updated"
 )
+
+const (
+	InstallStatusUnchanged = installStatusUnchanged
+	InstallStatusNew       = installStatusNew
+	InstallStatusUpdated   = installStatusUpdated
+)
+
+type SessionInstalledSet struct {
+	IDs map[string]struct{}
+}
+
+type PackageDisplay struct {
+	Name    string
+	Display string
+	Status  string
+}
+
+type TreeCollector interface {
+	AddTree(source string, rootDisplay string, deps []PackageDisplay)
+}
 
 func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Version) (err error) {
 
@@ -58,25 +81,33 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		}
 	}
 
-	// Если не указан --force, проверяем, существует ли установка с таким ID
-	// ID формируется из package@version, поэтому один и тот же пакет с одной версией всегда имеет один ID
 	if !force {
 		installID := m.generateInstallationID(pkg.Name, v.Original)
 		var existingInstallation *models.Installation
 		if existingInstallation, err = m.databaseManager.GetInstallation(ctx, installID); err == nil && existingInstallation != nil {
-			// Установка с таким ID уже существует - пропускаем установку
-			slog.Debug(i18n.Msg("Install: package already installed, skipping"), slog.String("package", pkg.Name), slog.String("version", v.Original), slog.String("id", installID))
-			// Помечаем в контексте, что пакет был пропущен
-			if skippedVal := ctx.Value(contextkeys.Skipped); skippedVal != nil {
-				if skipped, ok := skippedVal.(*bool); ok {
-					*skipped = true
+			var scopeConfig *storage.ScopeConfig
+			var scopeErr error
+			if scopeConfig, scopeErr = storage.LoadScopeConfig(m.scopeName); scopeErr == nil && m.verifyInstalledFilesChecksums(ctx, pkg, scopeConfig) {
+				slog.Debug(i18n.Msg("Install: package already installed, skipping"), slog.String("package", pkg.Name), slog.String("version", v.Original), slog.String("id", installID))
+				if collector := m.treeCollectorFromContext(ctx); collector != nil {
+					m.printPackageProgressLine(pkg.Name)
+					source := m.resolveTreeSourceEarly(ctx, pkg)
+					rootDisplay := m.installStatusPrefix(installStatusUnchanged) + fmt.Sprintf("%s v%s", pkg.Name, v.Original)
+					if pkg.Descr != "" {
+						rootDisplay += " - " + pkg.Descr
+					}
+					collector.AddTree(source, rootDisplay, nil)
 				}
+				if skippedVal := ctx.Value(contextkeys.Skipped); skippedVal != nil {
+					if skipped, ok := skippedVal.(*bool); ok {
+						*skipped = true
+					}
+				}
+				return
 			}
-			return
 		}
 	}
 
-	// Нормализуем пакет: заполняем пустые source в зависимостях source основного пакета
 	normalizedPkg := m.normalizePackage(ctx, pkg)
 
 	var graph *models.DependencyGraph
@@ -96,14 +127,11 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		return
 	}
 
-	// Загружаем актуальный список установок после разрешения зависимостей,
-	// чтобы учитывать зависимости, установленные при установке предыдущих пакетов
 	var allInstallations []models.Installation
 	if allInstallations, err = m.databaseManager.ListInstallations(ctx); err != nil {
 		allInstallations = []models.Installation{}
 	}
 
-	// Структура для хранения информации о пакетах для установки
 	type packageToInstall struct {
 		pkg    *models.Package
 		v      models.Version
@@ -111,6 +139,12 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	}
 
 	packagesToInstall := make([]packageToInstall, 0)
+	packageStatus := make(map[string]string)
+
+	var sessionSet *SessionInstalledSet
+	if v := ctx.Value(contextkeys.SessionInstalledIDs); v != nil {
+		sessionSet, _ = v.(*SessionInstalledSet)
+	}
 
 	findNodeByPackage := func(graph *models.DependencyGraph, pkg *models.Package) (node *models.DependencyNode) {
 		for _, n := range graph.Nodes {
@@ -121,7 +155,6 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		return nil
 	}
 
-	// findVersionConstraint находит требование версии для пакета из графа зависимостей.
 	findVersionConstraint := func(pkgName string) (constraint string) {
 		for _, edge := range graph.Edges {
 			if edge.To != nil && edge.To.Package != nil && edge.To.Package.Name == pkgName {
@@ -133,7 +166,6 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		return ""
 	}
 
-	// Сначала собираем все подтверждения для зависимостей
 	for _, depPkg := range sortedPackages {
 		select {
 		case <-ctx.Done():
@@ -166,20 +198,24 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 
 		versionConstraint := findVersionConstraint(depPkg.Name)
 
-		// При проверке зависимостей создаем контекст БЕЗ флага --force,
-		// чтобы зависимости проверялись по установленным версиям и не переустанавливались,
-		// если уже установлены с подходящей версией. Флаг --force применяется только к явно указанным пакетам.
-		depCtx := context.WithValue(ctx, contextkeys.Force, false)
-
 		var checkResult versionCheckResult
-		if checkResult, err = m.checkPackageVersion(depCtx, depPkg, depVersion, versionConstraint, allInstallations, depSource); err != nil {
+		if checkResult, err = m.checkPackageVersion(ctx, depPkg, depVersion, versionConstraint, allInstallations, depSource); err != nil {
 			return
 		}
 		if !checkResult.shouldInstall {
-			// Пакет уже установлен с подходящей версией - пропускаем
+			packageStatus[depPkg.Name] = installStatusUnchanged
 			continue
 		}
 
+		depInstallID := m.generateInstallationID(depPkg.Name, depVersion.Original)
+		if sessionSet != nil {
+			if _, alreadyInstalled := sessionSet.IDs[depInstallID]; alreadyInstalled {
+				packageStatus[depPkg.Name] = installStatusUnchanged
+				continue
+			}
+		}
+
+		packageStatus[depPkg.Name] = checkResult.installStatus
 		packagesToInstall = append(packagesToInstall, packageToInstall{
 			pkg:    depPkg,
 			v:      depVersion,
@@ -219,26 +255,54 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		return
 	}
 	if !checkResultMain.shouldInstall {
-		// Пакет уже установлен с такой же версией - пропускаем
-		// Помечаем в контексте, что пакет был пропущен
-		if skippedVal := ctx.Value(contextkeys.Skipped); skippedVal != nil {
-			if skipped, ok := skippedVal.(*bool); ok {
-				*skipped = true
+		var scopeConfig *storage.ScopeConfig
+		var scopeErr error
+		if scopeConfig, scopeErr = storage.LoadScopeConfig(m.scopeName); scopeErr == nil && m.verifyInstalledFilesChecksums(ctx, mainPkg, scopeConfig) {
+			if m.treeCollectorFromContext(ctx) != nil {
+				m.printPackageProgressLine(mainPkg.Name)
 			}
+			if skippedVal := ctx.Value(contextkeys.Skipped); skippedVal != nil {
+				if skipped, ok := skippedVal.(*bool); ok {
+					*skipped = true
+				}
+			}
+			packagesInfo := make([]packageToInstallInfo, 0)
+			statusUnchanged := m.subtreePackageNames(graph, pkg.Name)
+			for _, name := range statusUnchanged {
+				packageStatus[name] = installStatusUnchanged
+			}
+			if collector := m.treeCollectorFromContext(ctx); collector != nil {
+				source := m.resolveTreeSource(ctx, graph, pkg.Name)
+				rootDisplay, deps := m.buildPackageFlatInfo(graph, packageStatus, pkg.Name, v)
+				collector.AddTree(source, rootDisplay, deps)
+			} else {
+				m.printDependencyTree(ctx, graph, packagesInfo, packageStatus, pkg.Name, v)
+			}
+			return
 		}
-		// Выводим дерево зависимостей даже если пакет уже установлен
-		packagesInfo := make([]packageToInstallInfo, 0)
-		m.printDependencyTree(ctx, graph, packagesInfo, pkg.Name, v)
-		return
 	}
 
-	packagesToInstall = append(packagesToInstall, packageToInstall{
-		pkg:    mainPkg,
-		v:      mainVersion,
-		source: rootSource,
-	})
+	rootInstallID := m.generateInstallationID(mainPkg.Name, mainVersion.Original)
+	if sessionSet != nil {
+		if _, alreadyInstalled := sessionSet.IDs[rootInstallID]; alreadyInstalled {
+			packageStatus[mainPkg.Name] = installStatusUnchanged
+		} else {
+			packagesToInstall = append(packagesToInstall, packageToInstall{
+				pkg:    mainPkg,
+				v:      mainVersion,
+				source: rootSource,
+			})
+			packageStatus[mainPkg.Name] = checkResultMain.installStatus
+		}
+	} else {
+		packagesToInstall = append(packagesToInstall, packageToInstall{
+			pkg:    mainPkg,
+			v:      mainVersion,
+			source: rootSource,
+		})
+		packageStatus[mainPkg.Name] = checkResultMain.installStatus
+	}
 
-	// Выводим дерево зависимостей перед установкой (всегда)
 	packagesInfo := make([]packageToInstallInfo, 0, len(packagesToInstall))
 	for _, pkgToInstall := range packagesToInstall {
 		packagesInfo = append(packagesInfo, packageToInstallInfo{
@@ -246,9 +310,14 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 			v:       pkgToInstall.v,
 		})
 	}
-	m.printDependencyTree(ctx, graph, packagesInfo, pkg.Name, v)
+	if collector := m.treeCollectorFromContext(ctx); collector != nil {
+		source := m.resolveTreeSource(ctx, graph, pkg.Name)
+		rootDisplay, deps := m.buildPackageFlatInfo(graph, packageStatus, pkg.Name, v)
+		collector.AddTree(source, rootDisplay, deps)
+	} else {
+		m.printDependencyTree(ctx, graph, packagesInfo, packageStatus, pkg.Name, v)
+	}
 
-	// Теперь устанавливаем все пакеты из списка
 	for _, pkgToInstall := range packagesToInstall {
 		select {
 		case <-ctx.Done():
@@ -259,6 +328,11 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		if err = m.installPackage(ctx, pkgToInstall.pkg, pkgToInstall.v, pkgToInstall.source); err != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to install package %s: %w"), pkgToInstall.pkg.Name, err)
 			return
+		}
+
+		if sessionSet != nil {
+			installID := m.generateInstallationID(pkgToInstall.pkg.Name, pkgToInstall.v.Original)
+			sessionSet.IDs[installID] = struct{}{}
 		}
 	}
 
@@ -278,9 +352,12 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	if downloadSource != "" {
 		source = downloadSource
 	}
-	if ctxSource := ctx.Value(contextkeys.Source); ctxSource != nil {
-		if s, ok := ctxSource.(string); ok && s != "" {
-			source = s
+	// Подмена источника контекстом только для пакетов с alias: подставляем источник манифеста.
+	if pkg.Alias != "" {
+		if ctxSource := ctx.Value(contextkeys.Source); ctxSource != nil {
+			if s, ok := ctxSource.(string); ok && s != "" {
+				source = s
+			}
 		}
 	}
 	if source == "" {
@@ -304,7 +381,6 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 
 	normalizedSource := storage.NormalizeSourceForInstallation(source)
 
-	// Генерируем детерминированный ID на основе Package + Version (UUIDv5).
 	installID := m.generateInstallationID(pkg.Name, v.Original)
 	tempDir := filepath.Join(os.TempDir(), tempDirPrefix, installID)
 	defer os.RemoveAll(tempDir)
@@ -324,12 +400,28 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	extractedDirs := make(map[string]string)
 	downloadedFiles := make(map[string]string)
 
-	packageTitle := fmt.Sprintf(i18n.Msg("Installing %s"), pkg.Name)
-	maxTitleLength := len(packageTitle)
-	packageBar := ui.NewProgressBar(packageTitle, 100, maxTitleLength)
+	var packageBar *ui.ProgressBar
+	var hasProgressWork bool
 	defer func() {
-		fmt.Println("\r" + packageBar.Stop())
+		if hasProgressWork && packageBar != nil {
+			fmt.Println("\r" + packageBar.Stop())
+		}
 	}()
+
+	ensureProgressBar := func() {
+		if packageBar == nil {
+			packageTitle := fmt.Sprintf(i18n.Msg("Installing %s"), pkg.Name)
+			maxTitleLength := len(packageTitle)
+			packageBar = ui.NewProgressBar(packageTitle, 100, maxTitleLength)
+		}
+		hasProgressWork = true
+		packageBar.SetCurrent(0)
+		packageBar.Print()
+	}
+
+	if m.treeCollectorFromContext(ctx) != nil {
+		ensureProgressBar()
+	}
 
 	for _, download := range pkg.Downloads {
 		select {
@@ -349,8 +441,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 		destPath := filepath.Join(tempDir, fileName)
 
 		if m.isArchive(destPath) {
-			packageBar.SetCurrent(0)
-			packageBar.Print()
+			ensureProgressBar()
 			if err = m.downloadWithProgress(ctx, url, destPath, packageBar); err != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to download file %s: %w"), url, err)
 				return
@@ -379,8 +470,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			}
 		}
 
-		packageBar.SetCurrent(0)
-		packageBar.Print()
+		ensureProgressBar()
 		if err = m.downloadWithProgress(ctx, url, destPath, packageBar); err != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to download file %s: %w"), url, err)
 			return
@@ -451,8 +541,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 		}
 
 		if !skipCopy {
-			packageBar.SetCurrent(0)
-			packageBar.Print()
+			ensureProgressBar()
 			if err = m.copyFileWithProgress(actualSourcePath, destination, fileInst.Source, packageBar); err != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
 				return
@@ -589,9 +678,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	return
 }
 
-// generateInstallationID генерирует детерминированный UUIDv5 для установки на основе Package и Version.
-// Это гарантирует, что один и тот же пакет с одной версией всегда будет иметь одинаковый ID, независимо от источника.
-// Источник не важен - при установке пакета из другого источника с той же версией произойдет замена установки.
+// generateInstallationID: детерминированный UUIDv5 по Package+Version. Один пакет+версия — один ID; источник не участвует — переустановка из другого источника заменяет запись.
 func (m *manager) generateInstallationID(packageName string, version string) (id string) {
 
 	name := packageName + packageVersionSep + version
@@ -600,8 +687,6 @@ func (m *manager) generateInstallationID(packageName string, version string) (id
 	return idUUID.String()
 }
 
-// GenerateInstallationID генерирует детерминированный ID установки на основе имени пакета и версии.
-// Это публичная функция для использования вне пакета installation.
 func GenerateInstallationID(packageName string, version string) (id string) {
 
 	name := packageName + packageVersionSep + version
@@ -610,7 +695,6 @@ func GenerateInstallationID(packageName string, version string) (id string) {
 	return idUUID.String()
 }
 
-// findFileInstForDownload возвращает fileInst, соответствующий загружаемому файлу (для одиночного файла, не из архива).
 func (m *manager) findFileInstForDownload(pkg *models.Package, fileName string) (fileInst *models.FileInstallation) {
 
 	for i := range pkg.Files {
@@ -625,7 +709,6 @@ func (m *manager) findFileInstForDownload(pkg *models.Package, fileName string) 
 	return nil
 }
 
-// findSourceFile находит исходный файл в загруженных файлах или архивах.
 func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedFiles map[string]string, extractedDirs map[string]string) (path string, err error) {
 
 	if extractedDir, exists := extractedDirs[fileName]; exists {
@@ -660,7 +743,61 @@ func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedF
 	return "", fmt.Errorf(i18n.Msg("File %s not found"), fileName)
 }
 
-// resolveDestination разрешает путь назначения с учётом scope и переменных.
+func (m *manager) subtreePackageNames(graph *models.DependencyGraph, rootPackageName string) (names []string) {
+
+	var rootNode *models.DependencyNode
+	for _, n := range graph.Nodes {
+		if n.Package.Name == rootPackageName {
+			rootNode = n
+			break
+		}
+	}
+	if rootNode == nil {
+		return nil
+	}
+
+	visited := make(map[string]bool)
+	queue := []*models.DependencyNode{rootNode}
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+		if visited[node.ID] {
+			continue
+		}
+		visited[node.ID] = true
+		names = append(names, node.Package.Name)
+		for _, edge := range graph.Edges {
+			if edge.From.ID == node.ID && edge.To != nil && !visited[edge.To.ID] {
+				queue = append(queue, edge.To)
+			}
+		}
+	}
+	return names
+}
+
+func (m *manager) resolveTreeSourceEarly(ctx context.Context, pkg *models.Package) (source string) {
+
+	if sourceVal := ctx.Value(contextkeys.Source); sourceVal != nil {
+		if s, ok := sourceVal.(string); ok && s != "" {
+			return s
+		}
+	}
+	var err error
+	if source, err = m.findPackageSource(ctx, pkg); err != nil {
+		return noSourcePlaceholder
+	}
+	return source
+}
+
+func (m *manager) printPackageProgressLine(packageName string) {
+
+	packageTitle := fmt.Sprintf(i18n.Msg("Installing %s"), packageName)
+	maxTitleLength := len(packageTitle)
+	bar := ui.NewProgressBar(packageTitle, 100, maxTitleLength)
+	bar.SetCurrent(100)
+	fmt.Println("\r" + bar.Stop())
+}
+
 func (m *manager) resolveDestination(destination string, scopeConfig *storage.ScopeConfig) (path string) {
 
 	destination = strings.ReplaceAll(destination, "${OS}", runtime.GOOS)
@@ -669,7 +806,48 @@ func (m *manager) resolveDestination(destination string, scopeConfig *storage.Sc
 	return filepath.Join(scopeConfig.InstallPrefix, destination)
 }
 
-// normalizePackage нормализует пакет: заполняет пустые source в зависимостях source основного пакета.
+// verifyInstalledFilesChecksums: проверка файлов по контрольным суммам; ошибки только в debug; false при отсутствии файла или несовпадении суммы.
+func (m *manager) verifyInstalledFilesChecksums(ctx context.Context, pkg *models.Package, scopeConfig *storage.ScopeConfig) (allOK bool) {
+
+	if scopeConfig == nil {
+		slog.Debug(i18n.Msg("verifyInstalledFilesChecksums: scope config is nil"))
+		return false
+	}
+
+	for _, fileInst := range pkg.Files {
+		if fileInst.Checksum == "" {
+			continue
+		}
+
+		destination := m.resolveDestination(fileInst.Destination, scopeConfig)
+		if _, statErr := os.Stat(destination); statErr != nil {
+			slog.Debug(i18n.Msg("Checksum verification failed: file missing or unreadable"),
+				slog.String("package", pkg.Name),
+				slog.String("path", destination),
+				slog.Any("error", statErr))
+			return false
+		}
+
+		parts := strings.Split(fileInst.Checksum, ":")
+		if len(parts) != 2 {
+			slog.Debug(i18n.Msg("Checksum verification failed: invalid checksum format"),
+				slog.String("package", pkg.Name),
+				slog.String("path", destination))
+			return false
+		}
+
+		if m.validationEngine.ValidateChecksum(ctx, destination, parts[0], parts[1]) != nil {
+			slog.Debug(i18n.Msg("Checksum verification failed: checksum mismatch"),
+				slog.String("package", pkg.Name),
+				slog.String("path", destination))
+			return false
+		}
+	}
+
+	return true
+}
+
+// normalizePackage: заполняет пустые source в зависимостях из source основного пакета.
 func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (normalized *models.Package) {
 
 	mainSource := ""
@@ -704,7 +882,6 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 		return pkg
 	}
 
-	// Создаем копию пакета с нормализованными зависимостями
 	normalized = &models.Package{
 		Name:         pkg.Name,
 		Descr:        pkg.Descr,
@@ -734,7 +911,6 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 				normalized.Dependencies[i] = mainSource + ":" + packageName
 			}
 		} else {
-			// Оставляем как есть
 			normalized.Dependencies[i] = depStr
 		}
 	}
@@ -742,7 +918,6 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 	return normalized
 }
 
-// downloadWithProgress скачивает файл с отображением прогресса на общем прогресс-баре.
 func (m *manager) downloadWithProgress(ctx context.Context, url string, destination string, bar *ui.ProgressBar) (err error) {
 
 	if strings.HasPrefix(url, protocolFile) {
@@ -755,7 +930,6 @@ func (m *manager) downloadWithProgress(ctx context.Context, url string, destinat
 		errChan <- m.downloadManager.DownloadWithProgress(ctx, url, destination, progressChan)
 	}()
 
-	// Читаем прогресс и обновляем прогресс-бар
 	var downloadErr error
 
 	for {
@@ -796,116 +970,168 @@ func (m *manager) downloadWithProgress(ctx context.Context, url string, destinat
 	}
 }
 
-// packageToInstallInfo представляет информацию о пакете для установки.
 type packageToInstallInfo struct {
 	pkgName string
 	v       models.Version
 }
 
-// printDependencyTree выводит дерево зависимостей перед установкой.
-func (m *manager) printDependencyTree(ctx context.Context, graph *models.DependencyGraph, packagesInfo []packageToInstallInfo, rootPackageName string, rootVersion models.Version) {
+func (m *manager) treeCollectorFromContext(ctx context.Context) (c TreeCollector) {
+	if v := ctx.Value(contextkeys.TreeCollector); v != nil {
+		c, _ = v.(TreeCollector)
+	}
+	return
+}
 
+func (m *manager) resolveTreeSource(ctx context.Context, graph *models.DependencyGraph, rootPackageName string) (source string) {
+	if sourceVal := ctx.Value(contextkeys.Source); sourceVal != nil {
+		if s, ok := sourceVal.(string); ok && s != "" {
+			return s
+		}
+	}
+	var rootPkg *models.Package
+	for _, node := range graph.Nodes {
+		if node.Package.Name == rootPackageName {
+			rootPkg = node.Package
+			break
+		}
+	}
+	if rootPkg == nil {
+		return noSourcePlaceholder
+	}
+	var err error
+	if source, err = m.findPackageSource(ctx, rootPkg); err != nil {
+		return noSourcePlaceholder
+	}
+	return source
+}
+
+func (m *manager) buildPackageFlatInfo(graph *models.DependencyGraph, packageStatus map[string]string, rootPackageName string, rootVersion models.Version) (rootDisplay string, deps []PackageDisplay) {
+
+	var rootNode *models.DependencyNode
+	for _, n := range graph.Nodes {
+		if n.Package.Name == rootPackageName {
+			rootNode = n
+			break
+		}
+	}
+	if rootNode == nil {
+		return "", nil
+	}
+
+	status := packageStatus[rootNode.Package.Name]
+	if status == "" {
+		status = installStatusUnchanged
+	}
+	rootDisplay = m.installStatusPrefix(status) + fmt.Sprintf("%s v%s", rootNode.Package.Name, getVersionString(rootNode.Version, rootVersion))
+	if rootNode.Package.Descr != "" {
+		rootDisplay += " - " + rootNode.Package.Descr
+	}
+
+	seen := make(map[string]bool)
+	queue := []*models.DependencyNode{rootNode}
+	for len(queue) > 0 {
+		node := queue[0]
+		queue = queue[1:]
+		for _, edge := range graph.Edges {
+			if edge.From.ID != node.ID || edge.To == nil {
+				continue
+			}
+			child := edge.To
+			if seen[child.ID] {
+				continue
+			}
+			seen[child.ID] = true
+			st := packageStatus[child.Package.Name]
+			if st == "" {
+				st = installStatusUnchanged
+			}
+			display := m.installStatusPrefix(st) + fmt.Sprintf("%s v%s", child.Package.Name, getVersionString(child.Version, rootVersion))
+			if child.Package.Descr != "" {
+				display += " - " + child.Package.Descr
+			}
+			deps = append(deps, PackageDisplay{Name: child.Package.Name, Display: display, Status: st})
+			queue = append(queue, child)
+		}
+	}
+	return rootDisplay, deps
+}
+
+func (m *manager) installStatusPrefix(status string) (prefix string) {
+
+	switch status {
+	case installStatusUnchanged:
+		return pterm.Cyan("✓") + " "
+	case installStatusUpdated:
+		return pterm.Yellow("↑") + " "
+	case installStatusNew:
+		return pterm.Green("●") + " "
+	default:
+		return pterm.Cyan("✓") + " "
+	}
+}
+
+func (m *manager) buildPackageSubtree(graph *models.DependencyGraph, packagesInfo []packageToInstallInfo, packageStatus map[string]string, rootPackageName string, rootVersion models.Version) (node pterm.TreeNode) {
 	packagesToInstallMap := make(map[string]models.Version)
 	for _, pkgInfo := range packagesInfo {
 		packagesToInstallMap[pkgInfo.pkgName] = pkgInfo.v
 	}
 
-	var source string
-	if sourceVal := ctx.Value(contextkeys.Source); sourceVal != nil {
-		if s, ok := sourceVal.(string); ok {
-			source = s
-		}
-	}
-
-	if source == "" {
-		var rootPkg *models.Package
-		for _, node := range graph.Nodes {
-			if node.Package.Name == rootPackageName {
-				rootPkg = node.Package
-				break
+	var buildPackageTreeNode func(n *models.DependencyNode, visited map[string]bool) pterm.TreeNode
+	buildPackageTreeNode = func(n *models.DependencyNode, visited map[string]bool) (treeNode pterm.TreeNode) {
+		if visited[n.ID] {
+			status := packageStatus[n.Package.Name]
+			if status == "" {
+				status = installStatusUnchanged
 			}
-		}
-		if rootPkg != nil {
-			var err error
-			source, err = m.findPackageSource(ctx, rootPkg)
-			if err != nil {
-				source = noSourcePlaceholder
+			visitedText := m.installStatusPrefix(status) + fmt.Sprintf("%s v%s", n.Package.Name, getVersionString(n.Version, rootVersion))
+			if n.Package.Descr != "" {
+				visitedText += " - " + n.Package.Descr
 			}
-		} else {
-			source = noSourcePlaceholder
+			return pterm.TreeNode{Text: visitedText}
 		}
-	}
+		visited[n.ID] = true
 
-	// Строим дерево рекурсивно для пакетов
-	var buildPackageTreeNode func(node *models.DependencyNode, visited map[string]bool) pterm.TreeNode
-	buildPackageTreeNode = func(node *models.DependencyNode, visited map[string]bool) (treeNode pterm.TreeNode) {
-		if visited[node.ID] {
-			visitedText := fmt.Sprintf("%s v%s", node.Package.Name, getVersionString(node.Version, rootVersion))
-			if node.Package.Descr != "" {
-				visitedText += " - " + node.Package.Descr
-			}
-			return pterm.TreeNode{
-				Text: visitedText,
-			}
+		status := packageStatus[n.Package.Name]
+		if status == "" {
+			status = installStatusUnchanged
 		}
-		visited[node.ID] = true
-
-		nodeText := fmt.Sprintf("%s v%s", node.Package.Name, getVersionString(node.Version, rootVersion))
-
-		if node.Package.Descr != "" {
-			nodeText += " - " + node.Package.Descr
+		nodeText := m.installStatusPrefix(status) + fmt.Sprintf("%s v%s", n.Package.Name, getVersionString(n.Version, rootVersion))
+		if n.Package.Descr != "" {
+			nodeText += " - " + n.Package.Descr
 		}
 
-		if _, willInstall := packagesToInstallMap[node.Package.Name]; !willInstall {
-			// Пакет уже установлен, помечаем это зелёной галочкой
-			nodeText += " " + pterm.Green("✓")
-		}
-
-		// Находим дочерние узлы (зависимости)
 		var children []pterm.TreeNode
 		for _, edge := range graph.Edges {
-			if edge.From.ID == node.ID {
-				childNode := edge.To
-				if childNode != nil {
-					childTreeNode := buildPackageTreeNode(childNode, visited)
-					children = append(children, childTreeNode)
-				}
+			if edge.From.ID == n.ID && edge.To != nil {
+				children = append(children, buildPackageTreeNode(edge.To, visited))
 			}
 		}
-
-		return pterm.TreeNode{
-			Text:     nodeText,
-			Children: children,
-		}
+		return pterm.TreeNode{Text: nodeText, Children: children}
 	}
 
-	// Находим все пакеты из этого источника (корневой пакет и его зависимости)
-	var packageNodes []pterm.TreeNode
-	visited := make(map[string]bool)
-
-	// Находим корневой узел и строим дерево от него
 	var rootNode *models.DependencyNode
-	for _, node := range graph.Nodes {
-		if node.Package.Name == rootPackageName {
-			rootNode = node
+	for _, n := range graph.Nodes {
+		if n.Package.Name == rootPackageName {
+			rootNode = n
 			break
 		}
 	}
-
-	if rootNode != nil {
-		packageTreeNode := buildPackageTreeNode(rootNode, visited)
-		packageNodes = append(packageNodes, packageTreeNode)
+	if rootNode == nil {
+		return pterm.TreeNode{}
 	}
+	return buildPackageTreeNode(rootNode, make(map[string]bool))
+}
 
+func (m *manager) printDependencyTree(ctx context.Context, graph *models.DependencyGraph, packagesInfo []packageToInstallInfo, packageStatus map[string]string, rootPackageName string, rootVersion models.Version) {
+	source := m.resolveTreeSource(ctx, graph, rootPackageName)
+	subtree := m.buildPackageSubtree(graph, packagesInfo, packageStatus, rootPackageName, rootVersion)
 	rootTreeNode := pterm.TreeNode{
 		Text:     source,
-		Children: packageNodes,
+		Children: []pterm.TreeNode{subtree},
 	}
-
 	pterm.Println()
 	if err := pterm.DefaultTree.WithRoot(rootTreeNode).Render(); err != nil {
 		slog.Debug(i18n.Msg("Failed to render dependency tree"), slog.Any("error", err))
-		return
 	}
 }
 

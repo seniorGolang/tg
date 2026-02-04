@@ -110,7 +110,6 @@ func extractURLFromNormalizedPath(normalizedPath string) (source string) {
 		host = parts[1]
 		pathParts = parts[2:]
 	default:
-		// Один сегмент (host) — восстанавливаем как https://host
 		scheme = URLSchemeHTTPS
 		host = parts[0]
 		pathParts = parts[1:]

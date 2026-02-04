@@ -19,7 +19,6 @@ const (
 	protocolFile = "file://"
 )
 
-// manager реализует DownloadManager.
 type manager struct {
 	httpClient *http.Client
 }
@@ -30,7 +29,6 @@ func NewManager() managers.DownloadManager {
 	}
 }
 
-// Download загружает файл по URL.
 func (m *manager) Download(ctx context.Context, url string, destination string) (err error) {
 
 	if strings.HasPrefix(url, protocolFile) {
@@ -76,7 +74,6 @@ func (m *manager) Download(ctx context.Context, url string, destination string) 
 	return
 }
 
-// DownloadWithProgress загружает файл с отслеживанием прогресса.
 func (m *manager) DownloadWithProgress(ctx context.Context, url string, destination string, progress chan<- int) (err error) {
 
 	if strings.HasPrefix(url, protocolFile) {
@@ -154,9 +151,7 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 		}
 	}
 
-	// Отправляем финальное значение прогресса перед закрытием канала
 	if progress != nil {
-		// Отправляем 100% чтобы показать завершение (независимо от того, известен ли размер)
 		select {
 		case progress <- 100:
 		default:
@@ -167,7 +162,6 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 	return
 }
 
-// copyFile копирует файл из источника в назначение.
 func (m *manager) copyFile(src string, dst string) (err error) {
 
 	if err = os.MkdirAll(filepath.Dir(dst), 0755); err != nil {

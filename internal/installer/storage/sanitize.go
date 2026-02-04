@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// removeFileNameFromPath убирает имя файла (manifest.yml, manifest.yaml) из конца пути.
 func removeFileNameFromPath(path string) (cleanedPath string) {
 
 	cleanedPath = strings.TrimSuffix(path, PathSeparator+ManifestFileName)
@@ -18,7 +17,6 @@ func removeFileNameFromPath(path string) (cleanedPath string) {
 	return cleanedPath
 }
 
-// sanitizePathComponent очищает компонент пути от небезопасных символов.
 func sanitizePathComponent(component string) (sanitized string) {
 
 	sanitized = strings.Map(func(r rune) rune {
@@ -30,7 +28,6 @@ func sanitizePathComponent(component string) (sanitized string) {
 	return
 }
 
-// sanitizePath очищает путь от небезопасных символов, сохраняя структуру папок.
 func sanitizePath(path string) (sanitized string) {
 
 	parts := strings.Split(path, PathSeparator)

@@ -10,6 +10,11 @@ import (
 	"github.com/pterm/pterm"
 )
 
+func init() {
+
+	pterm.DefaultLogger = *pterm.DefaultLogger.WithMaxWidth(pterm.GetTerminalWidth())
+}
+
 type PTermHandler struct {
 	level slog.Level
 	mu    sync.Mutex

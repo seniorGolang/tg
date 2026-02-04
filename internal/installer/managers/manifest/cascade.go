@@ -19,8 +19,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// loadManifestCascadeRecursive рекурсивно загружает манифест и связанные с учётом версий.
-// requestedVersion - версия, явно указанная в URL (например, @v1.0.0). Если пустая, версия не была явно указана.
+// loadManifestCascadeRecursive: requestedVersion — версия из URL (@v1.0.0); пустая значит не указана.
 func (m *manager) loadManifestCascadeRecursive(ctx context.Context, manifestURL string, source string, force bool, requestedVersion string) (err error) {
 
 	select {
@@ -48,10 +47,8 @@ func (m *manager) loadManifestCascadeRecursive(ctx context.Context, manifestURL 
 	normalizedSource := storage.NormalizeSource(source)
 	manifestDir := storage.GetManifestDir(m.scopeName, normalizedSource)
 
-	// Отмечаем source как загруженный
 	m.loadedSources[normalizedSource] = true
 
-	// Если force=false, проверяем версию и пропускаем, если новая версия меньше
 	if !force {
 		var existingVersion string
 		if existingVersion, err = m.getExistingManifestVersion(manifestDir); err == nil {
@@ -61,7 +58,6 @@ func (m *manager) loadManifestCascadeRecursive(ctx context.Context, manifestURL 
 				if oldVersion, err = version.Parse(existingVersion); err == nil {
 					comparison := version.Compare(newVersion, oldVersion)
 					if comparison < 0 {
-						// Если версия была явно указана в URL, выводим предупреждение
 						if requestedVersion != "" {
 							slog.Warn(
 								i18n.Msg("Requested manifest version is older than existing version, using existing version"),
@@ -71,19 +67,14 @@ func (m *manager) loadManifestCascadeRecursive(ctx context.Context, manifestURL 
 							)
 						}
 
-						// Не перезаписываем манифест более старой версией; вложенные манифесты (refs) всё равно
-						// загружаем из уже сохранённого в каталоге файла, чтобы каскад оставался согласованным.
-						// При пропуске используем существующий манифест из каталога для обработки вложенных манифестов
+						// Не перезаписываем более старой версией; refs загружаем из каталога, чтобы каскад был согласован.
 						var existingManifest *models.Manifest
 						if existingManifest, err = m.loadExistingManifest(manifestDir); err != nil {
 							slog.Debug(i18n.Msg("Failed to load existing manifest for cascade processing"), slog.String("manifestDir", manifestDir), slog.Any("error", err))
 							return
 						}
 
-						// Отмечаем URL как загруженный
 						m.loadedURLs[key] = true
-
-						// Обрабатываем вложенные манифесты из существующего манифеста
 						if err = m.processManifestRefs(ctx, existingManifest, force); err != nil {
 							return
 						}
@@ -114,7 +105,6 @@ func (m *manager) loadManifestCascadeRecursive(ctx context.Context, manifestURL 
 
 	m.loadedURLs[key] = true
 
-	// Обрабатываем вложенные манифесты
 	if err = m.processManifestRefs(ctx, manifest, force); err != nil {
 		return
 	}
@@ -147,7 +137,6 @@ func (m *manager) getExistingManifestVersion(manifestDir string) (version string
 	return
 }
 
-// loadExistingManifest загружает существующий манифест из каталога.
 func (m *manager) loadExistingManifest(manifestDir string) (manifest *models.Manifest, err error) {
 
 	manifestFile := filepath.Join(manifestDir, storage.ManifestFileName)
@@ -172,7 +161,6 @@ func (m *manager) loadExistingManifest(manifestDir string) (manifest *models.Man
 	return
 }
 
-// processManifestRefs обрабатывает вложенные манифесты из поля manifests.
 func (m *manager) processManifestRefs(ctx context.Context, manifest *models.Manifest, force bool) (err error) {
 
 	for _, ref := range manifest.Manifests {

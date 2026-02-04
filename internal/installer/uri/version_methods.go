@@ -7,7 +7,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/version"
 )
 
-// ParseVersion парсит версию URI в структуру Version.
 func (u *URI) ParseVersion() (v models.Version, err error) {
 
 	if u.version.Original == "" {
@@ -76,7 +75,6 @@ func (u *URI) FilterVersionsByConstraint(versions []models.Version) (filtered []
 	return version.FilterByConstraint(u.version.Original, versions)
 }
 
-// FindMatchingVersion находит версию из списка, соответствующую ограничению версии URI.
 func (u *URI) FindMatchingVersion(versions []models.Version) (matched models.Version) {
 
 	return version.FindMatching(u.version.Original, versions)

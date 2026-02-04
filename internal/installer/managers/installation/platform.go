@@ -10,7 +10,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// selectURLForDownload выбирает URL из массива downloads по приоритету согласно архитектуре.
 func (m *manager) selectURLForDownload(downloads []models.PlatformDownload) (url string, err error) {
 
 	currentOS := runtime.GOOS
@@ -37,8 +36,7 @@ func (m *manager) selectURLForDownload(downloads []models.PlatformDownload) (url
 	return
 }
 
-// calculatePriority вычисляет приоритет download для текущей платформы.
-// Чем выше число, тем предпочтительнее: 4 = OS+Arch совпадают, 3 = только OS, 2 = только Arch, 1 = универсальный (оба пустые), 0 = не подходит.
+// calculatePriority: 4 = OS+Arch, 3 = только OS, 2 = только Arch, 1 = оба пустые, 0 = не подходит.
 func (m *manager) calculatePriority(download *models.PlatformDownload, currentOS string, currentArch string) (priority int) {
 
 	if download.OS == currentOS && download.Arch == currentArch {

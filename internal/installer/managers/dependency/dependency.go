@@ -21,7 +21,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// resolver реализует DependencyResolver.
 type resolver struct {
 	manifestManager managers.ManifestManager
 	databaseManager managers.DatabaseManager
@@ -34,7 +33,7 @@ func NewResolver(manifestManager managers.ManifestManager, databaseManager manag
 	}
 }
 
-// resolveAlias разрешает пакет-псевдоним: загружает целевой пакет и объединяет зависимости (целевые + из псевдонима).
+// resolveAlias: загружает целевой пакет по alias и объединяет зависимости (целевые + из псевдонима).
 func (r *resolver) resolveAlias(ctx context.Context, pkg *models.Package) (effective *models.Package, downloadSource string, targetVersion string, err error) {
 
 	if pkg.Alias == "" {
@@ -107,7 +106,6 @@ func mergeDependencies(base []string, extra []string) (merged []string) {
 	return merged
 }
 
-// ResolveDependencies разрешает зависимости пакета.
 func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package) (graph *models.DependencyGraph, err error) {
 
 	select {
@@ -153,7 +151,6 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 		default:
 		}
 
-		// Нормализуем URI зависимости (преобразуем packageName@version в source:packageName@version)
 		var parsedURI uri.URI
 		if parsedURI, err = r.normalizeURI(ctx, depStr); err != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to parse dependency %s: %w"), depStr, err)
@@ -164,7 +161,6 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 		packageName := parsedURI.Package()
 		versionStr := parsedURI.Version().Original
 
-		// Если указан source, пытаемся загрузить манифест из него, если он еще не загружен
 		if source != "" {
 			if err = r.ensureManifestLoaded(ctx, source); err != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to load manifest from source %s: %w"), source, err)
@@ -172,7 +168,6 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 			}
 		}
 
-		// Пытаемся найти пакет, используя source из зависимости, если указан
 		var depPkg *models.Package
 		var depManifest *models.Manifest
 
@@ -185,11 +180,9 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 
 		if depPkg, depManifest, err = r.manifestManager.FindPackage(ctx, fullPackageName); err != nil {
 			slog.Debug(i18n.Msg("ResolveDependencies: FindPackage failed"), slog.String("packageName", fullPackageName), slog.Any("error", err))
-			// Проверяем, является ли ошибка конфликтом источников
 			errMsg := err.Error()
 			multipleManifestsMsg := fmt.Sprintf(i18n.Msg("Package %s found in multiple manifests"), packageName)
 			if strings.Contains(errMsg, multipleManifestsMsg) || strings.Contains(errMsg, "найден в нескольких манифестах") {
-				// Разрешаем конфликт интерактивно
 				var selectedPkg *models.Package
 				var selectedManifest *models.Manifest
 				var resolveErr error
@@ -248,8 +241,7 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 	return
 }
 
-// Использует алгоритм DFS с отслеживанием рекурсивного стека.
-// Сложность: O(V + E), где V - количество узлов, E - количество рёбер.
+// CheckCycles: DFS с рекурсивным стеком, O(V+E).
 func (r *resolver) CheckCycles(ctx context.Context, graph *models.DependencyGraph) (err error) {
 
 	visited := make(map[string]bool)
@@ -296,7 +288,6 @@ func (r *resolver) CheckCycles(ctx context.Context, graph *models.DependencyGrap
 	return
 }
 
-// SortForInstallation выполняет топологическую сортировку для установки.
 func (r *resolver) SortForInstallation(ctx context.Context, graph *models.DependencyGraph) (packages []*models.Package, err error) {
 
 	select {
@@ -373,10 +364,8 @@ func (r *resolver) CheckCompatibility(ctx context.Context, installed *models.Pac
 	return version.Match(required.Version, installedVersion)
 }
 
-// resolveSourceConflict разрешает конфликт источников для пакета интерактивно.
 func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string, requestedSource string) (pkg *models.Package, manifest *models.Manifest, err error) {
 
-	// Получаем все варианты пакета из разных источников
 	var allPackages []managers.PackageWithSource
 	if allPackages, err = r.manifestManager.FindAllPackages(ctx, packageName); err != nil {
 		err = fmt.Errorf(i18n.Msg("Failed to get package information: %w"), err)
@@ -389,50 +378,41 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 	}
 
 	if len(allPackages) == 1 {
-		// Если только один вариант, возвращаем его
 		pkg = allPackages[0].Package
 		manifest = allPackages[0].Manifest
 		return
 	}
 
-	// Проверяем, есть ли уже установленный пакет
 	var installed *models.Installation
 	installed, err = r.databaseManager.FindByPackage(ctx, "", packageName)
 	if err != nil {
 		installed = nil
 	}
 
-	// Если указан запрошенный source, ищем пакет в этом источнике
 	if requestedSource != "" {
 		normalizedRequestedSource := storage.NormalizeSource(requestedSource)
 		for _, pkgWithSource := range allPackages {
 			normalizedCurrentSource := storage.NormalizeSource(pkgWithSource.Source)
 			if normalizedRequestedSource == normalizedCurrentSource {
-				// Найден пакет в запрошенном источнике
-				// Проверяем версию, если есть установленный пакет
 				if installed != nil {
 					normalizedInstalledSource := storage.NormalizeSource(installed.Source)
 
-					// Если источник совпадает с установленным, используем автоматически
 					if normalizedInstalledSource == normalizedRequestedSource {
 						pkg = pkgWithSource.Package
 						manifest = pkgWithSource.Manifest
 						return
 					}
 
-					// Если источник другой, проверяем версии
 					var installedVersion models.Version
 					if installedVersion, err = version.Parse(installed.Version); err == nil {
 						var requestedVersion models.Version
 						if requestedVersion, err = version.Parse(pkgWithSource.Manifest.Version); err == nil {
 							comparison := version.Compare(installedVersion, requestedVersion)
 							if comparison <= 0 {
-								// Устанавливаемая версия >= установленной (upgrade или равная) - используем автоматически
 								pkg = pkgWithSource.Package
 								manifest = pkgWithSource.Manifest
 								return
 							}
-							// Устанавливаемая версия < установленной (downgrade) - спрашиваем подтверждение
 							confirmMessage := fmt.Sprintf(i18n.Msg("Replace package %s from source '%s' (version %s) with package from source '%s' (version %s)?"), packageName, installed.Source, installed.Version, pkgWithSource.Source, pkgWithSource.Manifest.Version)
 							var confirm bool
 							if confirm, err = pterm.DefaultInteractiveConfirm.
@@ -450,7 +430,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 							return
 						}
 					}
-					// Если не удалось распарсить версию, спрашиваем подтверждение
 					confirmMessage := fmt.Sprintf(i18n.Msg("Replace package %s from source '%s' (version %s) with package from source '%s' (version %s)?"), packageName, installed.Source, installed.Version, pkgWithSource.Source, pkgWithSource.Manifest.Version)
 					var confirm bool
 					if confirm, err = pterm.DefaultInteractiveConfirm.
@@ -464,7 +443,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 						return
 					}
 				}
-				// Если нет установленного пакета, используем автоматически
 				pkg = pkgWithSource.Package
 				manifest = pkgWithSource.Manifest
 				return
@@ -472,7 +450,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		}
 	}
 
-	// Формируем информацию о конфликте
 	var conflictMessage strings.Builder
 	conflictMessage.WriteString(fmt.Sprintf(i18n.Msg("Package %s found in multiple sources:")+"\n", packageName))
 
@@ -482,11 +459,9 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 
 	conflictMessage.WriteString(i18n.Msg("Available sources:") + "\n")
 
-	// Формируем опции для выбора
 	options := make([]string, 0, len(allPackages))
 	packageMap := make(map[string]*managers.PackageWithSource, len(allPackages))
 
-	// Если указан запрошенный source, помечаем его
 	if requestedSource != "" {
 		conflictMessage.WriteString(fmt.Sprintf(i18n.Msg("Requested source: %s")+"\n", requestedSource))
 	}
@@ -503,12 +478,10 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 			optionText += " - " + pkgWithSource.Package.Descr
 		}
 
-		// Помечаем запрошенный source
 		if requestedSource != "" && pkgWithSource.Source == requestedSource {
 			optionText += " " + i18n.Msg("(requested)")
 		}
 
-		// Помечаем установленный пакет
 		if installed != nil && installed.Source != "" {
 			normalizedInstalledSource := strings.TrimSpace(installed.Source)
 			normalizedCurrentSource := strings.TrimSpace(pkgWithSource.Source)
@@ -522,12 +495,9 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		conflictMessage.WriteString(fmt.Sprintf("  - %s\n", optionText))
 	}
 
-	// Выводим предупреждение о конфликте
 	pterm.Warning.Println(conflictMessage.String())
 
-	// Если есть установленный пакет из другого источника, предупреждаем о замене
 	if installed != nil {
-		// Проверяем, есть ли среди вариантов установленный пакет
 		hasInstalledSource := false
 		for _, pkgWithSource := range allPackages {
 			if installed.Source != "" && pkgWithSource.Source == installed.Source {
@@ -542,7 +512,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		}
 	}
 
-	// Показываем интерактивный выбор
 	var selected string
 	if selected, err = pterm.DefaultInteractiveSelect.
 		WithOptions(options).
@@ -559,7 +528,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		return
 	}
 
-	// Если выбран другой источник, чем установленный, запрашиваем подтверждение
 	if installed != nil && installed.Source != "" && selectedPkg.Source != installed.Source {
 		confirmMessage := fmt.Sprintf(i18n.Msg("Replace package %s from source '%s' (version %s) with package from source '%s' (version %s)?"), packageName, installed.Source, installed.Version, selectedPkg.Source, selectedPkg.Manifest.Version)
 		var confirm bool
@@ -580,26 +548,19 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 	return
 }
 
-// normalizeURI нормализует спецификацию пакета, преобразуя packageName@version в source:packageName@version.
-// Если спецификация уже содержит URL, возвращает её как есть.
 func (r *resolver) normalizeURI(ctx context.Context, spec string) (normalizedURI uri.URI, err error) {
 
-	// Пытаемся распарсить как URI
 	parsedURI, parseErr := uri.New(spec)
 	if parseErr == nil {
-		// Успешно распарсено - это уже валидный URI с URL
 		normalizedURI = parsedURI
 		return
 	}
 
-	// Если ошибка не "URL must have a scheme", возвращаем её
 	if !strings.Contains(parseErr.Error(), "URL must have a scheme") {
 		err = parseErr
 		return
 	}
 
-	// Это packageName@version - нужно нормализовать
-	// Извлекаем packageName и version
 	parts := strings.Split(spec, "@")
 	packageName := parts[0]
 	versionStr := ""
@@ -607,7 +568,6 @@ func (r *resolver) normalizeURI(ctx context.Context, spec string) (normalizedURI
 		versionStr = parts[1]
 	}
 
-	// Ищем пакет в загруженных манифестах
 	var packages []managers.PackageWithSource
 	if packages, err = r.manifestManager.FindAllPackages(ctx, packageName); err != nil {
 		err = fmt.Errorf(i18n.Msg("Package %s not found: %w"), packageName, err)
@@ -619,21 +579,17 @@ func (r *resolver) normalizeURI(ctx context.Context, spec string) (normalizedURI
 		return
 	}
 
-	// Если пакет найден в нескольких манифестах, берем первый
-	// В будущем можно добавить интерактивный выбор
 	source := packages[0].Source
 	if source == "" {
 		err = fmt.Errorf(i18n.Msg("Package %s found but source is empty"), packageName)
 		return
 	}
 
-	// Формируем нормализованный URI: source:packageName@version
 	normalizedSpec := source + ":" + packageName
 	if versionStr != "" {
 		normalizedSpec += "@" + versionStr
 	}
 
-	// Парсим нормализованный URI
 	if normalizedURI, err = uri.New(normalizedSpec); err != nil {
 		err = fmt.Errorf(i18n.Msg("Failed to parse normalized URI %s: %w"), normalizedSpec, err)
 		return
@@ -642,7 +598,6 @@ func (r *resolver) normalizeURI(ctx context.Context, spec string) (normalizedURI
 	return
 }
 
-// ensureManifestLoaded загружает манифест из source, если он еще не загружен.
 func (r *resolver) ensureManifestLoaded(ctx context.Context, source string) (err error) {
 
 	slog.Debug(i18n.Msg("Ensuring manifest is loaded"), slog.String("source", source))

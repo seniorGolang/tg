@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/uri/proxy"
 )
 
-// URI представляет разобранный URI со всеми компонентами.
 type URI struct {
 	source      string
 	packageName string
@@ -40,7 +39,6 @@ type URI struct {
 // нормализованы в полный формат URL:packageName@version перед вызовом New.
 func New(spec string, opts ...Option) (u URI, err error) {
 
-	// Применяем опции
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&u)

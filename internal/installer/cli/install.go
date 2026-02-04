@@ -7,20 +7,22 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
+
+	"github.com/pterm/pterm"
 
 	"github.com/seniorGolang/tg/v3/internal/cli/utils"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
+	"github.com/seniorGolang/tg/v3/internal/installer/contextkeys"
 	"github.com/seniorGolang/tg/v3/internal/installer/managers"
+	"github.com/seniorGolang/tg/v3/internal/installer/managers/installation"
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 	"github.com/seniorGolang/tg/v3/internal/installer/storage"
 	"github.com/seniorGolang/tg/v3/internal/installer/uri"
 	"github.com/seniorGolang/tg/v3/internal/installer/version"
-
-	"github.com/pterm/pterm"
 )
 
-// HandleInstall обрабатывает команду install согласно архитектуре.
 func (inst *Installer) HandleInstall(ctx context.Context, args []string, version string, force bool, dryRun bool, verbose bool) (err error) {
 
 	if len(args) == 0 {
@@ -29,7 +31,6 @@ func (inst *Installer) HandleInstall(ctx context.Context, args []string, version
 	}
 
 	if dryRun {
-		// Симуляция установки - показываем что будет установлено
 		for _, packageSpec := range args {
 			var parsedURI uri.URI
 			if parsedURI, err = inst.normalizeURI(ctx, packageSpec); err != nil {
@@ -71,7 +72,6 @@ func (inst *Installer) HandleInstall(ctx context.Context, args []string, version
 		return
 	}
 
-	// Поддерживаем установку нескольких пакетов
 	for _, packageSpec := range args {
 		select {
 		case <-ctx.Done():
@@ -89,8 +89,6 @@ func (inst *Installer) HandleInstall(ctx context.Context, args []string, version
 	return
 }
 
-// normalizeURI нормализует спецификацию пакета, преобразуя packageName@version в source:packageName@version.
-// Если спецификация уже содержит URL, возвращает её как есть.
 func (inst *Installer) normalizeURI(ctx context.Context, spec string) (normalizedURI uri.URI, err error) {
 
 	parsedURI, parseErr := uri.New(spec)
@@ -191,14 +189,8 @@ func (inst *Installer) installSinglePackage(ctx context.Context, packageSpec str
 			}
 		}
 
-		// Передаем force через контекст
 		ctx = context.WithValue(ctx, ContextKeyForce, force)
-
-		// При --force установка будет обновлена автоматически после успешной установки
-		// через RecordInstallation (так как ID формируется из package@version)
-		// Не удаляем установку перед установкой - если установка завершится ошибкой,
-		// старая установка останется нетронутой
-
+		// При --force не удаляем установку заранее: при ошибке старая остаётся; ID = package@version, RecordInstallation обновит запись.
 		return inst.installationManager.Install(ctx, pkg, v)
 	}
 
@@ -209,7 +201,6 @@ func (inst *Installer) installSinglePackage(ctx context.Context, packageSpec str
 	return inst.handleInstallPackageFromSource(ctx, source, packageName, versionStr, force)
 }
 
-// handleInstallFromSource обрабатывает установку из источника без указания пакета.
 func (inst *Installer) handleInstallFromSource(ctx context.Context, source string, versionStr string, force bool) (err error) {
 
 	slog.Debug(i18n.Msg("Handling install from source"), slog.String("source", source), slog.String("version", versionStr), slog.Bool("force", force))
@@ -228,23 +219,19 @@ func (inst *Installer) handleInstallFromSource(ctx context.Context, source strin
 	}
 
 	slog.Debug(i18n.Msg("Loading manifest cascade"), slog.String("source", source), slog.String("manifestURL", manifestURL))
-	// Загружаем манифест и все связанные
 	var loadedSources map[string]bool
 	if loadedSources, err = inst.manifestManager.LoadManifestCascade(ctx, manifestURL, source, false); err != nil {
 		slog.Debug(i18n.Msg("Failed to load manifest cascade, trying JSON fallback"), slog.String("source", source), slog.String("manifestURL", manifestURL), slog.Any("error", err))
-		// Если это GitHub URL и не удалось загрузить .yml, пробуем .json
 		if strings.Contains(manifestURL, storage.ReleasesDownloadPath) && strings.HasSuffix(manifestURL, storage.ManifestFileName) {
 			jsonURL := strings.TrimSuffix(manifestURL, storage.ManifestFileName) + ".json"
 			slog.Debug(i18n.Msg("Trying JSON manifest"), slog.String("source", source), slog.String("jsonURL", jsonURL))
 			var jsonErr error
 			if loadedSources, jsonErr = inst.manifestManager.LoadManifestCascade(ctx, jsonURL, source, false); jsonErr == nil {
-				// Перезагружаем индекс после загрузки каскада
 				if err = inst.manifestManager.ReloadIndex(ctx); err != nil {
 					slog.Error(i18n.Msg("Failed to reload index after loading manifest cascade"), slog.String("source", source), slog.Any("error", err))
 					err = fmt.Errorf(i18n.Msg("Failed to reload index: %w"), err)
 					return
 				}
-				// Собираем все пакеты из всех загруженных манифестов
 				return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources)
 			}
 			slog.Debug(i18n.Msg("JSON manifest fallback also failed"), slog.String("source", source), slog.String("jsonURL", jsonURL), slog.Any("error", jsonErr))
@@ -254,21 +241,17 @@ func (inst *Installer) handleInstallFromSource(ctx context.Context, source strin
 		return
 	}
 
-	// Перезагружаем индекс после загрузки каскада
 	if err = inst.manifestManager.ReloadIndex(ctx); err != nil {
 		slog.Error(i18n.Msg("Failed to reload index after loading manifest cascade"), slog.String("source", source), slog.Any("error", err))
 		err = fmt.Errorf(i18n.Msg("Failed to reload index: %w"), err)
 		return
 	}
 
-	// Собираем все пакеты из всех загруженных манифестов
 	return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources)
 }
 
-// processAllPackagesFromManifests обрабатывает все пакеты из всех загруженных манифестов.
 func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, versionStr string, force bool, source string, loadedSources map[string]bool) (err error) {
 
-	// Собираем все пакеты только из загруженных манифестов
 	var allPackages []models.Package
 	if allPackages, err = inst.manifestManager.ListPackagesFromSources(ctx, loadedSources); err != nil {
 		slog.Error(i18n.Msg("Failed to list packages from manifests"), slog.String("source", source), slog.Any("error", err))
@@ -305,13 +288,9 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 		}
 	}
 
-	// Передаем force и source через контекст
 	ctx = context.WithValue(ctx, ContextKeyForce, force)
 	ctx = context.WithValue(ctx, ContextKeySource, source)
-
-	// При установке из источника с несколькими пакетами один и тот же пакет может быть в нескольких манифестах.
-	// selectedSourceForConflict сохраняет выбранный пользователем источник после первого resolvePackageWithSourceSelection,
-	// чтобы последующие FindPackage для других пакетов использовали тот же источник без повторного запроса.
+	// Один пакет может быть в нескольких манифестах; selectedSourceForConflict — выбранный пользователем источник, чтобы не спрашивать повторно.
 	var selectedSourceForConflict string
 
 	getPackageVersion := func(pkg *models.Package) (pkgVersion models.Version, err error) {
@@ -335,7 +314,6 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 		return
 	}
 
-	// Если пакет один - автоматическая установка
 	if len(allPackages) == 1 {
 		pkg := allPackages[0]
 		var pkgVersion models.Version
@@ -345,7 +323,6 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 		return inst.installationManager.Install(ctx, &pkg, pkgVersion)
 	}
 
-	// Если пакетов несколько - интерактивный выбор
 	var selectedPackages []*models.Package
 	if selectedPackages, err = inst.selectPackagesInteractively(ctx, allPackages, versionStr, &selectedSourceForConflict); err != nil {
 		err = fmt.Errorf(i18n.Msg("Failed to select packages: %w"), err)
@@ -362,23 +339,21 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 		pterm.Info.Printf(i18n.Msg("Installing %d packages...")+"\n", totalPackages)
 	}
 
-	maxNameLength := 0
-	for _, pkg := range selectedPackages {
-		if len(pkg.Name) > maxNameLength {
-			maxNameLength = len(pkg.Name)
-		}
+	var batchCollector *batchTreeCollector
+	if totalPackages > 1 {
+		batchCollector = &batchTreeCollector{}
+		ctx = context.WithValue(ctx, contextkeys.TreeCollector, batchCollector)
+		ctx = context.WithValue(ctx, contextkeys.SessionInstalledIDs, &installation.SessionInstalledSet{
+			IDs: make(map[string]struct{}),
+		})
 	}
 
-	for i, pkg := range selectedPackages {
+	for _, pkg := range selectedPackages {
 		select {
 		case <-ctx.Done():
 			err = ctx.Err()
 			return
 		default:
-		}
-
-		if totalPackages > 1 {
-			pterm.Info.Printf("[%d/%d] %-*s", i+1, totalPackages, maxNameLength, pkg.Name)
 		}
 
 		var pkgVersion models.Version
@@ -398,17 +373,90 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 				err = installErr
 				return
 			}
-		} else {
-			if totalPackages > 1 {
-				pterm.Success.Printf(" %s\n", i18n.Msg("installed"))
-			}
 		}
+	}
+
+	if batchCollector != nil && len(batchCollector.trees) > 0 {
+		pterm.Success.Println(i18n.Msg("Packages installed:"))
+		inst.renderCombinedDependencyTree(batchCollector.trees)
 	}
 
 	return
 }
 
-// handleInstallPackageFromSource обрабатывает установку пакета из источника согласно архитектуре.
+type batchTreeCollector struct {
+	trees []struct {
+		source      string
+		rootDisplay string
+		deps        []installation.PackageDisplay
+	}
+}
+
+func (c *batchTreeCollector) AddTree(source string, rootDisplay string, deps []installation.PackageDisplay) {
+	c.trees = append(c.trees, struct {
+		source      string
+		rootDisplay string
+		deps        []installation.PackageDisplay
+	}{source: source, rootDisplay: rootDisplay, deps: deps})
+}
+
+var _ installation.TreeCollector = (*batchTreeCollector)(nil)
+
+func installStatusPriority(status string) (p int) {
+	switch status {
+	case installation.InstallStatusNew:
+		return 2
+	case installation.InstallStatusUpdated:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func (inst *Installer) renderCombinedDependencyTree(trees []struct {
+	source      string
+	rootDisplay string
+	deps        []installation.PackageDisplay
+}) {
+	if len(trees) == 0 {
+		return
+	}
+	rootSource := trees[0].source
+
+	mergedDeps := make(map[string]installation.PackageDisplay)
+	for _, t := range trees {
+		for _, d := range t.deps {
+			if existing, ok := mergedDeps[d.Name]; !ok || installStatusPriority(d.Status) > installStatusPriority(existing.Status) {
+				mergedDeps[d.Name] = d
+			}
+		}
+	}
+
+	depNames := make([]string, 0, len(mergedDeps))
+	for name := range mergedDeps {
+		depNames = append(depNames, name)
+	}
+	sort.Strings(depNames)
+	dependencyNodes := make([]pterm.TreeNode, 0, len(depNames))
+	for _, name := range depNames {
+		dependencyNodes = append(dependencyNodes, pterm.TreeNode{Text: mergedDeps[name].Display})
+	}
+
+	packageNodes := make([]pterm.TreeNode, 0, len(trees))
+	for _, t := range trees {
+		packageNodes = append(packageNodes, pterm.TreeNode{Text: t.rootDisplay})
+	}
+
+	depsLabel := i18n.Msg("Dependencies")
+	packagesLabel := i18n.Msg("Packages")
+	rootChildren := []pterm.TreeNode{
+		{Text: depsLabel, Children: dependencyNodes},
+		{Text: packagesLabel, Children: packageNodes},
+	}
+	root := pterm.TreeNode{Text: rootSource, Children: rootChildren}
+	_ = pterm.DefaultTree.WithRoot(root).Render()
+}
+
 func (inst *Installer) handleInstallPackageFromSource(ctx context.Context, source string, packageName string, versionStr string, force bool) (err error) {
 
 	slog.Debug(i18n.Msg("Handling install package from source"), slog.String("source", source), slog.String("package", packageName), slog.String("version", versionStr), slog.Bool("force", force))
@@ -427,14 +475,12 @@ func (inst *Installer) handleInstallPackageFromSource(ctx context.Context, sourc
 	}
 
 	slog.Debug(i18n.Msg("Loading manifest cascade for package"), slog.String("source", source), slog.String("package", packageName), slog.String("manifestURL", manifestURL))
-	// Загружаем манифест из указанного источника
 	if _, err = inst.manifestManager.LoadManifestCascade(ctx, manifestURL, source, false); err != nil {
 		slog.Error(i18n.Msg("Failed to load manifest cascade"), slog.String("source", source), slog.String("package", packageName), slog.String("manifestURL", manifestURL), slog.Any("error", err))
 		err = fmt.Errorf(i18n.Msg("Failed to load manifest: %w"), err)
 		return
 	}
 
-	// Загружаем манифест напрямую из URL
 	var manifest *models.Manifest
 	if manifest, err = inst.manifestManager.LoadManifest(ctx, manifestURL); err != nil {
 		err = fmt.Errorf(i18n.Msg("Failed to load manifest: %w"), err)
@@ -477,15 +523,9 @@ func (inst *Installer) handleInstallPackageFromSource(ctx context.Context, sourc
 		return
 	}
 
-	// Передаем force и source через контекст
 	ctx = context.WithValue(ctx, ContextKeyForce, force)
 	ctx = context.WithValue(ctx, ContextKeySource, source)
-
-	// При --force установка будет обновлена автоматически после успешной установки
-	// через RecordInstallation (так как ID формируется из package@version)
-	// Не удаляем установку перед установкой - если установка завершится ошибкой,
-	// старая установка останется нетронутой
-
+	// При --force не удаляем установку заранее: при ошибке старая остаётся; ID = package@version, RecordInstallation обновит запись.
 	return inst.installationManager.Install(ctx, pkg, v)
 }
 
@@ -498,7 +538,7 @@ func isMultipleManifestsError(err error) bool {
 	return strings.Contains(msg, "found in multiple manifests") || strings.Contains(msg, "найден в нескольких манифестах")
 }
 
-// getManifestForPackage возвращает манифест для пакета. Для пакета с Alias ищет по целевому source/package, без запроса выбора источника.
+// getManifestForPackage: для пакета с Alias ищет по целевому source/package без запроса выбора источника.
 func (inst *Installer) getManifestForPackage(ctx context.Context, pkg *models.Package, selectedSourceForConflict *string) (manifest *models.Manifest, err error) {
 
 	if pkg.Alias != "" {
@@ -534,7 +574,6 @@ func (inst *Installer) getManifestForPackage(ctx context.Context, pkg *models.Pa
 	return manifest, err
 }
 
-// resolvePackageWithSourceSelection при нескольких источниках показывает интерактивный выбор и возвращает выбранный пакет и источник.
 func (inst *Installer) resolvePackageWithSourceSelection(ctx context.Context, packageName string) (pkg *models.Package, manifest *models.Manifest, selectedSource string, err error) {
 
 	allPackages, listErr := inst.manifestManager.FindAllPackages(ctx, packageName)
@@ -594,7 +633,6 @@ func (inst *Installer) resolvePackageWithSourceSelection(ctx context.Context, pa
 	return
 }
 
-// selectPackagesInteractively выполняет интерактивный множественный выбор пакетов из списка.
 func (inst *Installer) selectPackagesInteractively(ctx context.Context, packages []models.Package, version string, selectedSourceForConflict *string) (selectedPackages []*models.Package, err error) {
 
 	if len(packages) == 0 {
@@ -602,7 +640,6 @@ func (inst *Installer) selectPackagesInteractively(ctx context.Context, packages
 		return
 	}
 
-	// Формируем список опций для выбора с версией и описанием
 	options := make([]string, 0, len(packages))
 	packageMap := make(map[string]*models.Package, len(packages))
 

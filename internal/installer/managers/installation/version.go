@@ -13,6 +13,7 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/installer/contextkeys"
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
+	"github.com/seniorGolang/tg/v3/internal/installer/storage"
 	"github.com/seniorGolang/tg/v3/internal/installer/version"
 )
 
@@ -22,10 +23,10 @@ const (
 	comparisonLess    = -1
 )
 
-// versionCheckResult представляет результат проверки версии.
 type versionCheckResult struct {
 	shouldInstall bool
 	skipReason    string
+	installStatus string // "unchanged" | "new" | "updated"
 }
 
 func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Package, versionToCheck models.Version, versionConstraint string, allInstallations []models.Installation, pkgSource string) (result versionCheckResult, err error) {
@@ -39,11 +40,23 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 		}
 	}
 
-	// Если указан --force, принудительно устанавливаем пакет, даже если версия совпадает
 	if force {
 		slog.Debug(i18n.Msg("checkPackageVersion: force flag is set, proceeding with installation"))
-		result = versionCheckResult{shouldInstall: true}
+		result = versionCheckResult{shouldInstall: true, installStatus: installStatusUpdated}
 		return
+	}
+
+	// Для пакетов с alias — источник из контекста; для остальных — из графа (pkgSource).
+	normalizedPkgSource := ""
+	if pkgToCheck.Alias != "" {
+		if ctxSource := ctx.Value(contextkeys.Source); ctxSource != nil {
+			if s, ok := ctxSource.(string); ok && s != "" {
+				normalizedPkgSource = storage.NormalizeSourceForInstallation(s)
+			}
+		}
+	}
+	if normalizedPkgSource == "" && pkgSource != "" {
+		normalizedPkgSource = storage.NormalizeSourceForInstallation(pkgSource)
 	}
 
 	var foundInstallations []models.Installation
@@ -51,7 +64,7 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 		if allInstallations[i].Package != pkgToCheck.Name {
 			continue
 		}
-		if pkgSource != "" && allInstallations[i].Source != pkgSource {
+		if normalizedPkgSource != "" && allInstallations[i].Source != normalizedPkgSource {
 			continue
 		}
 		foundInstallations = append(foundInstallations, allInstallations[i])
@@ -59,7 +72,7 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 
 	if len(foundInstallations) == 0 {
 		slog.Debug(i18n.Msg("checkPackageVersion: no installed package found, proceeding with installation"))
-		result = versionCheckResult{shouldInstall: true}
+		result = versionCheckResult{shouldInstall: true, installStatus: installStatusNew}
 		return
 	}
 
@@ -91,6 +104,7 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 		result = versionCheckResult{
 			shouldInstall: false,
 			skipReason:    fmt.Sprintf(i18n.Msg("Package %s version %s is already installed. Skipping installation.")+"\n", pkgToCheck.Name, versionToCheck.Original),
+			installStatus: installStatusUnchanged,
 		}
 		return
 	}
@@ -104,6 +118,7 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 				result = versionCheckResult{
 					shouldInstall: false,
 					skipReason:    fmt.Sprintf(i18n.Msg("Package %s version %s satisfies requirement %s. Skipping installation.")+"\n", pkgToCheck.Name, installedVersionStr, versionConstraint),
+					installStatus: installStatusUnchanged,
 				}
 				return
 			}
@@ -131,6 +146,6 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 		}
 	}
 
-	result = versionCheckResult{shouldInstall: true}
+	result = versionCheckResult{shouldInstall: true, installStatus: installStatusUpdated}
 	return
 }

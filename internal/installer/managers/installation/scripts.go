@@ -25,7 +25,6 @@ const (
 	downloadedScriptPrefix = "downloaded_script_"
 )
 
-// executeScript выполняет скрипт.
 func (m *manager) executeScript(ctx context.Context, script *models.ScriptAction, workDir string, extractedDirs map[string]string) (err error) {
 
 	var scriptPath string
@@ -85,7 +84,6 @@ func (m *manager) executeScript(ctx context.Context, script *models.ScriptAction
 	return
 }
 
-// resolveScriptSource разрешает источник скрипта.
 func (m *manager) resolveScriptSource(ctx context.Context, source string, workDir string, extractedDirs map[string]string) (path string, err error) {
 
 	if strings.HasPrefix(source, protocolHTTP) || strings.HasPrefix(source, protocolHTTPS) {
@@ -99,7 +97,6 @@ func (m *manager) resolveScriptSource(ctx context.Context, source string, workDi
 	}
 
 	if strings.HasPrefix(source, protocolFile) {
-		// Убираем префикс file:// и используем путь напрямую
 		filePath := strings.TrimPrefix(source, protocolFile)
 		var statErr error
 		if _, statErr = os.Stat(filePath); statErr == nil {
@@ -123,7 +120,6 @@ func (m *manager) resolveScriptSource(ctx context.Context, source string, workDi
 	return
 }
 
-// downloadScript загружает скрипт по URL.
 func (m *manager) downloadScript(ctx context.Context, url string, destPath string) (err error) {
 
 	var req *http.Request

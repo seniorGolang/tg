@@ -20,8 +20,6 @@ const (
 	fileModeFile           = 0600
 )
 
-// YAMLCollectionStore предоставляет thread-safe хранилище для коллекций с кешированием в памяти.
-// T - тип элемента коллекции, ID - тип идентификатора элемента.
 type YAMLCollectionStore[T any, ID comparable] struct {
 	filePath  string
 	mu        sync.RWMutex
@@ -42,7 +40,6 @@ func NewYAMLCollectionStore[T any, ID comparable](filePath string, getID func(T)
 	}
 }
 
-// Load загружает данные из файла (ленивая загрузка при первом обращении).
 func (s *YAMLCollectionStore[T, ID]) Load() (err error) {
 
 	s.mu.Lock()
@@ -98,7 +95,6 @@ func (s *YAMLCollectionStore[T, ID]) Load() (err error) {
 	return
 }
 
-// FindByID находит элемент по ID без чтения всего файла.
 func (s *YAMLCollectionStore[T, ID]) FindByID(id ID) (item T, found bool, err error) {
 
 	if err = s.Load(); err != nil {
@@ -119,7 +115,6 @@ func (s *YAMLCollectionStore[T, ID]) FindByID(id ID) (item T, found bool, err er
 	return
 }
 
-// Add добавляет или обновляет элемент в кеше.
 func (s *YAMLCollectionStore[T, ID]) Add(item T) (err error) {
 
 	if err = s.Load(); err != nil {
@@ -143,7 +138,6 @@ func (s *YAMLCollectionStore[T, ID]) Add(item T) (err error) {
 	return
 }
 
-// Remove удаляет элемент из кеша по ID.
 func (s *YAMLCollectionStore[T, ID]) Remove(id ID) (err error) {
 
 	if err = s.Load(); err != nil {
@@ -182,7 +176,6 @@ func (s *YAMLCollectionStore[T, ID]) GetAll() (items []T, err error) {
 	return
 }
 
-// Save сохраняет кеш на диск.
 func (s *YAMLCollectionStore[T, ID]) Save() (err error) {
 
 	s.mu.RLock()
@@ -218,7 +211,6 @@ func (s *YAMLCollectionStore[T, ID]) Save() (err error) {
 	return
 }
 
-// InvalidateCache инвалидирует кеш, принудительно перезагружая данные при следующем обращении.
 func (s *YAMLCollectionStore[T, ID]) InvalidateCache() {
 
 	s.mu.Lock()

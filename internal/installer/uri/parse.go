@@ -12,10 +12,8 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/version"
 )
 
-// parse разбирает строку спецификации на компоненты.
 func (u *URI) parse(spec string) (err error) {
 
-	// Шаг 1: Разделяем по "@" для извлечения версии
 	parts := strings.Split(spec, "@")
 	specWithoutVersion := parts[0]
 	if len(parts) > 1 {
@@ -24,7 +22,6 @@ func (u *URI) parse(spec string) (err error) {
 		if u.version.Original != "" && !u.hasVersionConstraint() {
 			var parsedVersion models.Version
 			if parsedVersion, err = version.Parse(u.version.Original); err != nil {
-				// Игнорируем ошибку парсинга версии, оставляем version как строку
 				err = nil
 			} else {
 				u.version = parsedVersion
@@ -32,7 +29,6 @@ func (u *URI) parse(spec string) (err error) {
 		}
 	}
 
-	// Шаг 2: Находим схему по паттерну "://" (схема должна быть всегда)
 	schemeSeparator := "://"
 	schemeIndex := strings.Index(specWithoutVersion, schemeSeparator)
 	if schemeIndex < 0 {
@@ -52,18 +48,15 @@ func (u *URI) parse(spec string) (err error) {
 
 	lastColonIndex := strings.LastIndex(restAfterScheme, ":")
 	if lastColonIndex >= 0 {
-		// Определяем, где заканчивается host:port часть (до первого "/")
 		slashIndex := strings.Index(restAfterScheme, "/")
 		hostPartEnd := len(restAfterScheme)
 		if slashIndex >= 0 {
 			hostPartEnd = slashIndex
 		}
 
-		// Если ":" находится в host части, проверяем, не порт ли это
 		if lastColonIndex < hostPartEnd {
 			afterColon := restAfterScheme[lastColonIndex+1 : hostPartEnd]
 			if isPortNumber(afterColon) {
-				// Это порт, ищем имя пакета в пути (после "/")
 				if slashIndex >= 0 {
 					pathPart := restAfterScheme[slashIndex+1:]
 					pathColonIndex := strings.LastIndex(pathPart, ":")
@@ -73,7 +66,6 @@ func (u *URI) parse(spec string) (err error) {
 					}
 				}
 			} else {
-				// Это не порт, значит это имя пакета
 				afterColon := restAfterScheme[lastColonIndex+1:]
 				if len(afterColon) > 0 {
 					urlPartAfterScheme = restAfterScheme[:lastColonIndex]
@@ -81,7 +73,6 @@ func (u *URI) parse(spec string) (err error) {
 				}
 			}
 		} else {
-			// ":" находится в пути, это имя пакета
 			afterColon := restAfterScheme[lastColonIndex+1:]
 			if len(afterColon) > 0 {
 				urlPartAfterScheme = restAfterScheme[:lastColonIndex]
@@ -90,10 +81,7 @@ func (u *URI) parse(spec string) (err error) {
 		}
 	}
 
-	// Шаг 4: Собираем полный URL для парсинга (схема + остальная часть без имени пакета)
 	fullURL := scheme + schemeSeparator + urlPartAfterScheme
-
-	// Шаг 5: Парсим собранный URL
 	parsedURL, parseErr := url.Parse(fullURL)
 	if parseErr != nil {
 		err = fmt.Errorf("failed to parse URL: %w", parseErr)
@@ -107,7 +95,6 @@ func (u *URI) parse(spec string) (err error) {
 
 	u.parsedURL = parsedURL
 
-	// Сохраняем URL как source и извлеченное имя пакета (если есть)
 	u.source = fullURL
 	if extractedPackageName != "" {
 		u.packageName = extractedPackageName
