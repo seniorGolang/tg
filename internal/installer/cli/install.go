@@ -324,29 +324,14 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 		}
 
 		var pkgManifest *models.Manifest
-		_, pkgManifest, err = inst.manifestManager.FindPackage(ctx, pkg.Name)
-		if err != nil {
-			if isMultipleManifestsError(err) {
-				if selectedSourceForConflict != "" {
-					fullName := strings.TrimSuffix(selectedSourceForConflict, "/") + "/" + pkg.Name
-					_, pkgManifest, err = inst.manifestManager.FindPackage(ctx, fullName)
-				} else {
-					var resPkg *models.Package
-					resPkg, pkgManifest, selectedSourceForConflict, err = inst.resolvePackageWithSourceSelection(ctx, pkg.Name)
-					_ = resPkg
-				}
-			}
-			if err != nil {
-				err = fmt.Errorf(i18n.Msg("Failed to find manifest for package %s: %w"), pkg.Name, err)
-				return
-			}
+		if pkgManifest, err = inst.getManifestForPackage(ctx, pkg, &selectedSourceForConflict); err != nil {
+			err = fmt.Errorf(i18n.Msg("Failed to find manifest for package %s: %w"), pkg.Name, err)
+			return
 		}
-
 		if pkgVersion, err = version.Parse(pkgManifest.Version); err != nil {
 			err = fmt.Errorf(i18n.Msg("Invalid manifest version format for package %s: %w"), pkg.Name, err)
 			return
 		}
-
 		return
 	}
 
@@ -513,6 +498,42 @@ func isMultipleManifestsError(err error) bool {
 	return strings.Contains(msg, "found in multiple manifests") || strings.Contains(msg, "найден в нескольких манифестах")
 }
 
+// getManifestForPackage возвращает манифест для пакета. Для пакета с Alias ищет по целевому source/package, без запроса выбора источника.
+func (inst *Installer) getManifestForPackage(ctx context.Context, pkg *models.Package, selectedSourceForConflict *string) (manifest *models.Manifest, err error) {
+
+	if pkg.Alias != "" {
+		var parsedURI uri.URI
+		if parsedURI, err = uri.New(pkg.Alias); err != nil {
+			return nil, err
+		}
+		src := parsedURI.Source()
+		pkgName := parsedURI.Package()
+		if src == "" || pkgName == "" {
+			return nil, fmt.Errorf("%s: %s", i18n.Msg("Invalid alias"), pkg.Alias)
+		}
+		fullName := src + "/" + pkgName
+		_, manifest, err = inst.manifestManager.FindPackage(ctx, fullName)
+		return manifest, err
+	}
+
+	_, manifest, err = inst.manifestManager.FindPackage(ctx, pkg.Name)
+	if err != nil && isMultipleManifestsError(err) {
+		if selectedSourceForConflict != nil && *selectedSourceForConflict != "" {
+			fullName := strings.TrimSuffix(*selectedSourceForConflict, "/") + "/" + pkg.Name
+			_, manifest, err = inst.manifestManager.FindPackage(ctx, fullName)
+		} else if selectedSourceForConflict != nil {
+			var resPkg *models.Package
+			var resSource string
+			resPkg, manifest, resSource, err = inst.resolvePackageWithSourceSelection(ctx, pkg.Name)
+			if err == nil {
+				*selectedSourceForConflict = resSource
+			}
+			_ = resPkg
+		}
+	}
+	return manifest, err
+}
+
 // resolvePackageWithSourceSelection при нескольких источниках показывает интерактивный выбор и возвращает выбранный пакет и источник.
 func (inst *Installer) resolvePackageWithSourceSelection(ctx context.Context, packageName string) (pkg *models.Package, manifest *models.Manifest, selectedSource string, err error) {
 
@@ -592,25 +613,7 @@ func (inst *Installer) selectPackagesInteractively(ctx context.Context, packages
 		if pkgVersion == "" {
 			var pkgManifest *models.Manifest
 			var versionErr error
-			_, pkgManifest, versionErr = inst.manifestManager.FindPackage(ctx, pkg.Name)
-			if versionErr != nil && isMultipleManifestsError(versionErr) {
-				if selectedSourceForConflict != nil && *selectedSourceForConflict != "" {
-					fullName := strings.TrimSuffix(*selectedSourceForConflict, "/") + "/" + pkg.Name
-					_, pkgManifest, versionErr = inst.manifestManager.FindPackage(ctx, fullName)
-				}
-				if versionErr != nil && selectedSourceForConflict != nil && *selectedSourceForConflict == "" {
-					var resPkg *models.Package
-					var resManifest *models.Manifest
-					var resSource string
-					resPkg, resManifest, resSource, versionErr = inst.resolvePackageWithSourceSelection(ctx, pkg.Name)
-					if versionErr == nil {
-						*selectedSourceForConflict = resSource
-						pkgManifest = resManifest
-					}
-					_ = resPkg
-				}
-			}
-			if versionErr == nil && pkgManifest != nil {
+			if pkgManifest, versionErr = inst.getManifestForPackage(ctx, pkg, selectedSourceForConflict); versionErr == nil && pkgManifest != nil {
 				pkgVersion = pkgManifest.Version
 			}
 		}

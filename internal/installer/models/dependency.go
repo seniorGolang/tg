@@ -16,6 +16,8 @@ type DependencyNode struct {
 	Package *Package
 	Version Version
 	ID      string
+	// Source — источник для загрузки артефактов; задаётся при разрешении alias.
+	Source string
 }
 
 type DependencyEdge struct {

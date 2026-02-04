@@ -105,11 +105,21 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 
 	// Структура для хранения информации о пакетах для установки
 	type packageToInstall struct {
-		pkg *models.Package
-		v   models.Version
+		pkg    *models.Package
+		v      models.Version
+		source string
 	}
 
 	packagesToInstall := make([]packageToInstall, 0)
+
+	findNodeByPackage := func(graph *models.DependencyGraph, pkg *models.Package) (node *models.DependencyNode) {
+		for _, n := range graph.Nodes {
+			if n != nil && n.Package == pkg {
+				return n
+			}
+		}
+		return nil
+	}
 
 	// findVersionConstraint находит требование версии для пакета из графа зависимостей.
 	findVersionConstraint := func(pkgName string) (constraint string) {
@@ -136,14 +146,12 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 			continue
 		}
 
+		var depSource string
 		var depVersion models.Version
-		for _, node := range graph.Nodes {
-			if node.Package.Name == depPkg.Name {
-				depVersion = node.Version
-				break
-			}
+		if depNode := findNodeByPackage(graph, depPkg); depNode != nil {
+			depVersion = depNode.Version
+			depSource = depNode.Source
 		}
-
 		if depVersion.Original == "" {
 			var depManifest *models.Manifest
 			if _, depManifest, err = m.manifestManager.FindPackage(ctx, depPkg.Name); err != nil {
@@ -164,7 +172,7 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		depCtx := context.WithValue(ctx, contextkeys.Force, false)
 
 		var checkResult versionCheckResult
-		if checkResult, err = m.checkPackageVersion(depCtx, depPkg, depVersion, versionConstraint, allInstallations); err != nil {
+		if checkResult, err = m.checkPackageVersion(depCtx, depPkg, depVersion, versionConstraint, allInstallations, depSource); err != nil {
 			return
 		}
 		if !checkResult.shouldInstall {
@@ -173,8 +181,9 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		}
 
 		packagesToInstall = append(packagesToInstall, packageToInstall{
-			pkg: depPkg,
-			v:   depVersion,
+			pkg:    depPkg,
+			v:      depVersion,
+			source: depSource,
 		})
 	}
 
@@ -185,8 +194,28 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	default:
 	}
 
+	var rootNode *models.DependencyNode
+	if pkg.Alias != "" {
+		rootNode = graph.Nodes[pkg.Name]
+	} else {
+		rootNode = findNodeByPackage(graph, pkg)
+	}
+	var rootSource string
+	var mainPkg *models.Package
+	var mainVersion models.Version
+	if rootNode != nil {
+		rootSource = rootNode.Source
+		mainPkg = rootNode.Package
+		mainVersion = rootNode.Version
+	} else {
+		mainPkg = pkg
+		mainVersion = v
+	}
+	if mainVersion.Original == "" {
+		mainVersion = v
+	}
 	var checkResultMain versionCheckResult
-	if checkResultMain, err = m.checkPackageVersion(ctx, pkg, v, "", allInstallations); err != nil {
+	if checkResultMain, err = m.checkPackageVersion(ctx, mainPkg, mainVersion, "", allInstallations, rootSource); err != nil {
 		return
 	}
 	if !checkResultMain.shouldInstall {
@@ -204,8 +233,9 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	}
 
 	packagesToInstall = append(packagesToInstall, packageToInstall{
-		pkg: pkg,
-		v:   v,
+		pkg:    mainPkg,
+		v:      mainVersion,
+		source: rootSource,
 	})
 
 	// Выводим дерево зависимостей перед установкой (всегда)
@@ -226,7 +256,7 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		default:
 		}
 
-		if err = m.installPackage(ctx, pkgToInstall.pkg, pkgToInstall.v); err != nil {
+		if err = m.installPackage(ctx, pkgToInstall.pkg, pkgToInstall.v, pkgToInstall.source); err != nil {
 			err = fmt.Errorf(i18n.Msg("Failed to install package %s: %w"), pkgToInstall.pkg.Name, err)
 			return
 		}
@@ -235,7 +265,7 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	return
 }
 
-func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v models.Version) (err error) {
+func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v models.Version, downloadSource string) (err error) {
 
 	select {
 	case <-ctx.Done():
@@ -245,9 +275,19 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	}
 
 	var source string
-	if source, err = m.findPackageSource(ctx, pkg); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to find package source: %w"), err)
-		return
+	if downloadSource != "" {
+		source = downloadSource
+	}
+	if ctxSource := ctx.Value(contextkeys.Source); ctxSource != nil {
+		if s, ok := ctxSource.(string); ok && s != "" {
+			source = s
+		}
+	}
+	if source == "" {
+		if source, err = m.findPackageSource(ctx, pkg); err != nil {
+			err = fmt.Errorf(i18n.Msg("Failed to find package source: %w"), err)
+			return
+		}
 	}
 
 	if err = m.checkFileConflicts(ctx, pkg, source, v.Original); err != nil {
@@ -308,26 +348,44 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 		fileName := filepath.Base(url)
 		destPath := filepath.Join(tempDir, fileName)
 
-		// Сбрасываем прогресс-бар перед началом скачивания нового файла
-		packageBar.SetCurrent(0)
-		packageBar.Print()
-
-		// Скачиваем с отображением прогресса на общем прогресс-баре плагина
-		if err = m.downloadWithProgress(ctx, url, destPath, packageBar); err != nil {
-			err = fmt.Errorf(i18n.Msg("Failed to download file %s: %w"), url, err)
-			return
-		}
-
-		downloadedFiles[fileName] = destPath
-
 		if m.isArchive(destPath) {
+			packageBar.SetCurrent(0)
+			packageBar.Print()
+			if err = m.downloadWithProgress(ctx, url, destPath, packageBar); err != nil {
+				err = fmt.Errorf(i18n.Msg("Failed to download file %s: %w"), url, err)
+				return
+			}
+			downloadedFiles[fileName] = destPath
 			extractDir := filepath.Join(tempDir, extractedDirName, fileName)
 			if err = m.extractArchive(ctx, destPath, extractDir); err != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to extract archive %s: %w"), fileName, err)
 				return
 			}
 			extractedDirs[fileName] = extractDir
+			continue
 		}
+
+		fileInst := m.findFileInstForDownload(pkg, fileName)
+		if fileInst != nil && fileInst.Checksum != "" {
+			destination := m.resolveDestination(fileInst.Destination, scopeConfig)
+			if _, statErr := os.Stat(destination); statErr == nil {
+				parts := strings.Split(fileInst.Checksum, ":")
+				if len(parts) == 2 {
+					if m.validationEngine.ValidateChecksum(ctx, destination, parts[0], parts[1]) == nil {
+						downloadedFiles[fileName] = destination
+						continue
+					}
+				}
+			}
+		}
+
+		packageBar.SetCurrent(0)
+		packageBar.Print()
+		if err = m.downloadWithProgress(ctx, url, destPath, packageBar); err != nil {
+			err = fmt.Errorf(i18n.Msg("Failed to download file %s: %w"), url, err)
+			return
+		}
+		downloadedFiles[fileName] = destPath
 	}
 
 	installedFiles := make([]models.InstalledFile, 0)
@@ -376,13 +434,29 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			actualSourcePath = sourcePath
 		}
 
-		// Сбрасываем прогресс-бар перед началом установки нового файла
-		packageBar.SetCurrent(0)
-		packageBar.Print()
+		skipCopy := false
+		if actualSourcePath == destination {
+			skipCopy = true
+		} else {
+			absSource, absDest := actualSourcePath, destination
+			if a, e := filepath.Abs(actualSourcePath); e == nil {
+				absSource = a
+			}
+			if a, e := filepath.Abs(destination); e == nil {
+				absDest = a
+			}
+			if absSource == absDest {
+				skipCopy = true
+			}
+		}
 
-		if err = m.copyFileWithProgress(actualSourcePath, destination, fileInst.Source, packageBar); err != nil {
-			err = fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
-			return
+		if !skipCopy {
+			packageBar.SetCurrent(0)
+			packageBar.Print()
+			if err = m.copyFileWithProgress(actualSourcePath, destination, fileInst.Source, packageBar); err != nil {
+				err = fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
+				return
+			}
 		}
 
 		var info os.FileInfo
@@ -391,7 +465,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			return
 		}
 
-		if fileInst.Checksum != "" {
+		if fileInst.Checksum != "" && !skipCopy {
 			parts := strings.Split(fileInst.Checksum, ":")
 			if len(parts) == 2 {
 				if err = m.validationEngine.ValidateChecksum(ctx, destination, parts[0], parts[1]); err != nil {
@@ -432,10 +506,15 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 		if strings.HasSuffix(file.Path, plugin.FileExtTGP) {
 			wasmFile = &file
 
-			var wasmBytes []byte
+			var rawBytes []byte
 			var readErr error
-			if wasmBytes, readErr = os.ReadFile(file.Path); readErr != nil {
+			if rawBytes, readErr = os.ReadFile(file.Path); readErr != nil {
 				err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), readErr)
+				return
+			}
+
+			var wasmBytes []byte
+			if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
 				return
 			}
 
@@ -531,6 +610,21 @@ func GenerateInstallationID(packageName string, version string) (id string) {
 	return idUUID.String()
 }
 
+// findFileInstForDownload возвращает fileInst, соответствующий загружаемому файлу (для одиночного файла, не из архива).
+func (m *manager) findFileInstForDownload(pkg *models.Package, fileName string) (fileInst *models.FileInstallation) {
+
+	for i := range pkg.Files {
+		fi := &pkg.Files[i]
+		if fi.File == fileName {
+			return fi
+		}
+	}
+	if len(pkg.Files) == 1 && len(pkg.Downloads) == 1 && pkg.Files[0].File == "" {
+		return &pkg.Files[0]
+	}
+	return nil
+}
+
 // findSourceFile находит исходный файл в загруженных файлах или архивах.
 func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedFiles map[string]string, extractedDirs map[string]string) (path string, err error) {
 
@@ -543,7 +637,8 @@ func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedF
 			}
 		}
 
-		if downloadedFile, exists := downloadedFiles[fileName]; exists {
+		var downloadedFile string
+		if downloadedFile, exists = downloadedFiles[fileName]; exists {
 			baseName := filepath.Base(downloadedFile)
 			fullPath := filepath.Join(extractedDir, baseName)
 			if _, statErr := os.Stat(fullPath); statErr == nil {
@@ -613,6 +708,7 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 	normalized = &models.Package{
 		Name:         pkg.Name,
 		Descr:        pkg.Descr,
+		Alias:        pkg.Alias,
 		Files:        pkg.Files,
 		Downloads:    pkg.Downloads,
 		Dependencies: make([]string, len(pkg.Dependencies)),
@@ -629,11 +725,11 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 
 		source := parsedURI.Source()
 		packageName := parsedURI.Package()
-		version := parsedURI.Version().Original
+		ver := parsedURI.Version().Original
 
 		if source == "" {
-			if version != "" {
-				normalized.Dependencies[i] = mainSource + ":" + packageName + "@" + version
+			if ver != "" {
+				normalized.Dependencies[i] = mainSource + ":" + packageName + "@" + ver
 			} else {
 				normalized.Dependencies[i] = mainSource + ":" + packageName
 			}
@@ -811,7 +907,6 @@ func (m *manager) printDependencyTree(ctx context.Context, graph *models.Depende
 		slog.Debug(i18n.Msg("Failed to render dependency tree"), slog.Any("error", err))
 		return
 	}
-	pterm.Println()
 }
 
 func getVersionString(v models.Version, defaultVersion models.Version) (versionStr string) {

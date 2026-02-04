@@ -117,6 +117,12 @@ func (i *PluginInstaller) InstallPlugin(ctx context.Context, pluginName string, 
 		return "", 0, 0, fmt.Errorf(i18n.Msg("Checksum validation failed: %w"), err)
 	}
 
+	var wasmBytes []byte
+	if wasmBytes, err = plugin.DecodeTGPBytes(pluginTGP); err != nil {
+		_ = storage.CleanupInstallPath(installPath)
+		return "", 0, 0, err
+	}
+
 	logger.Info(i18n.Msg("Validating metadata"))
 	if err = validator.ValidateMetadata(pluginInfo, pluginName, version); err != nil {
 		_ = storage.CleanupInstallPath(installPath)
@@ -124,7 +130,7 @@ func (i *PluginInstaller) InstallPlugin(ctx context.Context, pluginName string, 
 	}
 
 	logger.Info(i18n.Msg("Validating WASM structure"))
-	if err = validator.ValidateWASM(pluginTGP, pluginInfo); err != nil {
+	if err = validator.ValidateWASM(wasmBytes, pluginInfo); err != nil {
 		_ = storage.CleanupInstallPath(installPath)
 		return "", 0, 0, fmt.Errorf(i18n.Msg("WASM structure validation failed: %w"), err)
 	}

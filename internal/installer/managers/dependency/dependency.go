@@ -34,6 +34,79 @@ func NewResolver(manifestManager managers.ManifestManager, databaseManager manag
 	}
 }
 
+// resolveAlias разрешает пакет-псевдоним: загружает целевой пакет и объединяет зависимости (целевые + из псевдонима).
+func (r *resolver) resolveAlias(ctx context.Context, pkg *models.Package) (effective *models.Package, downloadSource string, targetVersion string, err error) {
+
+	if pkg.Alias == "" {
+		effective = pkg
+		return
+	}
+
+	var parsedURI uri.URI
+	if parsedURI, err = uri.New(pkg.Alias); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to parse alias %s: %w"), pkg.Alias, err)
+		return
+	}
+
+	source := parsedURI.Source()
+	packageName := parsedURI.Package()
+	if source == "" || packageName == "" {
+		err = errors.New(i18n.Msg("Invalid alias: source and package required"))
+		return
+	}
+
+	if err = r.ensureManifestLoaded(ctx, source); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to load manifest for alias %s: %w"), pkg.Alias, err)
+		return
+	}
+
+	fullName := source + "/" + packageName
+	var targetPkg *models.Package
+	var targetManifest *models.Manifest
+	if targetPkg, targetManifest, err = r.manifestManager.FindPackage(ctx, fullName); err != nil {
+		err = fmt.Errorf(i18n.Msg("Failed to find alias target %s: %w"), pkg.Alias, err)
+		return
+	}
+
+	mergedDeps := mergeDependencies(targetPkg.Dependencies, pkg.Dependencies)
+
+	descr := pkg.Descr
+	if descr == "" {
+		descr = targetPkg.Descr
+	}
+	effective = &models.Package{
+		Name:         pkg.Name,
+		Descr:        descr,
+		Downloads:    targetPkg.Downloads,
+		Files:        targetPkg.Files,
+		Scripts:      targetPkg.Scripts,
+		Dependencies: mergedDeps,
+	}
+	downloadSource = source
+	targetVersion = targetManifest.Version
+	return
+}
+
+func mergeDependencies(base []string, extra []string) (merged []string) {
+
+	seen := make(map[string]bool)
+	for _, s := range base {
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
+			seen[s] = true
+			merged = append(merged, s)
+		}
+	}
+	for _, s := range extra {
+		s = strings.TrimSpace(s)
+		if s != "" && !seen[s] {
+			seen[s] = true
+			merged = append(merged, s)
+		}
+	}
+	return merged
+}
+
 // ResolveDependencies разрешает зависимости пакета.
 func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package) (graph *models.DependencyGraph, err error) {
 
@@ -49,13 +122,30 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 		Edges: make([]*models.DependencyEdge, 0),
 	}
 
-	nodeID := pkg.Name
-	graph.Nodes[nodeID] = &models.DependencyNode{
-		Package: pkg,
-		ID:      nodeID,
+	pkgToResolve := pkg
+	var rootDownloadSource string
+	var rootVersion models.Version
+	if pkg.Alias != "" {
+		var effective *models.Package
+		var targetVer string
+		if effective, rootDownloadSource, targetVer, err = r.resolveAlias(ctx, pkg); err != nil {
+			return
+		}
+		pkgToResolve = effective
+		if targetVer != "" {
+			rootVersion, _ = version.Parse(targetVer)
+		}
 	}
 
-	for _, depStr := range pkg.Dependencies {
+	nodeID := pkgToResolve.Name
+	graph.Nodes[nodeID] = &models.DependencyNode{
+		Package: pkgToResolve,
+		Version: rootVersion,
+		ID:      nodeID,
+		Source:  rootDownloadSource,
+	}
+
+	for _, depStr := range pkgToResolve.Dependencies {
 		select {
 		case <-ctx.Done():
 			err = ctx.Err()
@@ -115,21 +205,37 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 			}
 		}
 
-		depNodeID := fmt.Sprintf("%s/%s", source, packageName)
+		depDownloadSource := source
+		var depVersion models.Version
+		if depManifest != nil {
+			depVersion, _ = version.Parse(depManifest.Version)
+		}
+		if depPkg.Alias != "" {
+			var effectiveDep *models.Package
+			var targetVer string
+			if effectiveDep, depDownloadSource, targetVer, err = r.resolveAlias(ctx, depPkg); err != nil {
+				err = fmt.Errorf(i18n.Msg("Failed to resolve alias for dependency %s: %w"), packageName, err)
+				return
+			}
+			depPkg = effectiveDep
+			if targetVer != "" {
+				depVersion, _ = version.Parse(targetVer)
+			}
+		}
+
+		depNodeID := fmt.Sprintf("%s/%s", depDownloadSource, depPkg.Name)
 		if _, exists := graph.Nodes[depNodeID]; !exists {
-			var depVersion models.Version
-			if depVersion, err = version.Parse(depManifest.Version); err == nil {
-				graph.Nodes[depNodeID] = &models.DependencyNode{
-					Package: depPkg,
-					Version: depVersion,
-					ID:      depNodeID,
-				}
+			graph.Nodes[depNodeID] = &models.DependencyNode{
+				Package: depPkg,
+				Version: depVersion,
+				ID:      depNodeID,
+				Source:  depDownloadSource,
 			}
 		}
 
 		dep := models.Dependency{
-			Source:  source,
-			Package: packageName,
+			Source:  depDownloadSource,
+			Package: depPkg.Name,
 			Version: versionStr,
 		}
 		graph.Edges = append(graph.Edges, &models.DependencyEdge{

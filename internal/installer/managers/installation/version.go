@@ -28,7 +28,7 @@ type versionCheckResult struct {
 	skipReason    string
 }
 
-func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Package, versionToCheck models.Version, versionConstraint string, allInstallations []models.Installation) (result versionCheckResult, err error) {
+func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Package, versionToCheck models.Version, versionConstraint string, allInstallations []models.Installation, pkgSource string) (result versionCheckResult, err error) {
 
 	slog.Debug(i18n.Msg("checkPackageVersion: checking package"), slog.String("package", pkgToCheck.Name), slog.String("version_to_install", versionToCheck.Original), slog.String("version_constraint", versionConstraint), slog.Int("total_installations", len(allInstallations)))
 
@@ -48,9 +48,13 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 
 	var foundInstallations []models.Installation
 	for i := range allInstallations {
-		if allInstallations[i].Package == pkgToCheck.Name {
-			foundInstallations = append(foundInstallations, allInstallations[i])
+		if allInstallations[i].Package != pkgToCheck.Name {
+			continue
 		}
+		if pkgSource != "" && allInstallations[i].Source != pkgSource {
+			continue
+		}
+		foundInstallations = append(foundInstallations, allInstallations[i])
 	}
 
 	if len(foundInstallations) == 0 {

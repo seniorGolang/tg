@@ -19,6 +19,7 @@ type Package struct {
 	Name         string             `yaml:"name"`
 	Descr        string             `yaml:"descr,omitempty"`
 	Hidden       bool               `yaml:"hidden,omitempty"`
+	Alias        string             `yaml:"alias,omitempty"`
 	Downloads    []PlatformDownload `yaml:"downloads"`
 	Files        []FileInstallation `yaml:"files"`
 	Scripts      *Scripts           `yaml:"scripts,omitempty"`

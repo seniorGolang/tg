@@ -93,10 +93,15 @@ func (l *DatabasePluginLoader) LoadExecutor(name string) (executor PluginExecuto
 		return
 	}
 
-	var wasmBytes []byte
+	var rawBytes []byte
 	var readErr error
-	if wasmBytes, readErr = os.ReadFile(wasmFilePath); readErr != nil {
+	if rawBytes, readErr = os.ReadFile(wasmFilePath); readErr != nil {
 		err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), readErr)
+		return
+	}
+
+	var wasmBytes []byte
+	if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
 		return
 	}
 
@@ -175,10 +180,15 @@ func (l *DatabasePluginLoader) LoadHost(name string, useInitPkgs bool) (wasmHost
 		return
 	}
 
-	var wasmBytes []byte
+	var rawBytes []byte
 	var readErr error
-	if wasmBytes, readErr = os.ReadFile(wasmFilePath); readErr != nil {
+	if rawBytes, readErr = os.ReadFile(wasmFilePath); readErr != nil {
 		err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), readErr)
+		return
+	}
+
+	var wasmBytes []byte
+	if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
 		return
 	}
 

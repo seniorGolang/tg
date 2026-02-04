@@ -618,6 +618,8 @@
   "Path traversal attempt detected: path is outside base directory": "попытка path traversal обнаружена: путь выходит за пределы базовой директории",
   "Path contains path traversal attempt: %s": "путь содержит попытку path traversal: %s",
   "failed to compile WASM module: %w": "не удалось скомпилировать WASM модуль: %w",
+  "failed to create gzip reader for .tgp: %w": "не удалось создать gzip reader для .tgp: %w",
+  "failed to decompress .tgp: %w": "не удалось распаковать .tgp: %w",
   "failed to instantiate command module: %w": "не удалось создать экземпляр модуля command: %w",
   "failed to instantiate env module: %w": "не удалось создать экземпляр модуля env: %w",
   "failed to instantiate net module: %w": "не удалось создать экземпляр модуля net: %w",
