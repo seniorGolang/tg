@@ -260,7 +260,12 @@ func (m *manager) ListPackages(ctx context.Context) (packages []models.Package, 
 
 	packages = make([]models.Package, 0, len(m.index.allManifests)*2)
 	for _, cached := range m.index.allManifests {
-		packages = append(packages, cached.manifest.Packages...)
+		for i := range cached.manifest.Packages {
+			if cached.manifest.Packages[i].Hidden {
+				continue
+			}
+			packages = append(packages, cached.manifest.Packages[i])
+		}
 	}
 
 	return
@@ -279,8 +284,14 @@ func (m *manager) ListPackagesFromSources(ctx context.Context, sources map[strin
 	packages = make([]models.Package, 0)
 	for _, cached := range m.index.allManifests {
 		normalizedCachedSource := storage.NormalizeSource(cached.source)
-		if sources[normalizedCachedSource] {
-			packages = append(packages, cached.manifest.Packages...)
+		if !sources[normalizedCachedSource] {
+			continue
+		}
+		for i := range cached.manifest.Packages {
+			if cached.manifest.Packages[i].Hidden {
+				continue
+			}
+			packages = append(packages, cached.manifest.Packages[i])
 		}
 	}
 
