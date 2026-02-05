@@ -17,7 +17,7 @@ import (
 	mdrender "github.com/seniorGolang/tg/v3/internal/markdown"
 )
 
-// HandleScopeCreate обрабатывает команду scope create.
+// HandleScopeCreate обрабатывает команду scope add.
 func (inst *Installer) HandleScopeCreate(ctx context.Context, args []string, options map[string]any) (err error) {
 
 	if len(args) == 0 {
@@ -102,7 +102,7 @@ func (inst *Installer) HandleScopeList(ctx context.Context) (err error) {
 	return
 }
 
-// HandleScopeDelete обрабатывает команду scope delete.
+// HandleScopeDelete обрабатывает команду scope del.
 func (inst *Installer) HandleScopeDelete(ctx context.Context, args []string, force bool) (err error) {
 
 	if len(args) == 0 {

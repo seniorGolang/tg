@@ -292,9 +292,9 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg info", err)
 	}
 
-	// Команда pkg scope create
-	pkgScopeCreateCmd := &BuiltinCommand{
-		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeCreate},
+	// Команда pkg scope add
+	pkgScopeAddCmd := &BuiltinCommand{
+		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeAdd},
 		description: i18n.Msg("Create new scope"),
 		options: []Option{
 			{
@@ -319,8 +319,8 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		},
 		executor: builtin.HandlePluginScopeCreate,
 	}
-	if err = tree.RegisterCommand(pkgScopeCreateCmd); err != nil {
-		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope create", err)
+	if err = tree.RegisterCommand(pkgScopeAddCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope add", err)
 	}
 
 	// Команда pkg scope use
@@ -353,9 +353,9 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope list", err)
 	}
 
-	// Команда pkg scope delete
-	pkgScopeDeleteCmd := &BuiltinCommand{
-		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeDelete},
+	// Команда pkg scope del
+	pkgScopeDelCmd := &BuiltinCommand{
+		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeDel},
 		description: i18n.Msg("Delete scope"),
 		options: []Option{
 			{
@@ -374,8 +374,8 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		},
 		executor: builtin.HandlePluginScopeDelete,
 	}
-	if err = tree.RegisterCommand(pkgScopeDeleteCmd); err != nil {
-		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope delete", err)
+	if err = tree.RegisterCommand(pkgScopeDelCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope del", err)
 	}
 
 	// Команда pkg scope show

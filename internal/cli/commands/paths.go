@@ -36,10 +36,10 @@ const (
 	// Группа команд управления scope
 	cmdPathPkgScope   = "pkg"
 	cmdSubPkgScope    = "scope"
-	cmdSubScopeCreate = "create"
+	cmdSubScopeAdd    = "add"
 	cmdSubScopeUse    = "use"
 	cmdSubScopeList   = "list"
-	cmdSubScopeDelete = "delete"
+	cmdSubScopeDel    = "del"
 	cmdSubScopeShow   = "show"
 
 	// Группа команд completion
