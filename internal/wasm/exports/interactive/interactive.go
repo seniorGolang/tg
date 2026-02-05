@@ -117,12 +117,11 @@ func performSelection(prompt string, options []string, config selectConfig) (res
 // performSingleSelect выполняет одиночный выбор.
 func performSingleSelect(prompt string, options []string) (result []byte, err error) {
 
-	selected, err := pterm.DefaultInteractiveSelect.
+	var selected string
+	if selected, err = pterm.DefaultInteractiveSelect.
 		WithOptions(options).
 		WithMaxHeight(utils.GetMaxHeightForSelect(len(options))).
-		Show(prompt)
-
-	if err != nil || selected == "" {
+		Show(prompt); err != nil || selected == "" {
 		return nil, errors.New(i18n.Msg("selection cancelled or failed"))
 	}
 
@@ -145,9 +144,9 @@ func performMultiSelect(prompt string, options []string, defaultOptions []string
 		multiselect = multiselect.WithDefaultOptions(defaultOptions)
 	}
 
-	selected, err := multiselect.Show(prompt)
-	if err != nil {
-		return nil, err
+	var selected []string
+	if selected, err = multiselect.Show(prompt); err != nil {
+		return
 	}
 
 	// Кодируем результат в JSON

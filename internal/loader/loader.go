@@ -20,6 +20,7 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm"
 	"github.com/seniorGolang/tg/v3/internal/wasm/cache"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
+	"github.com/seniorGolang/tg/v3/internal/wasm/imports"
 )
 
 type DatabasePluginLoader struct {
@@ -312,6 +313,52 @@ func convertOptionInfosToPluginOptions(optionInfos []models.OptionInfo) (options
 			Default:      optInfo.Default,
 			IsPositional: optInfo.IsPositional,
 		})
+	}
+
+	return
+}
+
+// LoadInfoFromTGP загружает .tgp по пути и возвращает plugin.Info через WASM-хост с кэшем scope.
+func LoadInfoFromTGP(ctx context.Context, scopeName string, tgpPath string) (info plugin.Info, err error) {
+
+	var rawBytes []byte
+	if rawBytes, err = os.ReadFile(tgpPath); err != nil {
+		err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), err)
+		return
+	}
+
+	var wasmBytes []byte
+	if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
+		return
+	}
+
+	loggerAdapter := logger.NewSlogAdapter(slog.Default())
+
+	var tgPath string
+	if scopeConfig, scopeErr := storage.LoadScopeConfig(scopeName); scopeErr == nil && scopeConfig != nil {
+		tgPath = scopeConfig.ConfigDir
+	}
+
+	compilationCache, cacheErr := cache.GetCompilationCache(ctx)
+	if cacheErr != nil {
+		slog.Warn(i18n.Msg("Failed to get compilation cache, continuing without cache"), "error", cacheErr)
+	}
+
+	var wasmHost *host.Host
+	if compilationCache != nil {
+		if wasmHost, err = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath), wasm.MuteLogs()); err != nil {
+			return plugin.Info{}, fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", err)
+		}
+	} else {
+		if wasmHost, err = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithTGPath(tgPath), wasm.MuteLogs()); err != nil {
+			return plugin.Info{}, fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", err)
+		}
+	}
+	defer func() { _ = wasm.Close(ctx, wasmHost) }()
+
+	if info, err = imports.Info(ctx, wasmHost); err != nil {
+		err = fmt.Errorf(i18n.Msg("failed to get plugin info: %w"), err)
+		return
 	}
 
 	return

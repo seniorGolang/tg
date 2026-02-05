@@ -648,9 +648,9 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			var hostErr error
 			tgPath := scopeConfig.ConfigDir
 			if compilationCache != nil {
-				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath))
+				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath), wasm.MuteLogs())
 			} else {
-				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithTGPath(tgPath))
+				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithTGPath(tgPath), wasm.MuteLogs())
 			}
 			if hostErr != nil {
 				err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)

@@ -77,4 +77,9 @@ const (
 	optionKeyModuleName = "module-name"
 	optionKeyDeployType = "deploy-type"
 	optionKeyKind       = "kind"
+
+	optionKeyOut               = "out"
+	optionKeyClean             = "clean"
+	optionKeyOverrideManifest  = "override-manifest"
+	optionKeySkipVersionUpdate = "skip-version-update"
 )

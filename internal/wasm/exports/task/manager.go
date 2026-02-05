@@ -60,14 +60,16 @@ type Manager struct {
 	tasks       map[uint32]*taskState
 	nextID      uint32
 	callChannel *host.CallChannel
+	muteLogs    bool
 }
 
-func NewManager(callChannel *host.CallChannel) (manager *Manager) {
+func NewManager(callChannel *host.CallChannel, muteLogs bool) (manager *Manager) {
 
 	return &Manager{
 		tasks:       make(map[uint32]*taskState),
 		nextID:      1,
 		callChannel: callChannel,
+		muteLogs:    muteLogs,
 	}
 }
 
@@ -88,11 +90,13 @@ func (m *Manager) StartTask(ctx context.Context, interval time.Duration, handler
 	m.tasks[taskID] = state
 	m.mu.Unlock()
 
-	slog.Debug(i18n.Msg("Task created"),
-		slog.Uint64("taskID", uint64(taskID)),
-		slog.Uint64("handlerID", uint64(handlerID)),
-		slog.String("interval", interval.String()),
-	)
+	if !m.muteLogs {
+		slog.Debug(i18n.Msg("Task created"),
+			slog.Uint64("taskID", uint64(taskID)),
+			slog.Uint64("handlerID", uint64(handlerID)),
+			slog.String("interval", interval.String()),
+		)
+	}
 
 	go func() {
 		defer func() {
@@ -107,10 +111,12 @@ func (m *Manager) StartTask(ctx context.Context, interval time.Duration, handler
 				activeTasks.Done()
 			}
 
-			slog.Debug(i18n.Msg("Task finished"),
-				slog.Uint64("taskID", uint64(taskID)),
-				slog.Uint64("handlerID", uint64(handlerID)),
-			)
+			if !m.muteLogs {
+				slog.Debug(i18n.Msg("Task finished"),
+					slog.Uint64("taskID", uint64(taskID)),
+					slog.Uint64("handlerID", uint64(handlerID)),
+				)
+			}
 		}()
 
 		for {
@@ -120,10 +126,12 @@ func (m *Manager) StartTask(ctx context.Context, interval time.Duration, handler
 				timer.Stop()
 				return
 			case <-timer.C:
-				slog.Debug(i18n.Msg("Task tick"),
-					slog.Uint64("taskID", uint64(taskID)),
-					slog.Uint64("handlerID", uint64(handlerID)),
-				)
+				if !m.muteLogs {
+					slog.Debug(i18n.Msg("Task tick"),
+						slog.Uint64("taskID", uint64(taskID)),
+						slog.Uint64("handlerID", uint64(handlerID)),
+					)
+				}
 				if m.callHandler(taskCtx, handlerID) {
 					return
 				}
@@ -176,8 +184,9 @@ func (m *Manager) callHandler(ctx context.Context, handlerID uint32) (shouldStop
 		nextValue := uint32(result.Result & 0xFFFFFFFF) //nolint:gosec // Безопасное преобразование через маску
 		// nextValue: 1 (true) = продолжаем, 0 (false) = завершаем задачу
 		if nextValue == 0 {
-			// Обработчик вернул false - завершаем задачу
-			slog.Debug(i18n.Msg("Task handler returned false, stopping task"), slog.Uint64("handlerID", uint64(handlerID)))
+			if !m.muteLogs {
+				slog.Debug(i18n.Msg("Task handler returned false, stopping task"), slog.Uint64("handlerID", uint64(handlerID)))
+			}
 			return true
 		}
 		// nextValue != 0 (true) - продолжаем выполнение
@@ -207,9 +216,11 @@ func (m *Manager) StopTask(taskID uint32) (stopped bool) {
 	// Отменяем контекст задачи
 	state.cancel()
 
-	slog.Debug(i18n.Msg("Task stop requested"),
-		slog.Uint64("taskID", uint64(taskID)),
-	)
+	if !m.muteLogs {
+		slog.Debug(i18n.Msg("Task stop requested"),
+			slog.Uint64("taskID", uint64(taskID)),
+		)
+	}
 
 	// Удаляем задачу из map (будет удалена в defer горутины)
 	return true

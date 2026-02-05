@@ -67,6 +67,9 @@ type Host struct {
 	// WaitGroup для отслеживания активных фоновых задач
 	// Execute не завершится, пока есть активные задачи
 	ActiveTasks sync.WaitGroup
+
+	// MuteLogs отключает вывод сообщений уровня debug в wasm.
+	MuteLogs bool
 }
 
 // streamRegistryInterface определяет интерфейс для управления потоками данных.

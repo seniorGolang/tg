@@ -25,8 +25,8 @@ import (
 
 func HandleUpdateWithPrompt(ctx types.CommandContext, promptOptionsFunc func([]types.Option, map[string]any, []string) map[string]any) (err error) {
 
-	states, err := ctx.StateManager.LoadAllStates()
-	if err != nil {
+	var states map[string]state.PluginState
+	if states, err = ctx.StateManager.LoadAllStates(); err != nil {
 		failedMsg := i18n.Msg("Failed to load states: ") + err.Error()
 		return errors.New(failedMsg)
 	}
@@ -36,8 +36,8 @@ func HandleUpdateWithPrompt(ctx types.CommandContext, promptOptionsFunc func([]t
 		return
 	}
 
-	tasks, err := promptPluginSelection(states, ctx, promptOptionsFunc)
-	if err != nil {
+	var tasks []executor.PluginTask
+	if tasks, err = promptPluginSelection(states, ctx, promptOptionsFunc); err != nil {
 		return
 	}
 

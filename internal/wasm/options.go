@@ -21,6 +21,9 @@ type hostOptions struct {
 	// TGPath - путь к папке настроек для маркера @tg/.
 	// Если пусто, используется путь по умолчанию (~/.config/tg или $XDG_CONFIG_HOME/tg).
 	TGPath string
+
+	// MuteLogs отключает вывод сообщений уровня debug в wasm.
+	MuteLogs bool
 }
 
 // Option представляет функцию опции для настройки hostOptions.
@@ -41,5 +44,11 @@ func WithCompilationCache(cache wazero.CompilationCache) (opt Option) {
 func WithTGPath(tgPath string) (opt Option) {
 	return func(opts *hostOptions) {
 		opts.TGPath = tgPath
+	}
+}
+
+func MuteLogs() (opt Option) {
+	return func(opts *hostOptions) {
+		opts.MuteLogs = true
 	}
 }

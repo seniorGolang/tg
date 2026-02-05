@@ -111,18 +111,19 @@ func (pb *ProgressBar) View() (line string) {
 	var middlePart string
 	var rightSectionWidth int
 
-	if pb.indeterminate {
+	switch {
+	case pb.indeterminate:
 		runes := []rune(spinnerFrames)
 		frame := (time.Now().UnixNano() / spinnerIntervalNs) % int64(len(runes))
 		spinnerChar := lipgloss.NewStyle().Foreground(lipgloss.Color(spinnerColor)).Bold(true).Render(string(runes[frame]))
 		middlePart = spinnerChar
 		rightSectionWidth = lipgloss.Width(spinnerChar) + 1 + lipgloss.Width(rightPart)
-	} else if percent >= maxPercent {
+	case percent >= maxPercent:
 		checkmarkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(checkmarkColor)).Bold(true)
-		checkmark := checkmarkStyle.Render(checkmark)
-		middlePart = checkmark
-		rightSectionWidth = lipgloss.Width(checkmark) + 1 + lipgloss.Width(rightPart)
-	} else {
+		mark := checkmarkStyle.Render(checkmark)
+		middlePart = mark
+		rightSectionWidth = lipgloss.Width(mark) + 1 + lipgloss.Width(rightPart)
+	default:
 		bar := pb.progress.ViewAs(percent)
 		percentStr := fmt.Sprintf(percentFormat, int(percent*100))
 

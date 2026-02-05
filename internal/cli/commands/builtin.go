@@ -121,6 +121,23 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin add", err)
 	}
 
+	// Команда plugin build
+	pluginBuildCmd := &BuiltinCommand{
+		path:        []string{cmdPathPluginBuild, cmdSubPluginBuild},
+		description: i18n.Msg("Build plugins and manifest"),
+		options: []Option{
+			{Name: "out", Type: optionTypeString, Description: i18n.Msg("Output directory"), Required: false, Default: "./dist"},
+			{Name: "clean", Type: optionTypeBool, Description: i18n.Msg("Clean output directory before build"), Required: false},
+			{Name: "override-manifest", Type: optionTypeString, Description: i18n.Msg("Path to manifest overrides file"), Required: false, Default: "./manifest.overrides.yml"},
+			{Name: "version", Type: optionTypeString, Description: i18n.Msg("Manifest version (default from git tag)"), Required: false},
+			{Name: "skip-version-update", Type: optionTypeBool, Description: i18n.Msg("Do not write internal/version.go"), Required: false},
+		},
+		executor: builtin.HandlePluginBuild,
+	}
+	if err = tree.RegisterCommand(pluginBuildCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin build", err)
+	}
+
 	// Команда pkg add
 	pkgAddCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgAdd, cmdSubPkgAdd},

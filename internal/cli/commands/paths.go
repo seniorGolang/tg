@@ -28,10 +28,12 @@ const (
 	cmdPathPluginUpdate = "plugin"
 	cmdPathPluginInit   = "plugin"
 	cmdPathPluginAdd    = "plugin"
+	cmdPathPluginBuild  = "plugin"
 	cmdSubPluginDoc     = "doc"
 	cmdSubPluginUpdate  = "update"
 	cmdSubPluginInit    = "init"
 	cmdSubPluginAdd     = "add"
+	cmdSubPluginBuild   = "build"
 
 	// Группа команд управления scope
 	cmdPathPkgScope = "pkg"

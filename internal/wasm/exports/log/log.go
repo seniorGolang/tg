@@ -72,6 +72,10 @@ func HostLog(ctx context.Context, logger plugin.Logger, h *host.Host, msgPtr uin
 
 	level, message, args := parseLogMessage(msg)
 
+	if h.MuteLogs && level == slog.LevelDebug {
+		return
+	}
+
 	if len(args) > 0 {
 		switch level {
 		case slog.LevelDebug:

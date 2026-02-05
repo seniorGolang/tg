@@ -160,9 +160,9 @@ func (nm *netManager) GetConnState(connID uint64) (state *connState, err error) 
 
 func (nm *netManager) GetReader(connID uint64) (reader *bufio.Reader, err error) {
 
-	state, err := nm.GetConnState(connID)
-	if err != nil {
-		return nil, err
+	var state *connState
+	if state, err = nm.GetConnState(connID); err != nil {
+		return
 	}
 
 	reader = state.reader

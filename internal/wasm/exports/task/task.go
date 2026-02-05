@@ -131,11 +131,13 @@ func HostStartTask(ctx context.Context, h *host.Host, intervalMs, handlerID, res
 
 	taskID := h.TaskManager.StartTask(ctx, interval, handlerID, h.Module, &h.ActiveTasks)
 
-	slog.Debug(i18n.Msg("Task started"),
-		slog.Uint64("taskID", uint64(taskID)),
-		slog.Uint64("handlerID", uint64(handlerID)),
-		slog.String("interval", interval.String()),
-	)
+	if !h.MuteLogs {
+		slog.Debug(i18n.Msg("Task started"),
+			slog.Uint64("taskID", uint64(taskID)),
+			slog.Uint64("handlerID", uint64(handlerID)),
+			slog.String("interval", interval.String()),
+		)
+	}
 
 	response := plugin.NewStorage()
 	_ = response.Set(responseKeyTaskID, taskID)
@@ -162,9 +164,11 @@ func HostStopTask(ctx context.Context, h *host.Host, taskIDPtr, resultPtrPtr, re
 		return writeTaskErrorResponse(ctx, h, fmt.Sprintf(i18n.Msg("task not found or already stopped: %d"), taskID), resultPtrPtr, resultSizePtr)
 	}
 
-	slog.Debug(i18n.Msg("Task stopped"),
-		slog.Uint64("taskID", uint64(taskID)),
-	)
+	if !h.MuteLogs {
+		slog.Debug(i18n.Msg("Task stopped"),
+			slog.Uint64("taskID", uint64(taskID)),
+		)
+	}
 
 	response := plugin.NewStorage()
 	_ = response.Set(responseKeyTaskID, taskID)
@@ -180,7 +184,9 @@ func HostStopAll(ctx context.Context, h *host.Host, resultPtrPtr, resultSizePtr 
 	// Останавливаем все задачи
 	h.TaskManager.StopAll()
 
-	slog.Debug(i18n.Msg("All tasks stopped"))
+	if !h.MuteLogs {
+		slog.Debug(i18n.Msg("All tasks stopped"))
+	}
 
 	response := plugin.NewStorage()
 	_ = response.Set(responseKeyStatus, responseStatusAllStopped)

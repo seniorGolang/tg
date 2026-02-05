@@ -66,11 +66,11 @@ func New(ctx context.Context, wasmBytes []byte, info plugin.Info, rootDir string
 		NetManager:     netManager,
 		TLSConfig:      tlsConfig,
 		StreamRegistry: streamRegistry,
+		MuteLogs:       hostOpts.MuteLogs,
 	}
 
-	// Глобальный канал обеспечивает последовательное выполнение всех WASM-вызовов (гостевой рантайм однопоточный).
 	callChannel := host.NewCallChannel(ctx, h)
-	taskManager := task.NewManager(callChannel)
+	taskManager := task.NewManager(callChannel, hostOpts.MuteLogs)
 	h.CallChannel = callChannel
 	h.TaskManager = taskManager
 
@@ -132,7 +132,9 @@ func New(ctx context.Context, wasmBytes []byte, info plugin.Info, rootDir string
 	}
 
 	cfg = env.Apply(cfg, h.Info.AllowedEnvVars)
-	logPluginPermissions(h.Info, rootDir, hostOpts.TGPath)
+	if !hostOpts.MuteLogs {
+		logPluginPermissions(h.Info, rootDir, hostOpts.TGPath)
+	}
 
 	var module api.Module
 	if module, err = r.InstantiateModule(ctx, compiledModule, cfg); err != nil {

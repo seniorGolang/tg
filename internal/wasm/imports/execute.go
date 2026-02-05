@@ -22,24 +22,25 @@ func Execute(ctx context.Context, h *host.Host, rootDir string, request plugin.S
 
 	startTime := time.Now()
 
-	// Выводим данные запроса в момент запуска
 	var requestJSON []byte
 	if request != nil {
 		var marshalErr error
 		if requestJSON, marshalErr = json.Marshal(request); marshalErr != nil {
-			slog.Debug(i18n.Msg("Execute: failed to marshal request for logging"),
-				slog.String("rootDir", rootDir),
-				slog.Any("path", path),
-				slog.String("error", marshalErr.Error()),
-			)
-		} else {
+			if !h.MuteLogs {
+				slog.Debug(i18n.Msg("Execute: failed to marshal request for logging"),
+					slog.String("rootDir", rootDir),
+					slog.Any("path", path),
+					slog.String("error", marshalErr.Error()),
+				)
+			}
+		} else if !h.MuteLogs {
 			slog.Debug(i18n.Msg("Execute: starting"),
 				slog.String("rootDir", rootDir),
 				slog.Any("path", path),
 				slog.String("request", string(requestJSON)),
 			)
 		}
-	} else {
+	} else if !h.MuteLogs {
 		slog.Debug(i18n.Msg("Execute: starting"),
 			slog.String("rootDir", rootDir),
 			slog.Any("path", path),
@@ -47,8 +48,10 @@ func Execute(ctx context.Context, h *host.Host, rootDir string, request plugin.S
 		)
 	}
 
-	// Выводим данные ответа и время работы в момент завершения
 	defer func() {
+		if h.MuteLogs {
+			return
+		}
 		duration := time.Since(startTime)
 		var responseJSON []byte
 		var marshalErr error
