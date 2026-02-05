@@ -16,13 +16,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/storage"
 )
 
-const (
-	scopesDirName = "scopes"
-	binDirName    = "bin"
-	libDirName    = "lib"
-	etcDirName    = "etc"
-)
-
 // manager реализует ScopeManager.
 type manager struct{}
 
@@ -31,85 +24,10 @@ func NewManager() (mgr managers.ScopeManager) {
 	return &manager{}
 }
 
-func (m *manager) CreateScope(ctx context.Context, name string, options *models.ScopeOptions) (err error) {
-
-	scopeDir := storage.GetScopeDir(name)
-	var statErr error
-	if _, statErr = os.Stat(scopeDir); statErr == nil {
-		err = fmt.Errorf(i18n.Msg("Scope %s already exists"), name)
-		return
-	}
-
-	if err = storage.EnsureDir(scopeDir); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "scope directory", err)
-		return
-	}
-
-	var config *models.ScopeConfig
-	if options != nil && options.From != "" {
-		var sourceConfig *storage.ScopeConfig
-		if sourceConfig, err = storage.LoadScopeConfig(options.From); err != nil {
-			err = fmt.Errorf(i18n.Msg("Failed to load configuration from scope %s: %w"), options.From, err)
-			return
-		}
-		config = &models.ScopeConfig{
-			Name:          name,
-			InstallPrefix: sourceConfig.InstallPrefix,
-			BinDir:        sourceConfig.BinDir,
-			LibDir:        sourceConfig.LibDir,
-			ConfigDir:     sourceConfig.ConfigDir,
-		}
-	} else {
-		home := storage.GetHomeDir()
-		config = &models.ScopeConfig{
-			Name:          name,
-			InstallPrefix: filepath.Join(home, scopesDirName, name),
-			BinDir:        filepath.Join(home, scopesDirName, name, binDirName),
-			LibDir:        filepath.Join(home, scopesDirName, name, libDirName),
-			ConfigDir:     filepath.Join(home, scopesDirName, name, etcDirName),
-		}
-	}
-
-	scopeConfig := &storage.ScopeConfig{
-		Name:          config.Name,
-		InstallPrefix: config.InstallPrefix,
-		BinDir:        config.BinDir,
-		LibDir:        config.LibDir,
-		ConfigDir:     config.ConfigDir,
-	}
-
-	if err = storage.SaveScopeConfig(name, scopeConfig); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to save scope configuration: %w"), err)
-		return
-	}
-
-	if err = storage.EnsureDir(storage.GetCatalogDir(name)); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "catalog directory", err)
-		return
-	}
-
-	if err = storage.EnsureDir(storage.GetInstalledDir(name)); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "installations directory", err)
-		return
-	}
-
-	return
-}
-
-// UseScope переключается на указанный scope.
+// UseScope переключается на указанный scope (записывает current_scope в глобальный конфиг).
 func (m *manager) UseScope(ctx context.Context, name string) (err error) {
 
-	scopeDir := storage.GetScopeDir(name)
-	var statErr error
-	if _, statErr = os.Stat(scopeDir); os.IsNotExist(statErr) {
-		err = fmt.Errorf(i18n.Msg("Scope %s does not exist"), name)
-		return
-	}
-
-	if err = storage.SetCurrentScope(name); err != nil {
-		return
-	}
-	return
+	return storage.SetCurrentScope(name)
 }
 
 // DeleteScope удаляет scope.

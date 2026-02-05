@@ -15,13 +15,14 @@ import (
 )
 
 type ProgressBar struct {
-	title      string
-	total      int
-	current    int
-	progress   progress.Model
-	termWidth  int
-	startTime  time.Time
-	titleWidth int
+	title         string
+	total         int
+	current       int
+	progress      progress.Model
+	termWidth     int
+	startTime     time.Time
+	titleWidth    int
+	indeterminate bool
 }
 
 var (
@@ -88,6 +89,11 @@ func (pb *ProgressBar) SetCurrent(current int) {
 	pb.current = current
 }
 
+func (pb *ProgressBar) SetIndeterminate(indeterminate bool) {
+
+	pb.indeterminate = indeterminate
+}
+
 func (pb *ProgressBar) View() (line string) {
 
 	percent := float64(pb.current) / float64(pb.total)
@@ -105,7 +111,13 @@ func (pb *ProgressBar) View() (line string) {
 	var middlePart string
 	var rightSectionWidth int
 
-	if percent >= maxPercent {
+	if pb.indeterminate {
+		runes := []rune(spinnerFrames)
+		frame := (time.Now().UnixNano() / spinnerIntervalNs) % int64(len(runes))
+		spinnerChar := lipgloss.NewStyle().Foreground(lipgloss.Color(spinnerColor)).Bold(true).Render(string(runes[frame]))
+		middlePart = spinnerChar
+		rightSectionWidth = lipgloss.Width(spinnerChar) + 1 + lipgloss.Width(rightPart)
+	} else if percent >= maxPercent {
 		checkmarkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(checkmarkColor)).Bold(true)
 		checkmark := checkmarkStyle.Render(checkmark)
 		middlePart = checkmark
@@ -147,6 +159,7 @@ func (pb *ProgressBar) View() (line string) {
 
 func (pb *ProgressBar) Stop() (result string) {
 
+	pb.indeterminate = false
 	pb.current = pb.total
 	result = pb.View()
 	return

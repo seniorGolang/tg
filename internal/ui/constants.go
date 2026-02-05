@@ -28,4 +28,8 @@ const (
 
 	rightPartFormat = "%s %s"
 	widthFormat     = "%*s"
+
+	spinnerIntervalNs = 80 * 1e6
+	spinnerFrames     = "⣾⣽⣻⢿⡿⣟⣯⣷"
+	spinnerColor      = "#FFFFFF"
 )

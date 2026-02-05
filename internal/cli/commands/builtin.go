@@ -292,37 +292,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg info", err)
 	}
 
-	// Команда pkg scope add
-	pkgScopeAddCmd := &BuiltinCommand{
-		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeAdd},
-		description: i18n.Msg("Create new scope"),
-		options: []Option{
-			{
-				Name:         "name",
-				Type:         optionTypeString,
-				Description:  i18n.Msg("Scope name"),
-				Required:     true,
-				IsPositional: true,
-			},
-			{
-				Name:        "from",
-				Type:        optionTypeString,
-				Description: i18n.Msg("Copy configuration from specified scope"),
-				Required:    false,
-			},
-			{
-				Name:        "config",
-				Type:        optionTypeString,
-				Description: i18n.Msg("Use specified configuration file"),
-				Required:    false,
-			},
-		},
-		executor: builtin.HandlePluginScopeCreate,
-	}
-	if err = tree.RegisterCommand(pkgScopeAddCmd); err != nil {
-		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope add", err)
-	}
-
 	// Команда pkg scope use
 	pkgScopeUseCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeUse},

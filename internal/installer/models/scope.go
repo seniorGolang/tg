@@ -18,9 +18,3 @@ type ScopeConfig struct {
 	LibDir        string
 	ConfigDir     string
 }
-
-// ScopeOptions представляет опции для создания scope.
-type ScopeOptions struct {
-	From   string
-	Config string
-}

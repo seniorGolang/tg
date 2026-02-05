@@ -79,7 +79,6 @@ type InstallationManager interface {
 
 // ScopeManager управляет scope'ами.
 type ScopeManager interface {
-	CreateScope(ctx context.Context, name string, options *models.ScopeOptions) (err error)
 	UseScope(ctx context.Context, name string) (err error)
 	DeleteScope(ctx context.Context, name string, force bool) (err error)
 	ListScopes(ctx context.Context) (scopes []models.ScopeInfo, err error)

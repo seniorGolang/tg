@@ -65,8 +65,6 @@ const (
 	errorSeparator                  = ": "
 	progressBarTotal                = 100
 
-	optionKeyFrom       = "from"
-	optionKeyConfig     = "config"
 	optionKeyVersion    = "version"
 	optionKeyForce      = "force"
 	optionKeyDryRun     = "dry-run"

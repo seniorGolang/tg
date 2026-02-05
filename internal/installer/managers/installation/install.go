@@ -595,6 +595,34 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 		if strings.HasSuffix(file.Path, plugin.FileExtTGP) {
 			wasmFile = &file
 
+			select {
+			case <-ctx.Done():
+				err = ctx.Err()
+				return
+			default:
+			}
+
+			var workDone chan struct{}
+			if packageBar != nil {
+				workDone = make(chan struct{})
+				packageBar.SetIndeterminate(true)
+				go func() {
+					ticker := time.NewTicker(80 * time.Millisecond)
+					defer ticker.Stop()
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-workDone:
+							return
+						case <-ticker.C:
+							packageBar.Print()
+						}
+					}
+				}()
+				defer func() { close(workDone) }()
+			}
+
 			var rawBytes []byte
 			var readErr error
 			if rawBytes, readErr = os.ReadFile(file.Path); readErr != nil {
@@ -628,11 +656,11 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 				err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 				return
 			}
-			defer wasm.Close(context.Background(), tempHost)
+			defer wasm.Close(ctx, tempHost)
 
 			var info plugin.Info
 			var infoErr error
-			if info, infoErr = imports.Info(context.Background(), tempHost); infoErr != nil {
+			if info, infoErr = imports.Info(ctx, tempHost); infoErr != nil {
 				err = fmt.Errorf(i18n.Msg("failed to get plugin info: %w"), infoErr)
 				return
 			}
@@ -668,6 +696,13 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	if len(installedFiles) > 0 && wasmFile == nil {
 		err = errors.New(i18n.Msg("package appears to be a plugin but no .tgp file found"))
 		return
+	}
+
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+		return
+	default:
 	}
 
 	if err = m.databaseManager.RecordInstallation(ctx, installation); err != nil {

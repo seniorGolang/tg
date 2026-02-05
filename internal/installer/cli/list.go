@@ -36,19 +36,9 @@ func (inst *Installer) HandleList(ctx context.Context, args []string) (err error
 
 	var scopesToProcess []string
 	if scopeOverridden {
-		// Если scope переопределен, обрабатываем только указанный scope
 		scopesToProcess = []string{inst.currentScope}
 	} else {
-		// Получаем все scopes
-		var scopes []models.ScopeInfo
-		if scopes, err = inst.scopeManager.ListScopes(ctx); err != nil {
-			err = fmt.Errorf(i18n.Msg("Failed to get list of scopes: %w"), err)
-			return
-		}
-		scopesToProcess = make([]string, 0, len(scopes))
-		for _, scopeInfo := range scopes {
-			scopesToProcess = append(scopesToProcess, scopeInfo.Name)
-		}
+		scopesToProcess = []string{activeScope}
 	}
 
 	// Собираем установки из указанных scopes
