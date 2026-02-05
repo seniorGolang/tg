@@ -96,6 +96,11 @@ func Run(ctx context.Context, p Params) (err error) {
 		return
 	}
 	slog.Debug("manifest generated", "path", genPath)
+	defer func() {
+		if genPath != "" {
+			_ = os.Remove(genPath)
+		}
+	}()
 
 	overridePath := p.OverrideManifest
 	if overridePath == "" {

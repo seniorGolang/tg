@@ -75,31 +75,34 @@ func gzipFileInPlace(path string) (err error) {
 	if out, err = os.Create(tmpPath); err != nil {
 		return
 	}
+	defer func() {
+		if err != nil {
+			_ = out.Close()
+			_ = os.Remove(tmpPath)
+		}
+	}()
 
 	var gz *gzip.Writer
 	if gz, err = gzip.NewWriterLevel(out, gzipLevel); err != nil {
-		_ = out.Close()
-		_ = os.Remove(tmpPath)
 		return
 	}
 
 	if _, err = gz.Write(data); err != nil {
 		_ = gz.Close()
-		_ = out.Close()
-		_ = os.Remove(tmpPath)
 		return
 	}
 
 	if err = gz.Close(); err != nil {
-		_ = out.Close()
-		_ = os.Remove(tmpPath)
 		return
 	}
 
 	if err = out.Close(); err != nil {
-		_ = os.Remove(tmpPath)
 		return
 	}
 
-	return os.Rename(tmpPath, path)
+	if err = os.Rename(tmpPath, path); err != nil {
+		return
+	}
+
+	return
 }
