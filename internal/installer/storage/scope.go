@@ -88,42 +88,7 @@ func SetCurrentScope(scopeName string) (err error) {
 
 func LoadScopeConfig(scopeName string) (config *ScopeConfig, err error) {
 
-	configFile := GetConfigFile(scopeName)
-	var statErr error
-	if _, statErr = os.Stat(configFile); os.IsNotExist(statErr) {
-		config = getDefaultScopeConfig(scopeName)
-		return
-	}
-
-	var data []byte
-	if data, err = os.ReadFile(configFile); err != nil {
-		config = nil
-		return
-	}
-
-	config = &ScopeConfig{}
-	if err = yaml.Unmarshal(data, config); err != nil {
-		config = nil
-		return
-	}
-
-	return
-}
-
-func SaveScopeConfig(scopeName string, config *ScopeConfig) (err error) {
-
-	configFile := GetConfigFile(scopeName)
-	if err = EnsureDir(filepath.Dir(configFile)); err != nil {
-		return
-	}
-
-	var data []byte
-	if data, err = yaml.Marshal(config); err != nil {
-		return
-	}
-
-	err = os.WriteFile(configFile, data, FilePermFile)
-	return
+	return getDefaultScopeConfig(scopeName), nil
 }
 
 func getDefaultScopeConfig(scopeName string) (config *ScopeConfig) {

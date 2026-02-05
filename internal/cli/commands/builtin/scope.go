@@ -8,25 +8,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/cli/types"
 )
 
-func HandlePluginScopeCreate(ctx types.CommandContext) (err error) {
-
-	var cmdCtx context.Context
-	if cmdCtx, err = prepareInstallerContext(ctx); err != nil {
-		return
-	}
-
-	options := make(map[string]any)
-	if from, ok := ctx.Options[optionKeyFrom]; ok {
-		options[optionKeyFrom] = from
-	}
-	if config, ok := ctx.Options[optionKeyConfig]; ok {
-		options[optionKeyConfig] = config
-	}
-
-	err = installer.HandleScopeCreate(cmdCtx, ctx.Args, options)
-	return
-}
-
 func HandlePluginScopeUse(ctx types.CommandContext) (err error) {
 
 	var cmdCtx context.Context

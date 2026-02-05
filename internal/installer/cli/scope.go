@@ -17,31 +17,6 @@ import (
 	mdrender "github.com/seniorGolang/tg/v3/internal/markdown"
 )
 
-// HandleScopeCreate обрабатывает команду scope create.
-func (inst *Installer) HandleScopeCreate(ctx context.Context, args []string, options map[string]any) (err error) {
-
-	if len(args) == 0 {
-		err = errors.New(i18n.Msg("Scope name not specified"))
-		return
-	}
-
-	name := args[0]
-	scopeOptions := &models.ScopeOptions{}
-
-	if from, ok := options["from"].(string); ok && from != "" {
-		scopeOptions.From = from
-	}
-
-	if config, ok := options["config"].(string); ok && config != "" {
-		scopeOptions.Config = config
-	}
-
-	if err = inst.scopeManager.CreateScope(ctx, name, scopeOptions); err != nil {
-		return
-	}
-	return
-}
-
 // HandleScopeUse обрабатывает команду scope use.
 func (inst *Installer) HandleScopeUse(ctx context.Context, args []string) (err error) {
 
@@ -102,7 +77,7 @@ func (inst *Installer) HandleScopeList(ctx context.Context) (err error) {
 	return
 }
 
-// HandleScopeDelete обрабатывает команду scope delete.
+// HandleScopeDelete обрабатывает команду scope del.
 func (inst *Installer) HandleScopeDelete(ctx context.Context, args []string, force bool) (err error) {
 
 	if len(args) == 0 {

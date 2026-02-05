@@ -34,13 +34,12 @@ const (
 	cmdSubPluginAdd     = "add"
 
 	// Группа команд управления scope
-	cmdPathPkgScope   = "pkg"
-	cmdSubPkgScope    = "scope"
-	cmdSubScopeCreate = "create"
-	cmdSubScopeUse    = "use"
-	cmdSubScopeList   = "list"
-	cmdSubScopeDelete = "delete"
-	cmdSubScopeShow   = "show"
+	cmdPathPkgScope = "pkg"
+	cmdSubPkgScope  = "scope"
+	cmdSubScopeUse  = "use"
+	cmdSubScopeList = "list"
+	cmdSubScopeDel  = "del"
+	cmdSubScopeShow = "show"
 
 	// Группа команд completion
 	cmdGroupCompletion         = "completion"

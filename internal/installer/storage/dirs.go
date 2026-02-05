@@ -60,13 +60,6 @@ func GetPackageDir(scopeName string, packageID string) (dir string) {
 	return
 }
 
-func GetConfigFile(scopeName string) (path string) {
-
-	scopeDir := GetScopeDir(scopeName)
-	path = filepath.Join(scopeDir, ConfigFileName)
-	return
-}
-
 func GetGlobalConfigFile() (path string) {
 
 	home := GetHomeDir()

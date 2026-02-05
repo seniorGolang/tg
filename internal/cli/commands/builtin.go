@@ -292,37 +292,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg info", err)
 	}
 
-	// Команда pkg scope create
-	pkgScopeCreateCmd := &BuiltinCommand{
-		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeCreate},
-		description: i18n.Msg("Create new scope"),
-		options: []Option{
-			{
-				Name:         "name",
-				Type:         optionTypeString,
-				Description:  i18n.Msg("Scope name"),
-				Required:     true,
-				IsPositional: true,
-			},
-			{
-				Name:        "from",
-				Type:        optionTypeString,
-				Description: i18n.Msg("Copy configuration from specified scope"),
-				Required:    false,
-			},
-			{
-				Name:        "config",
-				Type:        optionTypeString,
-				Description: i18n.Msg("Use specified configuration file"),
-				Required:    false,
-			},
-		},
-		executor: builtin.HandlePluginScopeCreate,
-	}
-	if err = tree.RegisterCommand(pkgScopeCreateCmd); err != nil {
-		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope create", err)
-	}
-
 	// Команда pkg scope use
 	pkgScopeUseCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeUse},
@@ -353,9 +322,9 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope list", err)
 	}
 
-	// Команда pkg scope delete
-	pkgScopeDeleteCmd := &BuiltinCommand{
-		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeDelete},
+	// Команда pkg scope del
+	pkgScopeDelCmd := &BuiltinCommand{
+		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeDel},
 		description: i18n.Msg("Delete scope"),
 		options: []Option{
 			{
@@ -374,8 +343,8 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		},
 		executor: builtin.HandlePluginScopeDelete,
 	}
-	if err = tree.RegisterCommand(pkgScopeDeleteCmd); err != nil {
-		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope delete", err)
+	if err = tree.RegisterCommand(pkgScopeDelCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope del", err)
 	}
 
 	// Команда pkg scope show
