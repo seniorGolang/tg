@@ -45,11 +45,7 @@ func compileAll(ctx context.Context, rootDir string, outDir string, version stri
 
 			// version и versionLdVar приходят из конфига сборки, не от пользовательского ввода.
 			// #nosec G204
-			cmd := exec.CommandContext(ctx, "go", "build",
-				"-ldflags", "-s -w -X "+versionLdVar+"="+version,
-				"-o", outTgp,
-				"-buildmode=c-shared",
-				".")
+			cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", "-s -w -X "+versionLdVar+"="+version, "-o", outTgp, "-buildmode=c-shared", ".")
 			cmd.Dir = pluginDir
 			cmd.Env = append(cmd.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 
