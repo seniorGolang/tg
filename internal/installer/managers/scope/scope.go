@@ -136,6 +136,8 @@ func (m *manager) getScopeInfo(ctx context.Context, scopeName string, currentSco
 				packageCount++
 			}
 		}
+	} else if os.IsNotExist(err) {
+		err = nil
 	}
 
 	scopeInfo = models.ScopeInfo{
