@@ -108,7 +108,7 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 	}
 
 	if p.DefaultValue != "" {
-		p.input = append(p.input, Gray(p.DefaultValue))
+		p.input = append(p.input, p.DefaultValue)
 		p.updateArea(&area)
 	}
 
@@ -128,10 +128,6 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 			}
 		case keys.Enter:
 			if p.DefaultValue != "" && !p.startedTyping {
-				for i := range p.input {
-					p.input[i] = RemoveColorFromString(p.input[i])
-				}
-
 				if p.MultiLine {
 					area.Bottom()
 				}
@@ -142,10 +138,14 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 				if key.AltPressed {
 					p.cursorXPos = 0
 				}
+				line := p.input[p.cursorYPos]
+				width := internal.GetStringMaxWidth(line)
+				pos := width + p.cursorXPos
+				idx := runeIndexAtColumn(line, pos)
+				runes := []rune(line)
 				appendAfterY := append([]string{}, p.input[p.cursorYPos+1:]...)
-				appendAfterX := string(append([]rune{}, []rune(p.input[p.cursorYPos])[len([]rune(p.input[p.cursorYPos]))+p.cursorXPos:]...))
-				p.input[p.cursorYPos] = string(append([]rune{}, []rune(p.input[p.cursorYPos])[:len([]rune(p.input[p.cursorYPos]))+p.cursorXPos]...))
-				p.input = append(p.input[:p.cursorYPos+1], appendAfterX)
+				p.input[p.cursorYPos] = string(runes[:idx])
+				p.input = append(p.input[:p.cursorYPos+1], string(runes[idx:]))
 				p.input = append(p.input, appendAfterY...)
 				p.cursorYPos++
 				p.cursorXPos = -internal.GetStringMaxWidth(p.input[p.cursorYPos])
@@ -157,24 +157,42 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 			if !p.startedTyping {
 				p.startedTyping = true
 			}
-			p.input[p.cursorYPos] = string(append([]rune(p.input[p.cursorYPos])[:len([]rune(p.input[p.cursorYPos]))+p.cursorXPos], append([]rune(key.String()), []rune(p.input[p.cursorYPos])[len([]rune(p.input[p.cursorYPos]))+p.cursorXPos:]...)...))
+			line := p.input[p.cursorYPos]
+			width := internal.GetStringMaxWidth(line)
+			pos := width + p.cursorXPos
+			idx := runeIndexAtColumn(line, pos)
+			runes := append([]rune{}, []rune(line)...)
+			newRunes := append(append(runes[:idx], []rune(key.String())...), runes[idx:]...)
+			p.input[p.cursorYPos] = string(newRunes)
 		case keys.Space:
 			if !p.startedTyping {
 				p.startedTyping = true
 			}
-			p.input[p.cursorYPos] = string(append([]rune(p.input[p.cursorYPos])[:len([]rune(p.input[p.cursorYPos]))+p.cursorXPos], append([]rune(" "), []rune(p.input[p.cursorYPos])[len([]rune(p.input[p.cursorYPos]))+p.cursorXPos:]...)...))
+			line := p.input[p.cursorYPos]
+			width := internal.GetStringMaxWidth(line)
+			pos := width + p.cursorXPos
+			idx := runeIndexAtColumn(line, pos)
+			runes := append([]rune{}, []rune(line)...)
+			newRunes := append(append(runes[:idx], ' '), runes[idx:]...)
+			p.input[p.cursorYPos] = string(newRunes)
 		case keys.Backspace:
 			if !p.startedTyping {
 				p.startedTyping = true
 			}
-			if len([]rune(p.input[p.cursorYPos]))+p.cursorXPos > 0 {
-				p.input[p.cursorYPos] = string(append([]rune(p.input[p.cursorYPos])[:len([]rune(p.input[p.cursorYPos]))-1+p.cursorXPos], []rune(p.input[p.cursorYPos])[len([]rune(p.input[p.cursorYPos]))+p.cursorXPos:]...))
-			} else if p.cursorYPos > 0 {
-				p.input[p.cursorYPos-1] += p.input[p.cursorYPos]
-				appendAfterY := append([]string{}, p.input[p.cursorYPos+1:]...)
-				p.input = append(p.input[:p.cursorYPos], appendAfterY...)
-				p.cursorXPos = 0
-				p.cursorYPos--
+			line := p.input[p.cursorYPos]
+			width := internal.GetStringMaxWidth(line)
+			pos := width + p.cursorXPos
+			idx := runeIndexAtColumn(line, pos)
+			if idx == 0 {
+				if p.cursorYPos > 0 {
+					p.input[p.cursorYPos-1] += p.input[p.cursorYPos]
+					p.input = append(p.input[:p.cursorYPos], p.input[p.cursorYPos+1:]...)
+					p.cursorXPos = 0
+					p.cursorYPos--
+				}
+			} else {
+				newLine, _ := deleteRuneAtIndex(line, idx-1)
+				p.input[p.cursorYPos] = newLine
 			}
 		case keys.Delete:
 			if !p.startedTyping {
@@ -182,14 +200,20 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 				p.startedTyping = true
 				return false, nil
 			}
-			if len([]rune(p.input[p.cursorYPos]))+p.cursorXPos < len([]rune(p.input[p.cursorYPos])) {
-				p.input[p.cursorYPos] = string(append([]rune(p.input[p.cursorYPos])[:len([]rune(p.input[p.cursorYPos]))+p.cursorXPos], []rune(p.input[p.cursorYPos])[len([]rune(p.input[p.cursorYPos]))+p.cursorXPos+1:]...))
-				p.cursorXPos++
-			} else if p.cursorYPos < len(p.input)-1 {
-				p.input[p.cursorYPos] += p.input[p.cursorYPos+1]
-				appendAfterY := append([]string{}, p.input[p.cursorYPos+2:]...)
-				p.input = append(p.input[:p.cursorYPos+1], appendAfterY...)
-				p.cursorXPos = 0
+			line := p.input[p.cursorYPos]
+			width := internal.GetStringMaxWidth(line)
+			pos := width + p.cursorXPos
+			idx := runeIndexAtColumn(line, pos)
+			runes := []rune(line)
+			if idx >= len(runes) {
+				if p.cursorYPos < len(p.input)-1 {
+					p.input[p.cursorYPos] += p.input[p.cursorYPos+1]
+					p.input = append(p.input[:p.cursorYPos+1], p.input[p.cursorYPos+2:]...)
+					p.cursorXPos = 0
+				}
+			} else {
+				newLine, _ := deleteRuneAtIndex(line, idx)
+				p.input[p.cursorYPos] = newLine
 			}
 		case keys.CtrlC:
 			cancel()
@@ -227,17 +251,24 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 		}
 
 		if internal.GetStringMaxWidth(p.input[p.cursorYPos]) > 0 {
+			line := p.input[p.cursorYPos]
+			width := internal.GetStringMaxWidth(line)
+			pos := width + p.cursorXPos
+			idx := runeIndexAtColumn(line, pos)
+			runes := []rune(line)
 			switch key.Code {
 			case keys.Right:
-				if p.cursorXPos < 0 {
-					p.cursorXPos++
+				if idx < len(runes) {
+					endCol := runeStartColumnForIndex(line, idx) + runewidth.RuneWidth(runes[idx])
+					p.cursorXPos = endCol - width
 				} else if p.cursorYPos < len(p.input)-1 {
 					p.cursorYPos++
 					p.cursorXPos = -internal.GetStringMaxWidth(p.input[p.cursorYPos])
 				}
 			case keys.Left:
-				if p.cursorXPos+internal.GetStringMaxWidth(p.input[p.cursorYPos]) > 0 {
-					p.cursorXPos--
+				if idx > 0 {
+					newPos := runeStartColumnForIndex(line, idx-1)
+					p.cursorXPos = newPos - width
 				} else if p.cursorYPos > 0 {
 					p.cursorYPos--
 					p.cursorXPos = 0
@@ -256,19 +287,11 @@ func (p InteractiveTextInputPrinter) Show(text ...string) (string, error) {
 	// Add new line
 	Println()
 
-	for i, s := range p.input {
-		if i < len(p.input)-1 {
-			areaText += s + "\n"
-		} else {
-			areaText += s
-		}
-	}
-
 	if !p.startedTyping {
 		return p.DefaultValue, nil
 	}
 
-	return strings.ReplaceAll(areaText, p.text, ""), nil
+	return strings.Join(p.input, "\n"), nil
 }
 
 func (p InteractiveTextInputPrinter) updateArea(area *cursor.Area) string {
@@ -278,10 +301,14 @@ func (p InteractiveTextInputPrinter) updateArea(area *cursor.Area) string {
 	areaText := p.text
 
 	for i, s := range p.input {
+		displayS := s
+		if !p.MultiLine && !p.startedTyping && p.DefaultValue != "" && i == 0 && s == p.DefaultValue {
+			displayS = Gray(s)
+		}
 		if i < len(p.input)-1 {
-			areaText += s + "\n"
+			areaText += displayS + "\n"
 		} else {
-			areaText += s
+			areaText += displayS
 		}
 	}
 
@@ -303,4 +330,39 @@ func (p InteractiveTextInputPrinter) updateArea(area *cursor.Area) string {
 		cursor.Right(internal.GetStringMaxWidth(areaText) + p.cursorXPos)
 	}
 	return areaText
+}
+
+func runeIndexAtColumn(s string, col int) int {
+	runes := []rune(s)
+	var colIdx int
+	for i, r := range runes {
+		w := runewidth.RuneWidth(r)
+		if colIdx+w > col {
+			return i
+		}
+		colIdx += w
+	}
+	return len(runes)
+}
+
+func runeStartColumnForIndex(s string, idx int) int {
+	runes := []rune(s)
+	if idx <= 0 {
+		return 0
+	}
+	var colIdx int
+	for i := 0; i < idx && i < len(runes); i++ {
+		colIdx += runewidth.RuneWidth(runes[i])
+	}
+	return colIdx
+}
+
+func deleteRuneAtIndex(s string, idx int) (newS string, removedWidth int) {
+	runes := []rune(s)
+	if idx < 0 || idx >= len(runes) {
+		return s, 0
+	}
+	w := runewidth.RuneWidth(runes[idx])
+	newRunes := append(runes[:idx], runes[idx+1:]...)
+	return string(newRunes), w
 }
