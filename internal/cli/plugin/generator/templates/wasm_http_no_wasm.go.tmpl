@@ -1,0 +1,42 @@
+//go:build !wasip1
+
+package wasm
+
+import "fmt"
+
+// SetHTTPClient устанавливает HTTP клиент.
+// Для не-WASM сборок ничего не делает.
+func SetHTTPClient(client HTTPClient) {
+
+	// Для не-WASM сборок ничего не делаем
+}
+
+// HTTPClient предоставляет функции выполнения HTTP запросов.
+type HTTPClient interface {
+	HTTPRequest(methodPtr, methodLen, urlPtr, urlLen, headersPtr, headersLen, bodyPtr, bodyLen, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+}
+
+// HTTPResponse представляет HTTP ответ.
+type HTTPResponse struct {
+	StatusCode   int
+	Headers      map[string]string
+	BodyStreamID *uint32
+	Error        string
+}
+
+// HTTPRequest выполняет HTTP запрос через хост.
+// Реализация для не-WASM сборок.
+func HTTPRequest(method, url string, headers map[string]string, body string) (response *HTTPResponse, err error) {
+
+	return nil, fmt.Errorf("HTTPRequest not available in non-WASM build")
+}
+
+// ReadBody читает тело ответа из потока.
+func (r *HTTPResponse) ReadBody() (body []byte, err error) {
+
+	if r.BodyStreamID == nil {
+		return nil, nil
+	}
+
+	return ReadStream(*r.BodyStreamID)
+}

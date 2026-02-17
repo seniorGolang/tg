@@ -1,0 +1,6 @@
+.run/
+.idea/
+.vscode/
+./cmd/test/
+
+.DS_Store

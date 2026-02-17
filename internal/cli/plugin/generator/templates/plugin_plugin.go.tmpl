@@ -1,0 +1,39 @@
+package main
+
+import (
+	_ "embed"
+	"{{.ModuleName}}/core/data"
+	"{{.ModuleName}}/core/i18n"
+	"{{.ModuleName}}/core/plugin"
+)
+
+//go:embed plugin.md
+var docContent string
+
+// {{.PluginNameTitleCase}}Plugin реализует интерфейс Plugin.
+type {{.PluginNameTitleCase}}Plugin struct{}
+
+// Execute выполняет основную логику плагина.
+func (p *{{.PluginNameTitleCase}}Plugin) Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error) {
+
+	// TODO реализуйте логику плагина здесь
+	// Подробная информация о работе с системными ресурсами: см. раздел "Работа с системными ресурсами в плагинах" в readme.md
+	return
+}
+
+// Info возвращает информацию о плагине.
+func (p *{{.PluginNameTitleCase}}Plugin) Info() (info plugin.Info, err error) {
+
+	info = plugin.Info{
+		{{- if .Kind}}
+		Kind:        "{{.Kind}}",
+		{{- end}}
+		Name:        "{{.PluginName}}",
+		Description: i18n.Msg("{{.Description}}"),
+		Author:      "{{.Author}}",
+		License:     "{{.License}}",
+		Category:    "{{.Category}}",
+		Doc:         docContent,
+	}
+	return
+}

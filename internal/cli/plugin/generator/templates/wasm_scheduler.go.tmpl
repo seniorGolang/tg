@@ -1,0 +1,19 @@
+//go:build wasip1
+
+package wasm
+
+// stopChan - канал для сигнала остановки scheduler loop (буферизованный, чтобы не блокировать).
+var stopChan = make(chan struct{}, 1)
+
+// StopScheduler останавливает SchedulerLoop, отправляя сигнал остановки.
+// После вызова этой функции SchedulerLoop завершится, что приведет к завершению Execute.
+// Хост автоматически остановит HTTP сервер при завершении Execute.
+func StopScheduler() {
+
+	select {
+	case stopChan <- struct{}{}:
+		// Сигнал отправлен
+	default:
+		// Остановка уже запрошена (канал буферизованный, размер 1)
+	}
+}

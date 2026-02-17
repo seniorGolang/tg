@@ -1,0 +1,229 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            goos: darwin
+            goarch: arm64
+            platform: darwin_arm64
+          - os: macos-14
+            goos: darwin
+            goarch: amd64
+            platform: darwin_amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            platform: linux_amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            platform: linux_arm64
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+
+      - name: Build binary
+        id: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          OUTPUT_NAME="tg"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            OUTPUT_NAME="tg.exe"
+          fi
+
+          go build -mod=vendor -ldflags="-s -w -X github.com/seniorGolang/tg/v3/internal/cli.Version=${VERSION}" -o "${OUTPUT_NAME}" ./cmd/tg
+
+          echo "binary_name=${OUTPUT_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create archive
+        id: archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLATFORM="${{ matrix.platform }}"
+          BINARY_NAME="${{ steps.build.outputs.binary_name }}"
+
+          ARCHIVE_NAME="tg_${VERSION#v}_${PLATFORM}.tar.gz"
+          tar -czf "${ARCHIVE_NAME}" "${BINARY_NAME}"
+
+          echo "archive_name=${ARCHIVE_NAME}" >> $GITHUB_OUTPUT
+
+          # Вычисляем SHA256
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            SHA256=$(shasum -a 256 "${ARCHIVE_NAME}" | awk '{print $1}')
+          else
+            SHA256=$(sha256sum "${ARCHIVE_NAME}" | awk '{print $1}')
+          fi
+
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+          echo "SHA256 for ${PLATFORM}: ${SHA256}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}
+          path: |
+            ${{ steps.build.outputs.binary_name }}
+            ${{ steps.archive.outputs.archive_name }}
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release data
+        id: prepare
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Собираем информацию о всех платформах
+          PLATFORMS=""
+          SHA256_MAP=""
+
+          for platform_dir in artifacts/binary-*/; do
+            PLATFORM=$(basename "$platform_dir" | sed 's/binary-//')
+            
+            # Находим архив и бинарник
+            ARCHIVE=$(find "$platform_dir" -name "*.tar.gz" | head -1)
+            BINARY=$(find "$platform_dir" -name "tg" -o -name "tg.exe" | head -1)
+            
+            if [ -n "$ARCHIVE" ] && [ -n "$BINARY" ]; then
+              ARCHIVE_NAME=$(basename "$ARCHIVE")
+              
+              # Вычисляем SHA256
+              SHA256=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+              
+              PLATFORMS="${PLATFORMS}${PLATFORM} "
+              SHA256_MAP="${SHA256_MAP}${PLATFORM}:${SHA256} "
+              
+              echo "Platform: ${PLATFORM}, Archive: ${ARCHIVE_NAME}, SHA256: ${SHA256}"
+            fi
+          done
+
+          echo "platforms=${PLATFORMS}" >> $GITHUB_OUTPUT
+          echo "sha256_map=${SHA256_MAP}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/binary-*/*.tar.gz
+          name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## Release ${{ steps.version.outputs.version }}
+
+            ### Downloads
+
+            Pre-built binaries are available for the following platforms:
+            ${{ steps.prepare.outputs.platforms }}
+
+            ### Installation via Homebrew
+
+            ```bash
+            # Добавить tap (один раз)
+            brew tap seniorGolang/cli
+
+            # Установить
+            brew install tg
+            ```
+
+            Или одной командой:
+            ```bash
+            brew install seniorGolang/cli/tg
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract SHA256 for each platform
+        id: sha256_extract
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256_MAP="${{ steps.prepare.outputs.sha256_map }}"
+
+          # Проверяем, что все платформы собрались
+          REQUIRED_PLATFORMS="darwin_arm64 darwin_amd64 linux_amd64 linux_arm64"
+          MISSING_PLATFORMS=""
+
+          for platform in $REQUIRED_PLATFORMS; do
+            if ! echo "$SHA256_MAP" | grep -q "${platform}:"; then
+              MISSING_PLATFORMS="${MISSING_PLATFORMS} ${platform}"
+            fi
+          done
+
+          if [ -n "$MISSING_PLATFORMS" ]; then
+            echo "Ошибка: не все платформы собрались. Отсутствуют:${MISSING_PLATFORMS}"
+            exit 1
+          fi
+
+          # Парсим SHA256 для каждой платформы
+          for entry in $SHA256_MAP; do
+            PLATFORM=$(echo "$entry" | cut -d: -f1)
+            SHA256=$(echo "$entry" | cut -d: -f2)
+            
+            if [ -z "$SHA256" ]; then
+              echo "Ошибка: SHA256 пустой для платформы ${PLATFORM}"
+              exit 1
+            fi
+            
+            echo "${PLATFORM}_sha256=${SHA256}" >> $GITHUB_OUTPUT
+            echo "SHA256 for ${PLATFORM}: ${SHA256}"
+          done
+
+      - name: Trigger homebrew-cli update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          # Fine-grained PAT с правами Contents: Write для репозитория seniorGolang/homebrew-cli
+          token: ${{ secrets.HOMEBREW_TG_TOKEN }}
+          repository: seniorGolang/homebrew-cli
+          event-type: release-created
+          client-payload: |
+            {
+              "version": "${{ steps.version.outputs.version }}",
+              "darwin_arm64_sha256": "${{ steps.sha256_extract.outputs.darwin_arm64_sha256 }}",
+              "darwin_amd64_sha256": "${{ steps.sha256_extract.outputs.darwin_amd64_sha256 }}",
+              "linux_amd64_sha256": "${{ steps.sha256_extract.outputs.linux_amd64_sha256 }}",
+              "linux_arm64_sha256": "${{ steps.sha256_extract.outputs.linux_arm64_sha256 }}",
+              "repository": "${{ github.repository }}"
+            }

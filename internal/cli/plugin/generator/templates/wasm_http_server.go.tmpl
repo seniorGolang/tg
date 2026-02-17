@@ -1,0 +1,230 @@
+//go:build wasip1
+
+package wasm
+
+import (
+	"fmt"
+	"log/slog"
+
+	"github.com/goccy/go-json"
+)
+
+func minInt(a, b int) (result int) {
+
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// StartServerResponse представляет ответ от хоста при запуске сервера.
+type StartServerResponse struct {
+	Status   string `json:"status,omitempty"`
+	Addr     string `json:"addr,omitempty"`
+	ServerID string `json:"serverID,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
+// HTTPServer предоставляет функции для работы с HTTP сервером.
+type HTTPServer interface {
+	StartServerWithRoutes(addrPtr, addrLen, routesPtr, routesLen, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+	StopServer(serverIDPtr, resultPtrPtr, resultSizePtr uint32) (resultCode uint32)
+}
+
+var httpServer HTTPServer
+
+// SetHTTPServer устанавливает HTTP сервер.
+func SetHTTPServer(server HTTPServer) {
+
+	httpServer = server
+}
+
+// RouteDecl представляет декларацию маршрута (для передачи в хост).
+type RouteDecl struct {
+	Path      string `json:"path"`
+	HandlerID uint32 `json:"handlerID"`
+}
+
+// StartServerWithRoutes запускает HTTP сервер на указанном адресе с предварительно зарегистрированными маршрутами.
+// Возвращает serverID при успешном запуске.
+func StartServerWithRoutes(addr string, routes []RouteDecl) (serverID uint32, err error) {
+
+	if httpServer == nil {
+		return 0, fmt.Errorf("http server not initialized")
+	}
+
+	// Преобразуем маршруты в JSON формат
+	routesJSON := make([]map[string]any, 0, len(routes))
+	for _, r := range routes {
+		routesJSON = append(routesJSON, map[string]any{
+			"path":      r.Path,
+			"handlerID": r.HandlerID,
+		})
+	}
+
+	// Кодируем маршруты в JSON
+	routesJSONBytes, err := json.Marshal(routesJSON)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode routes: %w", err)
+	}
+
+	// Выделяем память для адреса
+	addrPtr, addrLen := WriteString(addr)
+	defer Free(addrPtr)
+
+	// Выделяем память для маршрутов
+	routesPtr, routesLen := WriteString(string(routesJSONBytes))
+	defer Free(routesPtr)
+
+	// Выделяем память для указателей результата
+	resultPtrPtr := Malloc(4)
+	resultSizePtr := Malloc(4)
+	defer Free(resultPtrPtr)
+	defer Free(resultSizePtr)
+
+	// Вызываем функцию хоста
+	if httpServer.StartServerWithRoutes(addrPtr, addrLen, routesPtr, routesLen, resultPtrPtr, resultSizePtr) != 0 {
+		return 0, fmt.Errorf("failed to start server")
+	}
+
+	// Читаем результат
+	resultPtr := ReadUint32(resultPtrPtr)
+	resultSize := ReadUint32(resultSizePtr)
+
+	if resultSize == 0 {
+		return 0, fmt.Errorf("empty response from host")
+	}
+
+	// Читаем результат (в JSON формате execute_response)
+	resultBytes := PtrToByte(resultPtr, resultSize)
+	defer Free(resultPtr)
+
+	// Декодируем JSON ответ
+	var responseJSON map[string]any
+	if err = json.Unmarshal(resultBytes, &responseJSON); err != nil {
+		return 0, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Проверяем наличие ошибки
+	if errorStr, ok := responseJSON["error"].(string); ok && errorStr != "" {
+		return 0, fmt.Errorf("server error: %s", errorStr)
+	}
+
+	// Если есть response, декодируем его из JSON
+	var parsedServerID uint32
+	if responseBytes, ok := responseJSON["response"].([]byte); ok && len(responseBytes) > 0 {
+		slog.Info("http_server: responseBytes", "len", len(responseBytes), "preview", string(responseBytes[:minInt(200, len(responseBytes))]))
+		var result StartServerResponse
+		if err = json.Unmarshal(responseBytes, &result); err != nil {
+			slog.Error("http_server: failed to unmarshal responseBytes", "error", err, "responseBytes", string(responseBytes))
+			return 0, fmt.Errorf("failed to unmarshal response JSON: %w", err)
+		}
+		// Проверяем наличие ошибки в JSON ответе
+		if result.Error != "" {
+			return 0, fmt.Errorf("server error: %s", result.Error)
+		}
+		// Извлекаем serverID из ответа
+		if result.ServerID != "" {
+			var serverIDInt int64
+			if _, parseErr := fmt.Sscanf(result.ServerID, "%d", &serverIDInt); parseErr == nil {
+				if serverIDInt < 0 || serverIDInt > int64(^uint32(0)) {
+					return 0, fmt.Errorf("invalid serverID: %d", serverIDInt)
+				}
+				parsedServerID = uint32(serverIDInt)
+			}
+		}
+	} else if responseStr, ok := responseJSON["response"].(string); ok && responseStr != "" {
+		slog.Info("http_server: responseStr", "len", len(responseStr), "preview", responseStr[:minInt(200, len(responseStr))], "full", responseStr)
+		var result StartServerResponse
+		if err = json.Unmarshal([]byte(responseStr), &result); err != nil {
+			slog.Error("http_server: failed to unmarshal responseStr", "error", err, "responseStr", responseStr)
+			return 0, fmt.Errorf("failed to unmarshal response JSON: %w", err)
+		}
+		// Проверяем наличие ошибки в JSON ответе
+		if result.Error != "" {
+			return 0, fmt.Errorf("server error: %s", result.Error)
+		}
+		// Извлекаем serverID из ответа
+		if result.ServerID != "" {
+			var serverIDInt int64
+			if _, parseErr := fmt.Sscanf(result.ServerID, "%d", &serverIDInt); parseErr == nil {
+				if serverIDInt < 0 || serverIDInt > int64(^uint32(0)) {
+					return 0, fmt.Errorf("invalid serverID: %d", serverIDInt)
+				}
+				parsedServerID = uint32(serverIDInt)
+			}
+		}
+	}
+
+	return parsedServerID, nil
+}
+
+// StopServerByID останавливает HTTP сервер по serverID.
+func StopServerByID(serverID uint32) (err error) {
+
+	if httpServer == nil {
+		return fmt.Errorf("http server not initialized")
+	}
+
+	// Выделяем память для serverID
+	serverIDPtr := Malloc(4)
+	defer Free(serverIDPtr)
+	WriteUint32(serverIDPtr, serverID)
+
+	// Выделяем память для указателей результата
+	resultPtrPtr := Malloc(4)
+	resultSizePtr := Malloc(4)
+	defer Free(resultPtrPtr)
+	defer Free(resultSizePtr)
+
+	// Вызываем функцию хоста
+	if httpServer.StopServer(serverIDPtr, resultPtrPtr, resultSizePtr) != 0 {
+		return fmt.Errorf("failed to stop server")
+	}
+
+	// Читаем результат
+	resultPtr := ReadUint32(resultPtrPtr)
+	resultSize := ReadUint32(resultSizePtr)
+
+	if resultSize == 0 {
+		return fmt.Errorf("empty response from host")
+	}
+
+	// Читаем результат (в JSON формате execute_response)
+	resultBytes := PtrToByte(resultPtr, resultSize)
+	defer Free(resultPtr)
+
+	// Декодируем JSON ответ
+	var responseJSON map[string]any
+	if err = json.Unmarshal(resultBytes, &responseJSON); err != nil {
+		return fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Проверяем наличие ошибки
+	if errorStr, ok := responseJSON["error"].(string); ok && errorStr != "" {
+		return fmt.Errorf("server error: %s", errorStr)
+	}
+
+	// Если есть response, декодируем его из JSON
+	if responseBytes, ok := responseJSON["response"].([]byte); ok && len(responseBytes) > 0 {
+		var result StartServerResponse
+		if err = json.Unmarshal(responseBytes, &result); err != nil {
+			return fmt.Errorf("failed to unmarshal response JSON: %w", err)
+		}
+		// Проверяем наличие ошибки в JSON ответе
+		if result.Error != "" {
+			return fmt.Errorf("server error: %s", result.Error)
+		}
+	} else if responseStr, ok := responseJSON["response"].(string); ok && responseStr != "" {
+		var result StartServerResponse
+		if err = json.Unmarshal([]byte(responseStr), &result); err != nil {
+			return fmt.Errorf("failed to unmarshal response JSON: %w", err)
+		}
+		// Проверяем наличие ошибки в JSON ответе
+		if result.Error != "" {
+			return fmt.Errorf("server error: %s", result.Error)
+		}
+	}
+
+	return nil
+}

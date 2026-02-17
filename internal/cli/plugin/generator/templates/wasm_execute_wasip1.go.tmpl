@@ -1,0 +1,327 @@
+package wasm
+
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/goccy/go-json"
+
+	"{{.ModuleName}}/core/data"
+)
+
+var (
+	pluginInfoFunc              func() ([]byte, error)
+	pluginExecuteFunc           func(rootDir string, request data.Storage, path ...string) (response data.Storage, err error)
+	initGeneratorGenerateFunc   func(rootDir string, moduleName string) (err error)
+	initGeneratorCleanupFunc    func(rootDir string) (err error)
+)
+
+// SetPluginInstance устанавливает экземпляр плагина.
+func SetPluginInstance(
+	infoFunc func() ([]byte, error),
+	executeFunc func(rootDir string, request data.Storage, path ...string) (response data.Storage, err error),
+) {
+
+	pluginInfoFunc = infoFunc
+	pluginExecuteFunc = executeFunc
+}
+
+// SetInitGeneratorInstance устанавливает экземпляр генератора для plugin init.
+func SetInitGeneratorInstance(
+	generateFunc func(rootDir string, moduleName string) (err error),
+	cleanupFunc func(rootDir string) (err error),
+) {
+
+	initGeneratorGenerateFunc = generateFunc
+	initGeneratorCleanupFunc = cleanupFunc
+}
+
+// ExecuteWrapper выполняет плагин с сериализованными данными.
+func ExecuteWrapper(ptr uint32, size uint32, freeFunc func(uint32)) (resultPtr uint32, resultSize uint32, hasError bool) {
+
+	// Читаем запрос
+	requestBytes := PtrToByte(ptr, size)
+	if freeFunc != nil {
+		defer freeFunc(ptr)
+	}
+
+	// Десериализуем запрос
+	rootDir, request, path, err := UnmarshalExecuteRequest(requestBytes)
+	if err != nil {
+		// Используем MarshalExecuteResponse для кодирования ошибки
+		errorBytes, marshalErr := MarshalExecuteResponse(nil, fmt.Errorf("failed to unmarshal request: %w", err))
+		if marshalErr != nil {
+			// Если не удалось закодировать, возвращаем пустой ответ
+			return 0, 0, true
+		}
+		resultPtr, resultSize = ByteToPtr(errorBytes)
+		return resultPtr, resultSize, true
+	}
+
+	// Вызываем метод Execute плагина
+	if pluginExecuteFunc == nil {
+		// Используем MarshalExecuteResponse для кодирования ошибки
+		errorBytes, marshalErr := MarshalExecuteResponse(nil, fmt.Errorf("plugin instance not set"))
+		if marshalErr != nil {
+			// Если не удалось закодировать, возвращаем пустой ответ
+			return 0, 0, true
+		}
+		resultPtr, resultSize = ByteToPtr(errorBytes)
+		return resultPtr, resultSize, true
+	}
+	response, err := pluginExecuteFunc(rootDir, request, path...)
+
+	// Формируем ответ
+	responseBytes, marshalErr := MarshalExecuteResponse(response, err)
+	if marshalErr != nil {
+		// Если не удалось закодировать в Avro, возвращаем пустой ответ
+		return 0, 0, true
+	}
+
+	resultPtr, resultSize = ByteToPtr(responseBytes)
+	if err != nil {
+		return resultPtr, resultSize, true
+	}
+	return resultPtr, resultSize, false
+}
+
+// UnmarshalExecuteRequest десериализует ExecuteRequest из JSON.
+func UnmarshalExecuteRequest(data []byte) (rootDir string, request data.Storage, path []string, err error) {
+
+	// Десериализуем JSON ExecuteRequest
+	var reqJSON map[string]any
+	if err = json.Unmarshal(data, &reqJSON); err != nil {
+		return "", nil, nil, err
+	}
+
+	// Извлекаем rootDir
+	rootDir, _ = reqJSON["rootDir"].(string)
+
+	// Извлекаем path
+	if pathAny, ok := reqJSON["path"].([]any); ok {
+		path = make([]string, 0, len(pathAny))
+		for _, p := range pathAny {
+			if str, ok := p.(string); ok {
+				path = append(path, str)
+			}
+		}
+	}
+
+	// Создаем Storage и десериализуем JSON из bytes
+	storageInstance := data.NewStorage()
+	if requestStr, ok := reqJSON["request"].(string); ok && requestStr != "" {
+		if err = json.Unmarshal([]byte(requestStr), storageInstance); err != nil {
+			return "", nil, nil, err
+		}
+	} else if requestBytes, ok := reqJSON["request"].([]byte); ok && len(requestBytes) > 0 {
+		if err = json.Unmarshal(requestBytes, storageInstance); err != nil {
+			return "", nil, nil, err
+		}
+	}
+
+	return rootDir, storageInstance, path, nil
+}
+
+// MarshalExecuteResponse сериализует ExecuteResponse в JSON.
+func MarshalExecuteResponse(response data.Storage, err error) ([]byte, error) {
+
+	// Кодируем ответ в JSON: response как JSON bytes, error как string
+	var errorStr string
+	if err != nil {
+		errorStr = err.Error()
+	}
+
+	var responseJSONStr string
+	if response != nil {
+		responseJSONBytes, marshalErr := json.Marshal(response)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", marshalErr)
+		}
+		responseJSONStr = string(responseJSONBytes)
+	}
+
+	respJSON := map[string]any{
+		"error":    errorStr,
+		"response": responseJSONStr,
+	}
+
+	responseBytes, encodeErr := json.Marshal(respJSON)
+	if encodeErr != nil {
+		return nil, fmt.Errorf("failed to encode execute_response: %w", encodeErr)
+	}
+	return responseBytes, nil
+}
+
+// InfoWrapper получает информацию о плагине и записывает её в указанные указатели.
+// ptrPtr - указатель на uint32, куда будет записан указатель на данные.
+// sizePtr - указатель на uint32, куда будет записан размер данных.
+func InfoWrapper(ptrPtr uint32, sizePtr uint32) {
+
+	if pluginInfoFunc == nil {
+		// Если плагин не установлен, записываем нули
+		ptrMem := PtrToByte(ptrPtr, 4)
+		sizeMem := PtrToByte(sizePtr, 4)
+		binary.LittleEndian.PutUint32(ptrMem, 0)
+		binary.LittleEndian.PutUint32(sizeMem, 0)
+		return
+	}
+
+	infoBytes, err := pluginInfoFunc()
+	if err != nil {
+		// При ошибке сериализации записываем нули
+		ptrMem := PtrToByte(ptrPtr, 4)
+		sizeMem := PtrToByte(sizePtr, 4)
+		binary.LittleEndian.PutUint32(ptrMem, 0)
+		binary.LittleEndian.PutUint32(sizeMem, 0)
+		return
+	}
+
+	// Выделяем память через Malloc, чтобы данные не были освобождены сборщиком мусора
+	// Проверяем переполнение при конвертации int -> uint32
+	if len(infoBytes) > int(^uint32(0)) {
+		// Размер слишком большой для uint32, записываем нули
+		ptrMem := PtrToByte(ptrPtr, 4)
+		sizeMem := PtrToByte(sizePtr, 4)
+		binary.LittleEndian.PutUint32(ptrMem, 0)
+		binary.LittleEndian.PutUint32(sizeMem, 0)
+		return
+	}
+
+	//nolint:gosec // Проверка переполнения выполнена выше
+	resultPtr := Malloc(uint32(len(infoBytes)))
+	//nolint:gosec // Проверка переполнения выполнена выше
+	resultSize := uint32(len(infoBytes))
+
+	// Копируем данные в выделенную память
+	resultMem := PtrToByte(resultPtr, resultSize)
+	copy(resultMem, infoBytes)
+
+	// Записываем указатель (uint32, little-endian)
+	ptrMem := PtrToByte(ptrPtr, 4)
+	binary.LittleEndian.PutUint32(ptrMem, resultPtr)
+
+	// Записываем размер (uint32, little-endian)
+	sizeMem := PtrToByte(sizePtr, 4)
+	binary.LittleEndian.PutUint32(sizeMem, resultSize)
+}
+
+// ExecuteExported обертка для экспорта функции execute через WASM.
+// Используется плагинами для экспорта функции execute.
+// freeFunc - функция для освобождения памяти (обычно Free из memory.go плагина).
+func ExecuteExported(ptr uint32, size uint32, freeFunc func(uint32)) (result uint64) {
+
+	resultPtr, resultSize, hasError := ExecuteWrapper(ptr, size, freeFunc)
+	if hasError {
+		return (uint64(resultPtr) << 32) | uint64(resultSize) | (1 << 31)
+	}
+	return (uint64(resultPtr) << 32) | uint64(resultSize)
+}
+
+// generateParamsJSON представляет параметры для генерации в JSON формате.
+type generateParamsJSON struct {
+	RootDir    string `json:"rootDir"`
+	ModuleName string `json:"moduleName"`
+}
+
+// cleanupParamsJSON представляет параметры для очистки в JSON формате.
+type cleanupParamsJSON struct {
+	RootDir string `json:"rootDir"`
+}
+
+// GenerateExported обертка для экспорта функции generate через WASM.
+// Используется плагинами для экспорта функции generate при plugin init.
+// freeFunc - функция для освобождения памяти (обычно Free из memory.go плагина).
+func GenerateExported(ptr uint32, size uint32, freeFunc func(uint32)) {
+
+	// Читаем параметры из памяти
+	paramsBytes := PtrToByte(ptr, size)
+	if freeFunc != nil {
+		defer freeFunc(ptr)
+	}
+
+	// Десериализуем параметры
+	var paramsJSON generateParamsJSON
+	if err := json.Unmarshal(paramsBytes, &paramsJSON); err != nil {
+		return
+	}
+
+	rootDir := paramsJSON.RootDir
+	moduleName := paramsJSON.ModuleName
+
+	// Вызываем метод Generate генератора
+	if initGeneratorGenerateFunc != nil {
+		_ = initGeneratorGenerateFunc(rootDir, moduleName)
+	}
+}
+
+// CleanupExported обертка для экспорта функции cleanup через WASM.
+// Используется плагинами для экспорта функции cleanup при plugin upgrade.
+// freeFunc - функция для освобождения памяти (обычно Free из memory.go плагина).
+func CleanupExported(ptr uint32, size uint32, freeFunc func(uint32)) {
+
+	// Читаем параметры из памяти
+	paramsBytes := PtrToByte(ptr, size)
+	if freeFunc != nil {
+		defer freeFunc(ptr)
+	}
+
+	// Десериализуем параметры
+	var paramsJSON cleanupParamsJSON
+	if err := json.Unmarshal(paramsBytes, &paramsJSON); err != nil {
+		return
+	}
+
+	rootDir := paramsJSON.RootDir
+
+	// Вызываем метод Cleanup генератора
+	if initGeneratorCleanupFunc != nil {
+		_ = initGeneratorCleanupFunc(rootDir)
+	}
+}
+
+// GenerateWrapper обертка для вызова Generate из core.
+func GenerateWrapper(ptr uint32, size uint32, freeFunc func(uint32)) {
+
+	// Читаем параметры из памяти
+	paramsBytes := PtrToByte(ptr, size)
+	if freeFunc != nil {
+		defer freeFunc(ptr)
+	}
+
+	// Десериализуем параметры
+	var paramsJSON generateParamsJSON
+	if err := json.Unmarshal(paramsBytes, &paramsJSON); err != nil {
+		return
+	}
+
+	rootDir := paramsJSON.RootDir
+	moduleName := paramsJSON.ModuleName
+
+	// Вызываем метод Generate генератора
+	if initGeneratorGenerateFunc != nil {
+		_ = initGeneratorGenerateFunc(rootDir, moduleName)
+	}
+}
+
+// CleanupWrapper обертка для вызова Cleanup из core.
+func CleanupWrapper(ptr uint32, size uint32, freeFunc func(uint32)) {
+
+	// Читаем параметры из памяти
+	paramsBytes := PtrToByte(ptr, size)
+	if freeFunc != nil {
+		defer freeFunc(ptr)
+	}
+
+	// Десериализуем параметры
+	var paramsJSON cleanupParamsJSON
+	if err := json.Unmarshal(paramsBytes, &paramsJSON); err != nil {
+		return
+	}
+
+	rootDir := paramsJSON.RootDir
+
+	// Вызываем метод Cleanup генератора
+	if initGeneratorCleanupFunc != nil {
+		_ = initGeneratorCleanupFunc(rootDir)
+	}
+}

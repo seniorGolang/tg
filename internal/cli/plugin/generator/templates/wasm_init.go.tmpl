@@ -1,0 +1,8 @@
+package wasm
+
+// InitCoreIntegration инициализирует интеграцию core с wasm.
+// Вызывается из core.init() для настройки функций сериализации/десериализации.
+func InitCoreIntegration() {
+
+	InitHostAdapters()
+}

@@ -1,0 +1,15 @@
+package main
+
+import (
+	"{{.ModuleName}}/core"
+)
+
+func init() {
+
+	core.InitPlugin(&{{.PluginNameTitleCase}}Plugin{})
+}
+
+func main() {
+
+	// Инициализация не требуется для wasip1
+}
