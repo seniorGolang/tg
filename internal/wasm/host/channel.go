@@ -62,8 +62,7 @@ func NewCallChannel(ctx context.Context, h *Host) (channel *CallChannel) {
 
 	go cc.processor(h)
 
-	channel = cc
-	return
+	return cc
 }
 
 // processor последовательно обрабатывает вызовы из канала (однопоточный гость).
@@ -163,8 +162,7 @@ func (cc *CallChannel) Call(functionName string, data []byte) (resultChan <-chan
 		}
 	}
 
-	resultChan = ch
-	return
+	return ch
 }
 
 func (cc *CallChannel) Close() {
@@ -208,8 +206,7 @@ func allocateMemory(ctx context.Context, h *Host, size uint64) (ptr uint32, err 
 		return 0, errors.New(i18n.Msg("allocated pointer too large for uint32"))
 	}
 
-	ptr = uint32(allocatedPtr)
-	return
+	return uint32(allocatedPtr), nil
 }
 
 // freeMemory освобождает память в WASM модуле через free.
@@ -241,5 +238,5 @@ func writeMemory(h *Host, ptr uint32, data []byte) (err error) {
 		return fmt.Errorf(i18n.Msg("failed to write data to memory at ptr=%d, size=%d"), ptr, len(data))
 	}
 
-	return nil
+	return
 }

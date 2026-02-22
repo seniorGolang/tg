@@ -25,13 +25,14 @@ func (e *Executor) ExecuteWithPlan(plan Plan) (err error) {
 	hooks = append(hooks, newPlanFormationHook(e.logger))
 	hooks = append(hooks, e.hooks...)
 
-	lastStageResponse := currentRequest
-	var commandResponse plugin.Storage
-	commandStatus := commandStatusSuccess
-
 	var commandStep *Step
-	var preStageSteps []Step
+	var commandStatus string
+	commandStatus = commandStatusSuccess
 	var postSteps []Step
+	var preStageSteps []Step
+	var commandResponse plugin.Storage
+	var lastStageResponse plugin.Storage
+	lastStageResponse = currentRequest
 
 	for i := range plan.Steps {
 		step := &plan.Steps[i]
@@ -152,8 +153,8 @@ func buildPostRequest(lastStageResponse plugin.Storage, commandStatus string, co
 	postRequest = plugin.NewStorage()
 
 	if lastStageResponse != nil {
-		var mapStorage *plugin.MapStorage
 		var ok bool
+		var mapStorage *plugin.MapStorage
 		if mapStorage, ok = lastStageResponse.(*plugin.MapStorage); ok {
 			for key, value := range *mapStorage {
 				if err = postRequest.Set(key, value); err != nil {
@@ -168,8 +169,8 @@ func buildPostRequest(lastStageResponse plugin.Storage, commandStatus string, co
 	}
 
 	if commandResponse != nil {
-		var mapStorage *plugin.MapStorage
 		var ok bool
+		var mapStorage *plugin.MapStorage
 		if mapStorage, ok = commandResponse.(*plugin.MapStorage); ok {
 			for key, value := range *mapStorage {
 				if err = postRequest.Set(key, value); err != nil {

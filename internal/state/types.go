@@ -5,8 +5,8 @@ package state
 import "time"
 
 type PluginState struct {
-	Options    map[string]any
 	Result     PluginExecutionResult
+	Options    map[string]any
 	PluginName string
 	ExecutedAt time.Time
 }

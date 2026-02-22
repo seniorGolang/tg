@@ -55,7 +55,6 @@ func (m *manager) copyFileWithProgress(sourcePath string, destination string, so
 	}
 	defer destFileHandle.Close()
 
-	// Если есть прогресс-бар, создаем обертку для отслеживания прогресса
 	var reader io.Reader = sourceFileHandle
 	if progressBar != nil && totalSize > 0 {
 		reader = &copyProgressReader{
@@ -70,7 +69,6 @@ func (m *manager) copyFileWithProgress(sourcePath string, destination string, so
 		return fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
 	}
 
-	// Доводим прогресс до 100%, если есть прогресс-бар
 	if progressBar != nil && totalSize > 0 {
 		progressBar.SetCurrent(100)
 		progressBar.Print()
@@ -94,19 +92,16 @@ type copyProgressReader struct {
 	lastPercent int // Последний отображенный процент для избежания лишних обновлений
 }
 
-// Read переопределяет метод Read для отслеживания прогресса.
 func (cpr *copyProgressReader) Read(p []byte) (n int, err error) {
 
 	if n, err = cpr.reader.Read(p); n > 0 {
 		cpr.copied += int64(n)
 
-		// Обновляем прогресс-бар только если процент изменился
 		if cpr.bar != nil && cpr.total > 0 {
 			percentage := int(float64(cpr.copied) / float64(cpr.total) * 100)
 			if percentage > 100 {
 				percentage = 100
 			}
-			// Обновляем только если процент изменился
 			if percentage != cpr.lastPercent {
 				cpr.lastPercent = percentage
 				cpr.bar.SetCurrent(percentage)

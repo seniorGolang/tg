@@ -36,8 +36,7 @@ func getStringOption(ctx types.CommandContext, key string) (value string) {
 	if !isString {
 		return
 	}
-	value = strVal
-	return
+	return strVal
 }
 
 func getBoolOption(ctx types.CommandContext, key string) (value bool) {
@@ -51,8 +50,7 @@ func getBoolOption(ctx types.CommandContext, key string) (value bool) {
 	if !isBool {
 		return
 	}
-	value = boolVal
-	return
+	return boolVal
 }
 
 func hasOption(ctx types.CommandContext, key string) (has bool) {

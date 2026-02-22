@@ -22,8 +22,8 @@ func getEffectiveOptions(cmd Command, planner *executor.Planner) (effectiveOptio
 
 	if planner != nil {
 		if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
-			var merged []models.OptionInfo
 			var err error
+			var merged []models.OptionInfo
 			if merged, err = planner.GetMergedOptionsForCommand(pluginCmd.metadata.pluginName, pluginCmd.metadata.command.Path); err != nil {
 				slog.Error(i18n.Msg("Failed to get merged options for command"), "error", err)
 				effectiveOptions = cmd.GetOptions()
@@ -34,8 +34,7 @@ func getEffectiveOptions(cmd Command, planner *executor.Planner) (effectiveOptio
 		}
 	}
 
-	effectiveOptions = cmd.GetOptions()
-	return
+	return cmd.GetOptions()
 }
 
 func createCommandRunner(cmd Command, rootDir string, planner *executor.Planner) (runner func(cobraCmd *cobra.Command, args []string)) {
@@ -46,8 +45,8 @@ func createCommandRunner(cmd Command, rootDir string, planner *executor.Planner)
 		rootCmd := cobraCmd.Root()
 		if rootCmd.PersistentFlags().Changed("version") {
 			if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
-				var pluginVersion string
 				var err error
+				var pluginVersion string
 				if pluginVersion, err = pluginCmd.GetPluginVersion(); err != nil {
 					slog.Error(i18n.Msg("Failed to get plugin version"), "error", err)
 					return
@@ -84,7 +83,7 @@ func createCommandRunner(cmd Command, rootDir string, planner *executor.Planner)
 
 			options = PromptCommandOptions(cmd, effectiveOptions, options, commandPath)
 			if options == nil {
-				return // Пользователь отменил
+				return
 			}
 		}
 
@@ -119,7 +118,7 @@ func createCommandRunner(cmd Command, rootDir string, planner *executor.Planner)
 
 			args = PromptCommandArgs(cmd, cobraCmd, effectiveOptions, commandPath)
 			if args == nil {
-				return // Пользователь отменил
+				return
 			}
 		}
 

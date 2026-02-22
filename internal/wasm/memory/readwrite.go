@@ -24,7 +24,7 @@ func Write(h Host, ptr uint32, data []byte) (err error) {
 		return fmt.Errorf(i18n.Msg("failed to write data to memory at ptr=%d, size=%d"), ptr, len(data))
 	}
 
-	return nil
+	return
 }
 
 func Read(h Host, ptr uint32, size uint32) (data []byte, err error) {

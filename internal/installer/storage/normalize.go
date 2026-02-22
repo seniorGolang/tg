@@ -16,8 +16,9 @@ func NormalizeSource(sourceURL string) (normalized string) {
 		return sanitizePath(sourceURL)
 	}
 
+	var path string
 	if parsedURL.Scheme == URLSchemeFile {
-		path := parsedURL.Path
+		path = parsedURL.Path
 		path = strings.TrimPrefix(path, PathSeparator)
 		return sanitizePath(path)
 	}
@@ -30,7 +31,7 @@ func NormalizeSource(sourceURL string) (normalized string) {
 		parts = append(parts, parsedURL.Host)
 	}
 
-	path := strings.TrimPrefix(parsedURL.Path, PathSeparator)
+	path = strings.TrimPrefix(parsedURL.Path, PathSeparator)
 	if path != "" {
 		for _, part := range strings.Split(path, PathSeparator) {
 			if part != "" {
@@ -46,7 +47,6 @@ func NormalizeSource(sourceURL string) (normalized string) {
 	return filepath.Join(parts...)
 }
 
-// BaseSourceURL возвращает базовый URL источника (без пути к манифесту/релизу) для любого URL.
 func BaseSourceURL(anyURL string) (source string) {
 
 	var err error
@@ -55,8 +55,10 @@ func BaseSourceURL(anyURL string) (source string) {
 		return anyURL
 	}
 
+	var u *url.URL
+	var path string
 	if parsedURL.Scheme == URLSchemeFile {
-		path := parsedURL.Path
+		path = parsedURL.Path
 		path = removeFileNameFromPath(path)
 		path = strings.TrimSuffix(path, ReleasesDownloadPath)
 		path = strings.TrimSuffix(path, PathSeparator)
@@ -64,18 +66,18 @@ func BaseSourceURL(anyURL string) (source string) {
 		if idx > 0 {
 			path = path[:idx]
 		}
-		u := &url.URL{Scheme: URLSchemeFile, Path: path}
+		u = &url.URL{Scheme: URLSchemeFile, Path: path}
 		return u.String()
 	}
 
-	path := parsedURL.Path
+	path = parsedURL.Path
 	path = removeFileNameFromPath(path)
 	if strings.Contains(path, ReleasesDownloadPath) {
 		if idx := strings.Index(path, ReleasesDownloadPath); idx >= 0 {
 			path = path[:idx]
 		}
 	}
-	u := &url.URL{Scheme: parsedURL.Scheme, Host: parsedURL.Host, Path: path}
+	u = &url.URL{Scheme: parsedURL.Scheme, Host: parsedURL.Host, Path: path}
 	return u.String()
 }
 
@@ -110,7 +112,7 @@ func extractURLFromNormalizedPath(normalizedPath string) (source string) {
 		return URLSchemeFile + URLSchemeSeparator + PathSeparator + pathWithSlash
 	}
 
-	var scheme, host string
+	var host, scheme string
 	var pathParts []string
 
 	switch {

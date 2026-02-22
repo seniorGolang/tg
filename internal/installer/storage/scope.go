@@ -25,40 +25,34 @@ type ScopeConfig struct {
 	InstallPrefix string `yaml:"install_prefix"`
 }
 
-// GetEffectiveScope: приоритет name[0] (если передан), иначе config.yml, иначе "default".
+// GetEffectiveScope: приоритет — name[0], иначе config.yml, иначе default.
 func GetEffectiveScope(name ...string) (scopeName string, err error) {
 
 	if len(name) > 0 && name[0] != "" {
-		scopeName = name[0]
-		return
+		return name[0], nil
 	}
 
 	configFile := GetGlobalConfigFile()
+	var data []byte
 	var statErr error
 	if _, statErr = os.Stat(configFile); os.IsNotExist(statErr) {
-		scopeName = DefaultScopeName
-		return
+		return DefaultScopeName, nil
 	}
 
-	var data []byte
 	if data, err = os.ReadFile(configFile); err != nil {
-		scopeName = DefaultScopeName
-		return
+		return DefaultScopeName, err
 	}
 
 	var config GlobalConfig
 	if err = yaml.Unmarshal(data, &config); err != nil {
-		scopeName = DefaultScopeName
-		return
+		return DefaultScopeName, err
 	}
 
 	if config.CurrentScope == "" {
-		scopeName = DefaultScopeName
-		return
+		return DefaultScopeName, nil
 	}
 
-	scopeName = config.CurrentScope
-	return
+	return config.CurrentScope, nil
 }
 
 func SetCurrentScope(scopeName string) (err error) {

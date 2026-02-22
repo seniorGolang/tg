@@ -16,11 +16,9 @@ import (
 
 func connClose(ctx context.Context, h *host.Host, nm *netManager, connID uint64) (result uint64) {
 
-	// Получаем состояние соединения для закрытия потока
 	var err error
 	var state *connState
 	if state, err = nm.GetConnState(connID); err == nil && state != nil && state.streamID != 0 {
-		// Закрываем поток стриминга
 		if h.StreamRegistry != nil {
 			h.StreamRegistry.CloseStream(ctx, h, state.streamID)
 		}
@@ -47,19 +45,16 @@ func connClose(ctx context.Context, h *host.Host, nm *netManager, connID uint64)
 // Для записи данных WASM должен использовать WriteBufferPtr через отдельную функцию (если будет добавлена).
 func connGetBufferPtr(ctx context.Context, h *host.Host, nm *netManager, connID uint64, bufferPtrPtr uint32) (result uint64) {
 
-	// Получаем состояние соединения
 	var err error
 	var state *connState
 	if state, err = nm.GetConnState(connID); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Если нет streamID, возвращаем ошибку
 	if state.streamID == 0 {
 		return writeError(ctx, h, errors.New(i18n.Msg("connection does not use streaming")))
 	}
 
-	// Получаем указатель на кольцевой буфер для чтения (хост → WASM)
 	var ok bool
 	var bufferPtr uint32
 	if h.StreamRegistry != nil {
@@ -70,7 +65,6 @@ func connGetBufferPtr(ctx context.Context, h *host.Host, nm *netManager, connID 
 		return writeError(ctx, h, errors.New(i18n.Msg("stream registry not available")))
 	}
 
-	// Записываем указатель на буфер в WASM память
 	var mem api.Memory
 	if mem = h.Module.Memory(); mem == nil {
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))
@@ -86,14 +80,12 @@ func connGetBufferPtr(ctx context.Context, h *host.Host, nm *netManager, connID 
 // connGetWriteBufferPtr: буфер для записи (WASM → хост).
 func connGetWriteBufferPtr(ctx context.Context, h *host.Host, nm *netManager, connID uint64, bufferPtrPtr uint32) (result uint64) {
 
-	// Получаем состояние соединения
 	var err error
 	var state *connState
 	if state, err = nm.GetConnState(connID); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Если нет streamID, возвращаем ошибку
 	if state.streamID == 0 {
 		return writeError(ctx, h, errors.New(i18n.Msg("connection does not use streaming")))
 	}
@@ -108,7 +100,6 @@ func connGetWriteBufferPtr(ctx context.Context, h *host.Host, nm *netManager, co
 		return writeError(ctx, h, errors.New(i18n.Msg("stream registry not available")))
 	}
 
-	// Записываем указатель на буфер в WASM память
 	var mem api.Memory
 	if mem = h.Module.Memory(); mem == nil {
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))

@@ -16,12 +16,12 @@ const (
 	reservedLinesCount = 4
 )
 
-// GetMaxHeightForSelect: по высоте терминала и количеству элементов.
 func GetMaxHeightForSelect(itemCount int) (maxHeight int) {
 
 	maxHeight = itemCount
 	var err error
 	var height int
+	//nolint:gosec // G115: fd stdout на всех платформах в пределах int
 	if _, height, err = term.GetSize(int(os.Stdout.Fd())); err == nil && height > 0 {
 		maxHeight = height - reservedLinesCount
 		if maxHeight < minHeight {
@@ -34,7 +34,6 @@ func GetMaxHeightForSelect(itemCount int) (maxHeight int) {
 	return
 }
 
-// FormatDuration форматирует длительность в читаемый вид.
 func FormatDuration(d time.Duration) (result string) {
 
 	if d < time.Second {

@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// HandleSearch обрабатывает команду search.
 func (inst *Installer) HandleSearch(ctx context.Context, args []string) (err error) {
 
 	if len(args) == 0 {

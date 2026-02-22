@@ -26,12 +26,14 @@ func NewClient(repoURL string) (client *Client, err error) {
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(repoURL); err != nil {
-		return nil, fmt.Errorf(i18n.Msg("Invalid repository URL: %w"), err)
+		err = fmt.Errorf(i18n.Msg("Invalid repository URL: %w"), err)
+		return
 	}
 
 	parts := strings.Split(strings.Trim(parsedURL.Path, "/"), "/")
 	if len(parts) < 2 {
-		return nil, errors.New(i18n.Msg("Invalid repository URL format, expected: https://github.com/owner/repo"))
+		err = errors.New(i18n.Msg("Invalid repository URL format, expected: https://github.com/owner/repo"))
+		return
 	}
 
 	owner := parts[0]

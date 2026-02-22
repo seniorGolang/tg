@@ -76,7 +76,8 @@ func (a *cobraCompletionAdapter) GenBashCompletionV2(writer any, includeDesc boo
 	var ok bool
 	var ioWriter io.Writer
 	if ioWriter, ok = writer.(io.Writer); !ok {
-		return errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		err = errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		return
 	}
 	return a.cmd.GenBashCompletionV2(ioWriter, includeDesc)
 }
@@ -86,7 +87,8 @@ func (a *cobraCompletionAdapter) GenZshCompletion(writer any) (err error) {
 	var ok bool
 	var ioWriter io.Writer
 	if ioWriter, ok = writer.(io.Writer); !ok {
-		return errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		err = errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		return
 	}
 	return a.cmd.GenZshCompletion(ioWriter)
 }
@@ -96,7 +98,8 @@ func (a *cobraCompletionAdapter) GenFishCompletion(writer any, includeDesc bool)
 	var ok bool
 	var ioWriter io.Writer
 	if ioWriter, ok = writer.(io.Writer); !ok {
-		return errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		err = errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		return
 	}
 	return a.cmd.GenFishCompletion(ioWriter, includeDesc)
 }
@@ -106,7 +109,8 @@ func (a *cobraCompletionAdapter) GenPowerShellCompletion(writer any) (err error)
 	var ok bool
 	var ioWriter io.Writer
 	if ioWriter, ok = writer.(io.Writer); !ok {
-		return errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		err = errors.New(i18n.Msg("Invalid writer type, expected io.Writer"))
+		return
 	}
 	return a.cmd.GenPowerShellCompletion(ioWriter)
 }

@@ -116,7 +116,7 @@ func formatDocItemOption(item *docItem) (optionText string) {
 	if item.description != "" {
 		optionText += docDescriptionSeparator + item.description
 	}
-	return optionText
+	return
 }
 
 func createDocItemFromPackage(pkg *models.Package, manifest *models.Manifest, installation *models.Installation) (item *docItem) {

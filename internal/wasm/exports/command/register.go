@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// RegisterCommandFunctions регистрирует все функции модуля command.
 func RegisterCommandFunctions(builder wazero.HostModuleBuilder, h *host.Host) {
 
 	builder.NewFunctionBuilder().

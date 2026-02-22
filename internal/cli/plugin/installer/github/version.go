@@ -33,7 +33,7 @@ func parseTag(tag string) (version string, err error) {
 
 // compareVersions сравнивает две версии в формате SemVer.
 // Возвращает: >0 если v1 > v2, <0 если v1 < v2, 0 если v1 == v2
-func compareVersions(v1, v2 string) int {
+func compareVersions(v1, v2 string) (cmp int) {
 
 	v1Normalized := strings.TrimPrefix(v1, versionPrefix)
 	v2Normalized := strings.TrimPrefix(v2, versionPrefix)

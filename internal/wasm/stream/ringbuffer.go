@@ -69,7 +69,7 @@ func ReadHeader(ctx context.Context, h memory.Host, bufferPtr uint32) (header *R
 	return
 }
 
-// ReadIndicesAndClosed: только ReadIndex + WriteIndex + Closed (12 байт) — оптимизация для операций чтения/записи.
+// ReadIndicesAndClosed читает только ReadIndex, WriteIndex и Closed (12 байт) для оптимизации операций чтения/записи.
 func ReadIndicesAndClosed(_ context.Context, h memory.Host, bufferPtr uint32) (readIdx uint32, writeIdx uint32, closed uint32, err error) {
 
 	if bufferPtr == 0 {
@@ -121,7 +121,7 @@ func WriteHeader(_ context.Context, h memory.Host, bufferPtr uint32, header *Rin
 		return fmt.Errorf("failed to write ring buffer header: %w", err)
 	}
 
-	return nil
+	return
 }
 
 func UpdateReadIndex(_ context.Context, h memory.Host, bufferPtr uint32, readIndex uint32) (err error) {
@@ -134,7 +134,7 @@ func UpdateReadIndex(_ context.Context, h memory.Host, bufferPtr uint32, readInd
 		return errors.New("host is nil")
 	}
 
-	readIndexPtr := bufferPtr + 8 // Смещение для ReadIndex
+	readIndexPtr := bufferPtr + 8
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, readIndex)
@@ -143,7 +143,7 @@ func UpdateReadIndex(_ context.Context, h memory.Host, bufferPtr uint32, readInd
 		return fmt.Errorf("failed to update read index: %w", err)
 	}
 
-	return nil
+	return
 }
 
 func UpdateWriteIndex(_ context.Context, h memory.Host, bufferPtr uint32, writeIndex uint32) (err error) {
@@ -156,7 +156,7 @@ func UpdateWriteIndex(_ context.Context, h memory.Host, bufferPtr uint32, writeI
 		return errors.New("host is nil")
 	}
 
-	writeIndexPtr := bufferPtr + 12 // Смещение для WriteIndex
+	writeIndexPtr := bufferPtr + 12
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, writeIndex)
@@ -165,7 +165,7 @@ func UpdateWriteIndex(_ context.Context, h memory.Host, bufferPtr uint32, writeI
 		return fmt.Errorf("failed to update write index: %w", err)
 	}
 
-	return nil
+	return
 }
 
 func SetClosed(_ context.Context, h memory.Host, bufferPtr uint32) (err error) {
@@ -178,7 +178,7 @@ func SetClosed(_ context.Context, h memory.Host, bufferPtr uint32) (err error) {
 		return errors.New("host is nil")
 	}
 
-	closedPtr := bufferPtr + 16 // Смещение для Closed
+	closedPtr := bufferPtr + 16
 
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint32(data, 1)
@@ -187,10 +187,10 @@ func SetClosed(_ context.Context, h memory.Host, bufferPtr uint32) (err error) {
 		return fmt.Errorf("failed to set closed flag: %w", err)
 	}
 
-	return nil
+	return
 }
 
-// AvailableWrite: инвариант — один байт всегда свободен для различения полного/пустого буфера.
+// AvailableWrite: один байт всегда остаётся свободным для различения полного и пустого буфера.
 func AvailableWrite(readIdx uint32, writeIdx uint32, dataSize uint32) (available uint32) {
 
 	if writeIdx >= readIdx {
@@ -202,7 +202,7 @@ func AvailableWrite(readIdx uint32, writeIdx uint32, dataSize uint32) (available
 		available = readIdx - writeIdx - 1
 	}
 
-	return available
+	return
 }
 
 func AvailableRead(readIdx uint32, writeIdx uint32, dataSize uint32) (available uint32) {
@@ -213,7 +213,7 @@ func AvailableRead(readIdx uint32, writeIdx uint32, dataSize uint32) (available 
 		available = dataSize - (readIdx - writeIdx)
 	}
 
-	return available
+	return
 }
 
 func WriteToRingBuffer(ctx context.Context, h memory.Host, bufferPtr uint32, dataSize uint32, data []byte) (written int, err error) {
@@ -283,8 +283,7 @@ func WriteToRingBuffer(ctx context.Context, h memory.Host, bufferPtr uint32, dat
 		return 0, fmt.Errorf("failed to update write index: %w", err)
 	}
 
-	written = int(toWrite)
-	return
+	return int(toWrite), nil
 }
 
 func ReadFromRingBuffer(ctx context.Context, h memory.Host, bufferPtr uint32, dataSize uint32, data []byte) (read int, err error) {
@@ -360,8 +359,7 @@ func ReadFromRingBuffer(ctx context.Context, h memory.Host, bufferPtr uint32, da
 		return 0, fmt.Errorf("failed to update read index: %w", err)
 	}
 
-	read = int(toRead)
-	return
+	return int(toRead), nil
 }
 
 func CreateRingBuffer(ctx context.Context, h memory.Host, size uint32) (bufferPtr uint32, err error) {
@@ -415,11 +413,10 @@ func IsReadBufferEmpty(ctx context.Context, h memory.Host, bufferPtr uint32) (is
 	}
 
 	_ = closed
-	isEmpty = readIdx == writeIdx
-	return
+	return readIdx == writeIdx, nil
 }
 
-// WaitForBufferEmpty: если ReadIndex не меняется в течение stuckTimeout — плагин считаем зависшим; maxWaitTime — защита от бесконечного цикла.
+// WaitForBufferEmpty: если ReadIndex не меняется в течение stuckTimeout, плагин считается зависшим; maxWaitTime ограничивает ожидание.
 func WaitForBufferEmpty(ctx context.Context, h memory.Host, bufferPtr uint32, checkInterval time.Duration, stuckTimeout time.Duration, maxWaitTime time.Duration) (err error) {
 
 	if bufferPtr == 0 {
@@ -451,7 +448,7 @@ func WaitForBufferEmpty(ctx context.Context, h memory.Host, bufferPtr uint32, ch
 		}
 
 		if readIdx == writeIdx {
-			return nil
+			return
 		}
 
 		switch {

@@ -21,12 +21,10 @@ func NewBufferedLoggerAdapter(buffer *LogBuffer) (adapter *BufferedLoggerAdapter
 		WithCaller(false).
 		WithTime(false)
 
-	adapter = &BufferedLoggerAdapter{
+	return &BufferedLoggerAdapter{
 		buffer: buffer,
 		logger: logger,
 	}
-
-	return
 }
 
 func (a *BufferedLoggerAdapter) addFormattedLog(formattedLine string) {
@@ -47,8 +45,8 @@ func (a *BufferedLoggerAdapter) log(level string, msg string, args ...any) {
 		loggerArgs = make([]pterm.LoggerArgument, 0, len(args)/2)
 		for i := 0; i < len(args); i += 2 {
 			if i+1 < len(args) {
-				var key string
 				var ok bool
+				var key string
 				key, ok = args[i].(string)
 				if !ok {
 					continue

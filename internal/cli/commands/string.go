@@ -15,23 +15,18 @@ const (
 	commandStringSeparator = " "
 )
 
-// showBuiltCommand показывает собранную команду через лог
 func showBuiltCommand(cmd Command, options map[string]any, args []string, commandPath []string) {
 
 	fullCmd := buildCommandString(commandPath, options, args, false)
-
-	// Выводим команду через slog.Info с полем cmd
 	slog.Info(i18n.Msg("run"), "cmd", fullCmd)
 	fmt.Println()
 }
 
-// buildCommandString строит строку команды из пути, опций и позиционных аргументов
 func buildCommandString(commandPath []string, options map[string]any, args []string, useAliases bool) (commandStr string) {
 
 	var parts []string
 	parts = append(parts, cmdNameTG)
 
-	// Добавляем путь команды (с алиасами или без)
 	for _, elem := range commandPath {
 		if useAliases {
 			name, alias := parsePathElement(elem)
@@ -46,10 +41,8 @@ func buildCommandString(commandPath []string, options map[string]any, args []str
 		}
 	}
 
-	// Добавляем позиционные аргументы
 	parts = append(parts, args...)
 
-	// Добавляем опции (флаги)
 	for key, value := range options {
 		if value != nil && value != "" && value != false && value != 0 {
 			switch v := value.(type) {
@@ -73,24 +66,25 @@ func buildCommandString(commandPath []string, options map[string]any, args []str
 func buildCommandArgs(options map[string]any, args []string) (commandArgs []string) {
 
 	commandArgs = make([]string, 0)
-
 	commandArgs = append(commandArgs, args...)
 
-	// Добавляем опции (флаги) без префиксов --
 	for key, value := range options {
-		if value != nil && value != "" && value != false && value != 0 {
-			switch v := value.(type) {
-			case bool:
-				if v {
-					commandArgs = append(commandArgs, key)
-				}
-			case string:
-				commandArgs = append(commandArgs, key, v)
-			case int:
-				commandArgs = append(commandArgs, key, fmt.Sprintf("%d", v))
-			default:
-				commandArgs = append(commandArgs, key, fmt.Sprintf("%v", v))
+		if value == nil {
+			continue
+		}
+		switch v := value.(type) {
+		case bool:
+			if v {
+				commandArgs = append(commandArgs, key)
 			}
+		case string:
+			commandArgs = append(commandArgs, key, v)
+		case int:
+			if v != 0 {
+				commandArgs = append(commandArgs, key, fmt.Sprintf("%d", v))
+			}
+		default:
+			commandArgs = append(commandArgs, key, fmt.Sprintf("%v", v))
 		}
 	}
 

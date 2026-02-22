@@ -23,7 +23,7 @@ type manager struct {
 	httpClient *http.Client
 }
 
-func NewManager() managers.DownloadManager {
+func NewManager() (m managers.DownloadManager) {
 	return &manager{
 		httpClient: &http.Client{},
 	}
@@ -42,6 +42,7 @@ func (m *manager) Download(ctx context.Context, url string, destination string) 
 	}
 
 	var resp *http.Response
+	//nolint:gosec // G704: URL из манифеста/конфига, валидация на уровне вызывающего кода
 	if resp, err = m.httpClient.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
@@ -81,6 +82,7 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 	}
 
 	var resp *http.Response
+	//nolint:gosec // G704: URL из манифеста/конфига, валидация на уровне вызывающего кода
 	if resp, err = m.httpClient.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}

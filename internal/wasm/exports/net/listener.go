@@ -19,8 +19,8 @@ import (
 
 func listenerListen(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, listenerIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -61,8 +61,8 @@ func listenerListen(ctx context.Context, h *host.Host, nm *netManager, networkPt
 // ListenerAccept принимает новое соединение от слушателя.
 func listenerAccept(ctx context.Context, h *host.Host, nm *netManager, listenerID uint64, connIDPtr uint32) (result uint64) {
 
-	var listener net.Listener
 	var err error
+	var listener net.Listener
 	if listener, err = nm.GetListener(listenerID); err != nil {
 		return writeError(ctx, h, err)
 	}
@@ -127,14 +127,12 @@ func listenerClose(ctx context.Context, h *host.Host, nm *netManager, listenerID
 // callbackFuncLen - длина имени функции
 func listenerServeStart(ctx context.Context, h *host.Host, nm *netManager, listenerID uint64, callbackFuncPtr uint32, callbackFuncLen uint32) (result uint64) {
 
-	// Получаем listener по listenerID
-	var listener net.Listener
 	var err error
+	var listener net.Listener
 	if listener, err = nm.GetListener(listenerID); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Читаем имя callback функции из памяти
 	var callbackNameBytes []byte
 	if callbackNameBytes, err = memory.Read(h, callbackFuncPtr, callbackFuncLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read callback function name: %w"), err))
@@ -142,37 +140,27 @@ func listenerServeStart(ctx context.Context, h *host.Host, nm *netManager, liste
 
 	callbackName := string(callbackNameBytes)
 
-	// Добавляем listener в ActiveListeners WaitGroup
 	h.ActiveListeners.Add(1)
 
-	// Запускаем горутину с циклом listener.Accept()
 	go func() {
 		defer h.ActiveListeners.Done()
 
 		for {
-			// Принимаем новое соединение
 			var conn net.Conn
 			var acceptErr error
 			if conn, acceptErr = listener.Accept(); acceptErr != nil {
-				// Если listener закрыт, выходим из цикла
-				// Это нормальное завершение работы
 				return
 			}
 
-			// Сохраняем conn на хосте → получаем connID
 			connID := nm.StoreConnWithStream(ctx, h, conn)
 
-			// Сериализуем listenerID и connID в байты
 			dataBytes := make([]byte, 16)
 			binary.LittleEndian.PutUint64(dataBytes[0:8], listenerID)
 			binary.LittleEndian.PutUint64(dataBytes[8:16], connID)
 
 			// Помещаем вызов callback в глобальный канал с данными для выделения памяти
 			// Callback будет вызван через глобальный канал вызовов
-			// CallChannel сам проверит наличие функции и обработает ошибки
 			resultChan := h.CallChannel.Call(callbackName, dataBytes)
-			// Проверяем результат вызова асинхронно
-			// Контекст гарантирует завершение горутины при отмене, что позволяет GC собрать неиспользуемый канал
 			go func() {
 				select {
 				case result := <-resultChan:
@@ -210,9 +198,8 @@ func listenerAddr(ctx context.Context, h *host.Host, nm *netManager, listenerID 
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))
 	}
 
-	// Читаем размер буфера из addrLenPtr (входной параметр)
-	var lengthBytes []byte
 	var ok bool
+	var lengthBytes []byte
 	if lengthBytes, ok = mem.Read(addrLenPtr, 4); !ok {
 		return writeError(ctx, h, errors.New(i18n.Msg("failed to read buffer size")))
 	}
@@ -226,7 +213,6 @@ func listenerAddr(ctx context.Context, h *host.Host, nm *netManager, listenerID 
 		return writeError(ctx, h, errors.New(i18n.Msg("address length out of range")))
 	}
 
-	// Записываем адрес в буфер (не более размера буфера)
 	writeLen := addrLen
 	if writeLen > int(bufferSize) {
 		writeLen = int(bufferSize)
@@ -238,7 +224,6 @@ func listenerAddr(ctx context.Context, h *host.Host, nm *netManager, listenerID 
 		}
 	}
 
-	// Записываем реальную длину адреса в addrLenPtr (выходной параметр)
 	if !mem.WriteUint32Le(addrLenPtr, uint32(addrLen)) { //nolint:gosec // проверка на переполнение выполнена выше
 		return writeError(ctx, h, errors.New(i18n.Msg("failed to write address length")))
 	}

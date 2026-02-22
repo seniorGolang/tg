@@ -12,7 +12,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 )
 
-// BuiltinCommand представляет встроенную команду
 type BuiltinCommand struct {
 	path        []string
 	options     []Option
@@ -47,7 +46,8 @@ func (c *BuiltinCommand) GetOptions() (options []Option) {
 func (c *BuiltinCommand) Execute(ctx CommandContext) (err error) {
 
 	if c.executor == nil {
-		return errors.New(i18n.Msg("builtin command executor is not set"))
+		err = errors.New(i18n.Msg("builtin command executor is not set"))
+		return
 	}
 	return c.executor(ctx)
 }
@@ -58,10 +58,8 @@ func isBuiltinCommand(cmd Command) (isBuiltin bool) {
 	return
 }
 
-// registerBuiltinCommands регистрирует все встроенные команды
 func registerBuiltinCommands(tree *CommandTree) (err error) {
 
-	// Команда replay
 	replayCmd := &BuiltinCommand{
 		path:        []string{cmdPathReplay},
 		description: i18n.Msg("Replay saved plugin commands"),
@@ -78,7 +76,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "replay", err)
 	}
 
-	// Команда plugin doc
 	pluginDocCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginDoc, cmdSubPluginDoc},
 		description: i18n.Msg("Show plugin documentation"),
@@ -97,7 +94,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin doc", err)
 	}
 
-	// Команда plugin init
 	pluginInitCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginInit, cmdSubPluginInit},
 		description: i18n.Msg("Create template for new plugin"),
@@ -115,7 +111,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin init", err)
 	}
 
-	// Команда plugin add
 	pluginAddCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginAdd, cmdSubPluginAdd},
 		description: i18n.Msg("Add new plugin to existing repository"),
@@ -133,7 +128,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin add", err)
 	}
 
-	// Команда plugin build
 	pluginBuildCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginBuild, cmdSubPluginBuild},
 		description: i18n.Msg("Build plugins and manifest"),
@@ -150,7 +144,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin build", err)
 	}
 
-	// Команда pkg add
 	pkgAddCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgAdd, cmdSubPkgAdd},
 		description: i18n.Msg("Install package"),
@@ -194,7 +187,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg add", err)
 	}
 
-	// Команда pkg del
 	pkgDelCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgDel, cmdSubPkgDel},
 		description: i18n.Msg("Remove package"),
@@ -225,7 +217,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg del", err)
 	}
 
-	// Команда pkg list
 	pkgListCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgList, cmdSubPkgList},
 		description: i18n.Msg("List installed packages"),
@@ -236,7 +227,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg list", err)
 	}
 
-	// Команда pkg repo
 	pkgRepoCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgRepo, cmdSubPkgRepo},
 		description: i18n.Msg("Add manifest to catalog"),
@@ -267,7 +257,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg repo", err)
 	}
 
-	// Команда pkg update
 	pkgUpdateCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgUpdate, cmdSubPkgUpdate},
 		description: i18n.Msg("Update manifests"),
@@ -291,7 +280,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg update", err)
 	}
 
-	// Команда plugin update
 	pluginUpdateCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginUpdate, cmdSubPluginUpdate},
 		description: i18n.Msg("Update installed packages"),
@@ -302,7 +290,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "plugin update", err)
 	}
 
-	// Команда pkg info
 	pkgInfoCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgInfo, cmdSubPkgInfo},
 		description: i18n.Msg("Package information"),
@@ -321,7 +308,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg info", err)
 	}
 
-	// Команда pkg scope use
 	pkgScopeUseCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeUse},
 		description: i18n.Msg("Switch to specified scope"),
@@ -340,7 +326,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope use", err)
 	}
 
-	// Команда pkg scope list
 	pkgScopeListCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeList},
 		description: i18n.Msg("List all scopes"),
@@ -351,7 +336,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope list", err)
 	}
 
-	// Команда pkg scope del
 	pkgScopeDelCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeDel},
 		description: i18n.Msg("Delete scope"),
@@ -376,7 +360,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope del", err)
 	}
 
-	// Команда pkg scope show
 	pkgScopeShowCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgScope, cmdSubPkgScope, cmdSubScopeShow},
 		description: i18n.Msg("Show scope information"),
@@ -395,7 +378,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg scope show", err)
 	}
 
-	// Команда pkg upgrade
 	pkgUpgradeCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgUpgrade, cmdSubPkgUpgrade},
 		description: i18n.Msg("Update installed packages"),
@@ -414,7 +396,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg upgrade", err)
 	}
 
-	// Команда completion bash
 	completionBashCmd := &BuiltinCommand{
 		path:        []string{cmdGroupCompletion, cmdSubCompletionBash},
 		description: i18n.Msg("Generate bash completion script"),
@@ -425,7 +406,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "completion bash", err)
 	}
 
-	// Команда completion zsh
 	completionZshCmd := &BuiltinCommand{
 		path:        []string{cmdGroupCompletion, cmdSubCompletionZsh},
 		description: i18n.Msg("Generate zsh completion script"),
@@ -436,7 +416,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "completion zsh", err)
 	}
 
-	// Команда completion fish
 	completionFishCmd := &BuiltinCommand{
 		path:        []string{cmdGroupCompletion, cmdSubCompletionFish},
 		description: i18n.Msg("Generate fish completion script"),
@@ -447,7 +426,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "completion fish", err)
 	}
 
-	// Команда completion powershell
 	completionPowershellCmd := &BuiltinCommand{
 		path:        []string{cmdGroupCompletion, cmdSubCompletionPowershell},
 		description: i18n.Msg("Generate PowerShell completion script"),
@@ -458,7 +436,6 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "completion powershell", err)
 	}
 
-	// Команда completion install
 	completionInstallCmd := &BuiltinCommand{
 		path:        []string{cmdGroupCompletion, cmdSubCompletionInstall},
 		description: i18n.Msg("Automatically install completion for current shell"),

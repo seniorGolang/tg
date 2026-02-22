@@ -24,31 +24,37 @@ var (
 func ValidateWASM(pluginTGP []byte, pluginInfo plugin.Info) (err error) {
 
 	if len(pluginTGP) < wasmMinSize {
-		return errors.New(i18n.Msg("Plugin file too small for WASM module"))
+		err = errors.New(i18n.Msg("Plugin file too small for WASM module"))
+		return
 	}
 
 	if len(pluginTGP) < wasmMagicSize {
-		return errors.New(i18n.Msg("Plugin file too small"))
+		err = errors.New(i18n.Msg("Plugin file too small"))
+		return
 	}
 
 	for i := 0; i < wasmMagicSize; i++ {
 		if pluginTGP[i] != wasmMagic[i] {
-			return fmt.Errorf(i18n.Msg("Invalid WASM magic header: expected \\0asm, got %v"), pluginTGP[:wasmMagicSize])
+			err = fmt.Errorf(i18n.Msg("Invalid WASM magic header: expected \\0asm, got %v"), pluginTGP[:wasmMagicSize])
+			return
 		}
 	}
 
 	if len(pluginTGP) < wasmMinSize {
-		return errors.New(i18n.Msg("Plugin file too small to check WASM version"))
+		err = errors.New(i18n.Msg("Plugin file too small to check WASM version"))
+		return
 	}
 
 	wasmVersion := pluginTGP[wasmVersionOffset : wasmVersionOffset+wasmVersionSize]
 
 	if wasmVersion[0] == 0x00 && wasmVersion[1] == 0x00 && wasmVersion[2] == 0x00 && wasmVersion[3] == 0x00 {
-		return errors.New(i18n.Msg("Unsupported WASM version: 0"))
+		err = errors.New(i18n.Msg("Unsupported WASM version: 0"))
+		return
 	}
 
 	if pluginInfo.Name == "" {
-		return errors.New(i18n.Msg("Failed to get plugin info from WASM module"))
+		err = errors.New(i18n.Msg("Failed to get plugin info from WASM module"))
+		return
 	}
 
 	return

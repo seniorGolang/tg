@@ -12,22 +12,14 @@ const (
 	envVarTGLang = "TG_LANG"
 )
 
-// Apply применяет переменные окружения к конфигурации WASM модуля.
-// Всегда автоматически добавляет переменную TG_LANG со значением языка в формате ISO2a,
-// определённого через i18n (i18n.GetLanguage() уже учитывает TG_LANG если она установлена).
 func Apply(cfg wazero.ModuleConfig, allowedEnvVars []string) (result wazero.ModuleConfig) {
 
-	envVars := resolve(allowedEnvVars)
-
-	for key, value := range envVars {
-		cfg = cfg.WithEnv(key, value)
-	}
-
-	// Всегда добавляем TG_LANG со значением, определённым через i18n
-	// i18n.GetLanguage() уже проверяет TG_LANG первым делом, если она установлена
-	tgLang := i18n.GetLanguage()
-	cfg = cfg.WithEnv(envVarTGLang, tgLang)
+	envVars := ResolveEnvVars(allowedEnvVars)
 
 	result = cfg
-	return
+	for key, value := range envVars {
+		result = result.WithEnv(key, value)
+	}
+
+	return result.WithEnv(envVarTGLang, i18n.GetLanguage())
 }

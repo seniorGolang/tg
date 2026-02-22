@@ -21,17 +21,14 @@ func Info(ctx context.Context, h *host.Host) (info plugin.Info, err error) {
 		return plugin.Info{}, fmt.Errorf("%s: %w", i18n.Msg("context cancelled"), ctx.Err())
 	}
 
-	// Подготавливаем запрос (может быть пустым)
 	req := infoRequest{}
 
-	// Сериализуем запрос в JSON (может быть пустым объектом)
+	var resp *infoResponse
 	var requestData []byte
 	if requestData, err = json.Marshal(req); err != nil {
 		return plugin.Info{}, fmt.Errorf("%s: %w", i18n.Msg("failed to marshal request"), err)
 	}
 
-	// Вызываем функцию через глобальный канал
-	var resp *infoResponse
 	if resp, err = callWithResult[infoResponse](ctx, h, h.CallChannel, wasm.FuncInfo, requestData); err != nil {
 		return plugin.Info{}, fmt.Errorf("%s: %w", i18n.Msg("failed to call info"), err)
 	}

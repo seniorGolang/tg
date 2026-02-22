@@ -108,9 +108,10 @@ func HandleCompletionInstall(ctx types.CommandContext) (err error) {
 
 	ctx.Logger.Info(i18n.Msg("Shell detected"), "shell", shell)
 
+	var scriptBuf bytes.Buffer
 	var sourceLine string
 	var completionFile string
-	var scriptBuf bytes.Buffer
+
 	cmdName := globalCompletionGenerator.GetName()
 
 	switch shell {
@@ -143,11 +144,13 @@ func HandleCompletionInstall(ctx types.CommandContext) (err error) {
 	}
 
 	completionDir := filepath.Dir(completionFile)
+	//nolint:gosec // G703: путь из стандартных директорий для shell (bash/zsh/fish)
 	if err = os.MkdirAll(completionDir, filePermDir); err != nil {
 		errorMsg := i18n.Msg("Error creating directory ") + completionDir + errorSeparator + err.Error()
 		return errors.New(errorMsg)
 	}
 
+	//nolint:gosec // G703: completionFile из стандартных директорий для shell
 	if err = os.WriteFile(completionFile, scriptBuf.Bytes(), filePermFile); err != nil {
 		errorMsg := i18n.Msg("Error writing completion file: ") + err.Error()
 		return errors.New(errorMsg)
@@ -170,6 +173,7 @@ func HandleCompletionInstall(ctx types.CommandContext) (err error) {
 
 	if configFile != "" {
 		var configContent []byte
+		//nolint:gosec // G703: configFile — стандартный путь к конфигу shell (.bashrc/.zshrc)
 		if configContent, err = os.ReadFile(configFile); err != nil && !os.IsNotExist(err) {
 			ctx.Logger.Warn(i18n.Msg("Failed to read config file"), "file", configFile, "error", err)
 		} else {
@@ -205,12 +209,14 @@ func findBashConfigFile() (configFile string) {
 	homeDir := os.Getenv(homeEnvVar)
 	bashrcPath := filepath.Join(homeDir, bashrcFile)
 	var bashrcErr error
+	//nolint:gosec // G703: путь из HOME и фиксированное имя .bashrc
 	if _, bashrcErr = os.Stat(bashrcPath); bashrcErr == nil {
 		return bashrcPath
 	}
 
 	bashProfilePath := filepath.Join(homeDir, bashProfileFile)
 	var bashProfileErr error
+	//nolint:gosec // G703: путь из HOME и фиксированное имя .bash_profile
 	if _, bashProfileErr = os.Stat(bashProfilePath); bashProfileErr == nil {
 		return bashProfilePath
 	}

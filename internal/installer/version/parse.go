@@ -13,15 +13,13 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// Parse парсит строку версии в структуру Version.
 func Parse(version string) (v models.Version, err error) {
 
 	original := version
 
 	normalized := normalizeVersionString(original)
 	if normalized == "" || !semver.IsValid(normalized) {
-		err = fmt.Errorf(i18n.Msg("Invalid version format: %s"), original)
-		return
+		return models.Version{}, fmt.Errorf(i18n.Msg("Invalid version format: %s"), original)
 	}
 
 	canonical := semver.Canonical(normalized)
@@ -30,8 +28,7 @@ func Parse(version string) (v models.Version, err error) {
 
 	var major, minor, patch int
 	if major, minor, patch, err = extractVersionNumbers(canonical); err != nil {
-		err = fmt.Errorf(i18n.Msg("Error parsing version numbers: %w"), err)
-		return
+		return models.Version{}, fmt.Errorf(i18n.Msg("Error parsing version numbers: %w"), err)
 	}
 
 	preReleaseStr := ""
@@ -44,41 +41,36 @@ func Parse(version string) (v models.Version, err error) {
 		buildStr = strings.TrimPrefix(build, "+")
 	}
 
-	v = models.Version{
+	return models.Version{
 		Major:      major,
 		Minor:      minor,
 		Patch:      patch,
 		PreRelease: preReleaseStr,
 		Build:      buildStr,
 		Original:   original,
-	}
-	return
+	}, nil
 }
 
-// extractVersionNumbers извлекает числовые значения major, minor, patch из канонической строки версии.
+// extractVersionNumbers извлекает major, minor, patch из канонической строки (например "v1.2.3").
 func extractVersionNumbers(canonical string) (major int, minor int, patch int, err error) {
 
 	if !strings.HasPrefix(canonical, VersionPrefix) {
-		err = fmt.Errorf("version must start with %s", VersionPrefix)
-		return
+		return 0, 0, 0, fmt.Errorf("version must start with %s", VersionPrefix)
 	}
 
 	versionWithoutPrefix := strings.TrimPrefix(canonical, VersionPrefix)
 	parts := strings.Split(versionWithoutPrefix, ".")
 	if len(parts) < 1 || len(parts) > 3 {
-		err = fmt.Errorf("invalid version format")
-		return
+		return 0, 0, 0, fmt.Errorf("invalid version format")
 	}
 
 	if major, err = strconv.Atoi(parts[0]); err != nil {
-		err = fmt.Errorf("error parsing major version: %w", err)
-		return
+		return 0, 0, 0, fmt.Errorf("error parsing major version: %w", err)
 	}
 
 	if len(parts) > 1 {
 		if minor, err = strconv.Atoi(parts[1]); err != nil {
-			err = fmt.Errorf("error parsing minor version: %w", err)
-			return
+			return 0, 0, 0, fmt.Errorf("error parsing minor version: %w", err)
 		}
 	}
 
@@ -88,8 +80,7 @@ func extractVersionNumbers(canonical string) (major int, minor int, patch int, e
 			patchPart = patchPart[:idx]
 		}
 		if patch, err = strconv.Atoi(patchPart); err != nil {
-			err = fmt.Errorf("error parsing patch version: %w", err)
-			return
+			return 0, 0, 0, fmt.Errorf("error parsing patch version: %w", err)
 		}
 	}
 

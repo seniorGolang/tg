@@ -17,29 +17,22 @@ import (
 )
 
 const (
-	// maxFileSize ограничивает максимальный размер файла при распаковке (100MB)
-	maxFileSize = 100 * 1024 * 1024
-	// defaultDirMode права доступа для директорий по умолчанию
-	defaultDirMode = 0755
-	// defaultFileMode права доступа для файлов по умолчанию
+	// maxFileSize ограничивает размер файла при распаковке для защиты от decompression bomb
+	maxFileSize     = 100 * 1024 * 1024
+	archiveExtGz    = ".gz"
+	archiveExtXz    = ".xz"
+	archiveExtZip   = ".zip"
+	archiveExtTar   = ".tar"
+	archiveExtBz2   = ".bz2"
+	defaultDirMode  = 0755
 	defaultFileMode = 0644
-	// archiveExtZip расширение ZIP архива
-	archiveExtZip = ".zip"
-	// archiveExtTar расширение TAR архива
-	archiveExtTar = ".tar"
-	// archiveExtGz расширение GZ архива
-	archiveExtGz = ".gz"
-	// archiveExtBz2 расширение BZ2 архива
-	archiveExtBz2 = ".bz2"
-	// archiveExtXz расширение XZ архива
-	archiveExtXz = ".xz"
 )
 
-// extractArchive распаковывает архив во временную директорию.
 func (m *manager) extractArchive(ctx context.Context, archivePath string, extractDir string) (err error) {
 
 	if err = os.MkdirAll(extractDir, defaultDirMode); err != nil {
-		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "extraction directory", err)
+		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "extraction directory", err)
+		return
 	}
 
 	ext := strings.ToLower(filepath.Ext(archivePath))
@@ -67,7 +60,7 @@ func (m *manager) extractArchive(ctx context.Context, archivePath string, extrac
 	}
 }
 
-// safeJoinPath безопасно объединяет пути, предотвращая file traversal атаки.
+// safeJoinPath предотвращает file traversal: проверяет relPath и baseDir перед Join.
 func safeJoinPath(baseDir string, relPath string) (fullPath string, err error) {
 
 	cleanPath := filepath.Clean(relPath)
@@ -93,19 +86,14 @@ func safeJoinPath(baseDir string, relPath string) (fullPath string, err error) {
 	return
 }
 
-// safeFileMode безопасно преобразует int64 в os.FileMode.
 func safeFileMode(mode int64) (fileMode os.FileMode) {
 
 	if mode < 0 || mode > 0777 {
-		fileMode = defaultFileMode
-		return
+		return defaultFileMode
 	}
-
-	fileMode = os.FileMode(mode)
-	return
+	return os.FileMode(mode)
 }
 
-// extractZip распаковывает ZIP архив.
 func (m *manager) extractZip(ctx context.Context, archivePath string, extractDir string) (err error) {
 
 	var r *zip.ReadCloser
@@ -163,7 +151,6 @@ func (m *manager) extractZip(ctx context.Context, archivePath string, extractDir
 	return
 }
 
-// extractTarGz распаковывает tar.gz архив.
 func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractDir string) (err error) {
 
 	var file *os.File
@@ -186,6 +173,7 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 		default:
 		}
 
+		var path string
 		var header *tar.Header
 		if header, err = trArch.Next(); err != nil {
 			if err == io.EOF {
@@ -194,22 +182,24 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 			return fmt.Errorf(i18n.Msg("Error reading tar archive: %w"), err)
 		}
 
-		var path string
 		if path, err = safeJoinPath(extractDir, header.Name); err != nil {
 			return fmt.Errorf(i18n.Msg("Unsafe path in archive: %w"), err)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if err = os.MkdirAll(path, safeFileMode(header.Mode)); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
 			}
 		case tar.TypeReg:
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if err = os.MkdirAll(filepath.Dir(path), defaultDirMode); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
 			}
 
 			var outFile *os.File
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if outFile, err = os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, safeFileMode(header.Mode)); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 			}
@@ -228,7 +218,6 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 	return
 }
 
-// extractTar распаковывает tar архив.
 func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir string) (err error) {
 
 	var file *os.File
@@ -245,6 +234,7 @@ func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir
 		default:
 		}
 
+		var path string
 		var header *tar.Header
 		if header, err = trArch.Next(); err != nil {
 			if err == io.EOF {
@@ -252,21 +242,23 @@ func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir
 			}
 			return fmt.Errorf(i18n.Msg("Error reading tar archive: %w"), err)
 		}
-		var path string
 		if path, err = safeJoinPath(extractDir, header.Name); err != nil {
 			return fmt.Errorf(i18n.Msg("Unsafe path in archive: %w"), err)
 		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if err = os.MkdirAll(path, safeFileMode(header.Mode)); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
 			}
 		case tar.TypeReg:
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if err = os.MkdirAll(filepath.Dir(path), defaultDirMode); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "directory", err)
 			}
 			var outFile *os.File
+			//nolint:gosec // G703: path получен из safeJoinPath
 			if outFile, err = os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, safeFileMode(header.Mode)); err != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 			}

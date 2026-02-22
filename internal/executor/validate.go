@@ -63,22 +63,19 @@ func (p *Planner) validatePlan(allInstallations map[string]*models.Installation,
 	for name, inst := range allInstallations {
 		kind := detectKind(inst)
 		if !isValidKind(kind) {
-			err = fmt.Errorf(i18n.Msg("plugin %s has invalid kind: %s"), name, kind)
-			return
+			return fmt.Errorf(i18n.Msg("plugin %s has invalid kind: %s"), name, kind)
 		}
 
 		if inst.Always {
 			if kind != KindPre && kind != KindPost {
-				err = fmt.Errorf(i18n.Msg("plugin %s has always=true but kind is %s: always can only be used with pre or post plugins"), name, kind)
-				return
+				return fmt.Errorf(i18n.Msg("plugin %s has always=true but kind is %s: always can only be used with pre or post plugins"), name, kind)
 			}
 		}
 
 		if kind == KindCommand {
 			commandCount++
 			if name != commandPluginName {
-				err = fmt.Errorf(i18n.Msg("plugin %s is a command but not the requested command"), name)
-				return
+				return fmt.Errorf(i18n.Msg("plugin %s is a command but not the requested command"), name)
 			}
 		}
 
@@ -96,14 +93,12 @@ func (p *Planner) validatePlan(allInstallations map[string]*models.Installation,
 			if dep == commandPluginName && (kind == KindPre || kind == KindPost) {
 				continue
 			}
-			err = fmt.Errorf(i18n.Msg("plugin %s cannot depend on command %s: commands cannot be dependencies of other plugins"), name, dep)
-			return
+			return fmt.Errorf(i18n.Msg("plugin %s cannot depend on command %s: commands cannot be dependencies of other plugins"), name, dep)
 		}
 	}
 
 	if commandCount != 1 {
-		err = fmt.Errorf(i18n.Msg("plan must contain exactly one command, found %d"), commandCount)
-		return
+		return fmt.Errorf(i18n.Msg("plan must contain exactly one command, found %d"), commandCount)
 	}
 
 	return

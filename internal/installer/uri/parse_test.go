@@ -8,6 +8,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
+
 	tests := []struct {
 		name           string
 		spec           string

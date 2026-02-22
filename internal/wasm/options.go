@@ -8,7 +8,6 @@ import (
 	"github.com/tetratelabs/wazero"
 )
 
-// hostOptions представляет опции для создания Host.
 type hostOptions struct {
 	// CompilationCache - опциональный кэш компиляции для переиспользования скомпилированных модулей.
 	// Если nil, кэш не используется.
@@ -26,7 +25,6 @@ type hostOptions struct {
 	MuteLogs bool
 }
 
-// Option представляет функцию опции для настройки hostOptions.
 type Option func(opts *hostOptions)
 
 func WithTLSConfig(tlsConfig host.TLSConfig) (opt Option) {

@@ -101,11 +101,11 @@ func handleDirectMode(ctx types.CommandContext, pluginNameArg string) (selectedI
 
 	pluginName, version = parsePluginArg(pluginNameArg)
 
+	var inst *cli.Installer
 	var scope string
 	if ctx.GlobalOpts.Scope != "" {
 		scope = ctx.GlobalOpts.Scope
 	}
-	var inst *cli.Installer
 	if inst, err = cli.NewInstaller(scope); err != nil {
 		notFoundMsg := i18n.Msg("Plugin not found") + errorSeparator + pluginName
 		return nil, "", "", errors.New(notFoundMsg)

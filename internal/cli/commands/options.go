@@ -28,7 +28,7 @@ func extractOptionsFromFlags(cobraCmd *cobra.Command, commandOptions []Option) (
 			val, _ := cobraCmd.Flags().GetString(opt.Name)
 			if wasChanged {
 				options[opt.Name] = val
-			} else if opt.Default != nil {
+			} else if opt.Default != nil && opt.Default != "" {
 				options[opt.Name] = opt.Default
 			}
 		case optionTypeInt:
@@ -198,8 +198,8 @@ func promptPluginInitOptions(commandOptions []Option, currentOptions map[string]
 
 	options["kind"] = selectedKind
 
-	var currentDeployType string
 	var hasDeployType bool
+	var currentDeployType string
 	currentDeployType, hasDeployType = currentOptions["deploy-type"].(string)
 	if !hasDeployType || currentDeployType == "" {
 		deployTypeOptions := []string{"none", "gitlab", "github"}

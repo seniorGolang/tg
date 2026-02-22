@@ -17,7 +17,7 @@ func fileSHA256Hex(path string) (hash string, err error) {
 	}
 
 	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), err
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func checksumLine(hexHash string) (line string) {

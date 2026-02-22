@@ -20,12 +20,6 @@ func GetValue(key string) (value string, ok bool) {
 
 func ResolveEnvVars(allowedEnvVars []string) (envVars map[string]string) {
 
-	envVars = resolve(allowedEnvVars)
-	return
-}
-
-func resolve(allowedEnvVars []string) (envVars map[string]string) {
-
 	envVars = make(map[string]string)
 
 	if len(allowedEnvVars) == 0 {
@@ -36,8 +30,8 @@ func resolve(allowedEnvVars []string) (envVars map[string]string) {
 	osProvider := newOSEnvProvider()
 
 	for _, key := range allowedEnvVars {
-		var value string
 		var ok bool
+		var value string
 
 		if isGoEnvVar(key) {
 			value, ok = goProvider.get(key)

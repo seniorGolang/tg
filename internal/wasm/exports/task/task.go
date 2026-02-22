@@ -62,7 +62,6 @@ func writeTaskErrorResponse(ctx context.Context, h *host.Host, errorMsg string, 
 
 func writeTaskResponse(ctx context.Context, h *host.Host, responseBytes []byte, resultPtrPtr, resultSizePtr uint32) (resultCode uint32) {
 
-	// Проверяем переполнение при преобразовании int -> uint32
 	if len(responseBytes) > int(^uint32(0)) {
 		return 1
 	}
@@ -78,13 +77,11 @@ func writeTaskResponse(ctx context.Context, h *host.Host, responseBytes []byte, 
 		return 1
 	}
 
-	// Проверяем переполнение при преобразовании uint64 -> uint32
 	if mallocResults[0] > uint64(^uint32(0)) {
 		return 1
 	}
 	dataPtr := uint32(mallocResults[0]) //nolint:gosec // Проверка переполнения выполнена выше
 
-	// Гарантируем освобождение памяти при ошибках
 	shouldFree := true
 	defer func() {
 		if shouldFree {
@@ -92,12 +89,10 @@ func writeTaskResponse(ctx context.Context, h *host.Host, responseBytes []byte, 
 		}
 	}()
 
-	// Записываем данные
 	if err = memory.Write(h, dataPtr, responseBytes); err != nil {
 		return 1
 	}
 
-	// Записываем указатель и размер
 	ptrBytes := make([]byte, 4)
 	sizeBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(ptrBytes, dataPtr)
@@ -124,7 +119,6 @@ func writeTaskResponse(ctx context.Context, h *host.Host, responseBytes []byte, 
 // Возвращает taskID для остановки задачи
 func HostStartTask(ctx context.Context, h *host.Host, intervalMs, handlerID, resultPtrPtr, resultSizePtr uint32) (resultCode uint32) {
 
-	// Читаем входные данные
 	interval := time.Duration(intervalMs) * time.Millisecond
 	if interval <= 0 {
 		return writeTaskErrorResponse(ctx, h, i18n.Msg("interval must be greater than 0"), resultPtrPtr, resultSizePtr)
@@ -154,7 +148,6 @@ func HostStartTask(ctx context.Context, h *host.Host, intervalMs, handlerID, res
 // Сигнатура: (ctx, m, taskIDPtr, resultPtrPtr, resultSizePtr) -> resultCode
 func HostStopTask(ctx context.Context, h *host.Host, taskIDPtr, resultPtrPtr, resultSizePtr uint32) (resultCode uint32) {
 
-	// Читаем taskID из памяти
 	var err error
 	var taskIDBytes []byte
 	if taskIDBytes, err = memory.Read(h, taskIDPtr, 4); err != nil {
@@ -162,7 +155,6 @@ func HostStopTask(ctx context.Context, h *host.Host, taskIDPtr, resultPtrPtr, re
 	}
 	taskID := binary.LittleEndian.Uint32(taskIDBytes)
 
-	// Останавливаем задачу
 	stopped := h.TaskManager.StopTask(taskID)
 	if !stopped {
 		return writeTaskErrorResponse(ctx, h, fmt.Sprintf(i18n.Msg("task not found or already stopped: %d"), taskID), resultPtrPtr, resultSizePtr)
@@ -185,7 +177,6 @@ func HostStopTask(ctx context.Context, h *host.Host, taskIDPtr, resultPtrPtr, re
 // Сигнатура: (ctx, m, resultPtrPtr, resultSizePtr) -> resultCode
 func HostStopAll(ctx context.Context, h *host.Host, resultPtrPtr, resultSizePtr uint32) (resultCode uint32) {
 
-	// Останавливаем все задачи
 	h.TaskManager.StopAll()
 
 	if !h.MuteLogs {

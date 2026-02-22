@@ -25,13 +25,6 @@ func (e *Executor) ExecutePluginWithOptions(pluginName string, options map[strin
 		pluginOptions[k] = v
 	}
 
-	var ok bool
-	var pathVal []string
-	var cmdPath []string
-	if pathVal, ok = options[optionKeyCommandPath].([]string); ok {
-		cmdPath = pathVal
-	}
-
 	request := plugin.NewStorage()
 
 	for k, v := range pluginOptions {
@@ -39,6 +32,11 @@ func (e *Executor) ExecutePluginWithOptions(pluginName string, options map[strin
 			err = fmt.Errorf(i18n.Msg("error setting option %s: %w"), k, err)
 			return
 		}
+	}
+
+	if err = request.Set(optionKeyRunDir, rootDir); err != nil {
+		err = fmt.Errorf(i18n.Msg("error setting runDir: %w"), err)
+		return
 	}
 
 	select {
@@ -68,7 +66,7 @@ func (e *Executor) ExecutePluginWithOptions(pluginName string, options map[strin
 	}()
 
 	var response plugin.Storage
-	if response, err = imports.Execute(e.ctx, wasmHost, rootDir, request, cmdPath...); err != nil {
+	if response, err = imports.Execute(e.ctx, wasmHost, request); err != nil {
 		_ = response
 	}
 

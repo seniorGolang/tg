@@ -12,7 +12,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// findPackageSource находит source пакета из каталога манифестов.
 func (m *manager) findPackageSource(ctx context.Context, pkg *models.Package) (source string, err error) {
 
 	select {

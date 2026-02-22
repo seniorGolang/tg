@@ -6,7 +6,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
-// FilterByConstraint фильтрует список версий по ограничению.
 func FilterByConstraint(constraint string, versions []models.Version) (filtered []models.Version) {
 
 	if constraint == "" {
@@ -20,7 +19,7 @@ func FilterByConstraint(constraint string, versions []models.Version) (filtered 
 		}
 	}
 
-	return filtered
+	return
 }
 
 // FindMatching находит версию из списка, соответствующую ограничению.

@@ -36,7 +36,7 @@ func executeHandler(req executeRequest) (resp executeResponse, err error) {
 		return executeResponse{}, fmt.Errorf(i18n.Msg("plugin instance not set"))
 	}
 
-	if resp.Response, err = pluginInstance.Execute(req.RootDir, requestStorage, req.Path...); err != nil {
+	if resp.Response, err = pluginInstance.Execute(requestStorage); err != nil {
 		resp.Error = err.Error()
 	}
 	return

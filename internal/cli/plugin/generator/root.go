@@ -14,7 +14,6 @@ type RootFilesCreator struct{}
 
 func (c *RootFilesCreator) Create(rootDir string, data TemplateData, moduleName string) (err error) {
 
-	// Определяем имя модуля из git remote или используем переданное
 	if moduleName == "" {
 		moduleName = DefaultModuleName
 	}
@@ -95,7 +94,7 @@ func (c *RootFilesCreator) Create(rootDir string, data TemplateData, moduleName 
 	return
 }
 
-// CreateI18n создаёт i18n файлы (load.go и core/ru.json).
+// CreateI18n: load.go и core/ru.json в директории i18n.
 func (c *RootFilesCreator) CreateI18n(rootDir string, moduleName string) (err error) {
 
 	if moduleName == "" {

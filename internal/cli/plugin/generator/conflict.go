@@ -37,8 +37,7 @@ func ResolveConflictsForNames(loader pluginLoader, pluginNames []string) (validP
 		}
 	}
 
-	validPluginNames = validNames
-	return
+	return validNames
 }
 
 func checkConflictsForNames(pluginName string, installation *models.Installation, pathOwners map[string]string) (hasConflict bool) {
@@ -61,7 +60,6 @@ func checkConflictsForNames(pluginName string, installation *models.Installation
 	return
 }
 
-// registerPathsForNames регистрирует пути плагина по имени.
 func registerPathsForNames(pluginName string, installation *models.Installation, pathOwners map[string]string) {
 
 	for _, pkg := range installation.InitPkgs {

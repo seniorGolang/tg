@@ -50,14 +50,12 @@ func (w *Writer) Write(buffer []byte) (n int, err error) {
 		return 0, io.ErrClosedPipe
 	}
 
-	// Используем временный буфер для чтения из кольцевого буфера
 	if len(writeBuffer) < len(buffer) {
 		writeBuffer = make([]byte, len(buffer))
 	} else {
 		writeBuffer = writeBuffer[:len(buffer)]
 	}
 
-	// Читаем данные из кольцевого буфера для записи (WASM → хост)
 	var readN int
 	if readN, err = ReadFromRingBuffer(w.ctx, w.host, state.WriteBufferPtr, state.WriteBufferDataSize, writeBuffer); err != nil {
 		if err == io.EOF {
@@ -70,8 +68,6 @@ func (w *Writer) Write(buffer []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	// Записываем данные в io.Writer
-	// Блокируем до полной записи всех данных
 	totalWritten := 0
 	for totalWritten < readN {
 		var writeErr error
@@ -81,15 +77,13 @@ func (w *Writer) Write(buffer []byte) (n int, err error) {
 		}
 
 		if writtenBytes == 0 {
-			// Writer не может записать данные, возвращаем то, что успели записать
 			break
 		}
 
 		totalWritten += writtenBytes
 	}
 
-	n = totalWritten
-	return
+	return totalWritten, nil
 }
 
 // StartWriter запускает горутину для непрерывного чтения данных из кольцевого буфера
@@ -99,7 +93,6 @@ func (w *Writer) StartWriter() {
 	go func() {
 		buffer := make([]byte, 4096)
 		for {
-			// Проверяем контекст
 			select {
 			case <-w.ctx.Done():
 				return
@@ -120,7 +113,6 @@ func (w *Writer) StartWriter() {
 				return
 			}
 
-			// Читаем данные из кольцевого буфера для записи (WASM → хост)
 			// В StartWriter нет канала уведомлений, поэтому передаем nil
 			var n int
 			var err error
@@ -131,8 +123,6 @@ func (w *Writer) StartWriter() {
 				return
 			}
 
-			// Записываем данные в Writer
-			// Блокируем до полной записи всех данных, если Writer возвращает частичную запись
 			totalWritten := 0
 			for totalWritten < n {
 				select {
@@ -148,14 +138,11 @@ func (w *Writer) StartWriter() {
 				}
 
 				if writtenBytes == 0 {
-					// Writer не может записать данные, это нормально для некоторых типов Writer
-					// Продолжаем попытку записи в следующей итерации
-					// Используем короткую паузу для уступки планировщику
+					// Writer вернул 0 без ошибки — пауза и повтор в следующей итерации (уступка планировщику)
 					select {
 					case <-w.ctx.Done():
 						return
 					case <-time.After(time.Millisecond * 1):
-						// Короткая пауза для уступки планировщику, затем повторная попытка
 						continue
 					}
 				}

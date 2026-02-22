@@ -8,7 +8,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/plugin"
 )
 
-// AddHook добавляет hook для перехвата выполнения шагов
 func (e *Executor) AddHook(hook StepHook) {
 
 	e.hooks = append(e.hooks, &stepHookAdapter{hook: hook})

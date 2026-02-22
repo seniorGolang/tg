@@ -42,15 +42,15 @@ func parsePathElement(elem string) (name string, alias string) {
 		alias = parts[1]
 		return
 	}
-	name = parts[0]
-	return
+	return parts[0], ""
 }
 
 func (t *CommandTree) RegisterCommand(cmd Command) (err error) {
 
 	path := cmd.GetPath()
 	if len(path) == 0 {
-		return errors.New(i18n.Msg("Command path cannot be empty"))
+		err = errors.New(i18n.Msg("Command path cannot be empty"))
+		return
 	}
 
 	pathElements := make([]pathElement, 0, len(path))
@@ -148,8 +148,7 @@ func (t *CommandTree) registerCommandWithAliases(path []pathElement, cmd Command
 func (t *CommandTree) findAliasConflictAtLevel(alias string, level map[string]*CommandNode) (conflictCmd Command) {
 
 	if node, exists := level[alias]; exists && node.command != nil {
-		conflictCmd = node.command
-		return
+		return node.command
 	}
 	return
 }

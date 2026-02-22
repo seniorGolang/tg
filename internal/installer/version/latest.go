@@ -19,5 +19,5 @@ func Latest(versions []models.Version) (latest models.Version) {
 		}
 	}
 
-	return latest
+	return
 }

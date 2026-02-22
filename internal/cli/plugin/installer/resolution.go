@@ -48,6 +48,5 @@ func (i *PluginInstaller) resolveVersion(ctx context.Context, pluginName string,
 		return "", "", fmt.Errorf(i18n.Msg("Plugin %s versions not found"), resolvedPluginName)
 	}
 
-	resolvedVersion = plugins[0].Versions[0].Version
-	return
+	return plugins[0].Name, plugins[0].Versions[0].Version, nil
 }

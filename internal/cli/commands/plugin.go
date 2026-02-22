@@ -16,7 +16,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// commandMetadata содержит метаданные команды плагина.
 type commandMetadata struct {
 	command       models.CommandInfo
 	pluginName    string
@@ -24,7 +23,6 @@ type commandMetadata struct {
 	globalOptions []models.OptionInfo
 }
 
-// lazyPluginCommand представляет команду плагина с ленивой загрузкой.
 type lazyPluginCommand struct {
 	loader   pluginLoader
 	metadata commandMetadata
@@ -74,7 +72,6 @@ func (c *lazyPluginCommand) GetPluginVersion() (version string, err error) {
 	return installation.Version, nil
 }
 
-// Execute выполняет команду плагина.
 func (c *lazyPluginCommand) Execute(ctx types.CommandContext) (err error) {
 
 	exec := executor.NewExecutorWithContext(ctx.RootDir, ctx.Logger, ctx.Context, c.loader)
@@ -88,20 +85,21 @@ func (c *lazyPluginCommand) Execute(ctx types.CommandContext) (err error) {
 	initialRequest := plugin.NewStorage()
 	for k, v := range mergedOptions {
 		if err = initialRequest.Set(k, v); err != nil {
-			return fmt.Errorf(i18n.Msg("error setting option %s: %w"), k, err)
+			err = fmt.Errorf(i18n.Msg("error setting option %s: %w"), k, err)
+			return
 		}
 	}
 
 	commandArgs := buildCommandArgs(mergedOptions, ctx.Args)
 	var plan executor.Plan
 	if plan, err = planner.Plan(c.metadata.pluginName, initialRequest, ctx.RootDir, c.metadata.command.Path, commandArgs); err != nil {
-		return fmt.Errorf(i18n.Msg("error planning execution: %w"), err)
+		err = fmt.Errorf(i18n.Msg("error planning execution: %w"), err)
+		return
 	}
 
 	return exec.ExecuteWithPlan(plan)
 }
 
-// convertOptionInfoToOptions конвертирует OptionInfo в Option для CLI.
 func convertOptionInfoToOptions(optionInfos []models.OptionInfo) (options []Option) {
 
 	options = make([]Option, 0, len(optionInfos))
@@ -120,13 +118,13 @@ func convertOptionInfoToOptions(optionInfos []models.OptionInfo) (options []Opti
 	return
 }
 
-// registerPluginCommands регистрирует команды из плагинов в дереве.
 func registerPluginCommands(tree *CommandTree, loader pluginLoader) (err error) {
 
 	var ok bool
 	var dbLoader *pluginloader.DatabasePluginLoader
 	if dbLoader, ok = loader.(*pluginloader.DatabasePluginLoader); !ok {
-		return fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
+		err = fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
+		return
 	}
 
 	installations := dbLoader.GetInstallations()

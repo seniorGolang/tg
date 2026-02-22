@@ -2,7 +2,6 @@
 // This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this project source code.
 package models
 
-// ScopeInfo представляет информацию о scope.
 type ScopeInfo struct {
 	Name          string
 	IsActive      bool
@@ -10,7 +9,6 @@ type ScopeInfo struct {
 	ManifestCount int
 }
 
-// ScopeConfig представляет конфигурацию scope.
 type ScopeConfig struct {
 	Name          string
 	BinDir        string

@@ -31,7 +31,6 @@ func HandlePluginUpgrade(ctx types.CommandContext) (err error) {
 		moduleName = generator.DefaultModuleName
 	}
 
-	// Определяем тип CI/CD автоматически
 	cicdCreator := &generator.CICDCreator{}
 	deployType := cicdCreator.DetectDeployType(ctx.RootDir)
 
@@ -43,8 +42,7 @@ func HandlePluginUpgrade(ctx types.CommandContext) (err error) {
 	logger.Info(i18n.Msg("Updating generated files"))
 	if err = generator.RunUpgrade(context.Background(), ctx.RootDir, moduleName, deployType); err != nil {
 		logger.Error(i18n.Msg("Error updating files"), slog.String("error", err.Error()))
-		errorMsg := i18n.Msg("Error updating files") + ": " + err.Error()
-		return errors.New(errorMsg)
+		return errors.New(i18n.Msg("Error updating files") + ": " + err.Error())
 	}
 	logger.Info(i18n.Msg("Files successfully updated"))
 	return

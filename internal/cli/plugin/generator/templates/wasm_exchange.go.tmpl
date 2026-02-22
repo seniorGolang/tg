@@ -10,8 +10,6 @@ import (
 
 // executeRequest представляет запрос на выполнение плагина.
 type executeRequest struct {
-	RootDir string          `json:"rootDir"`
-	Path    []string        `json:"path"`
 	Request json.RawMessage `json:"request"`
 }
 

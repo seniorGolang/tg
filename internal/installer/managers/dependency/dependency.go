@@ -26,7 +26,7 @@ type resolver struct {
 	databaseManager managers.DatabaseManager
 }
 
-func NewResolver(manifestManager managers.ManifestManager, databaseManager managers.DatabaseManager) managers.DependencyResolver {
+func NewResolver(manifestManager managers.ManifestManager, databaseManager managers.DatabaseManager) (res managers.DependencyResolver) {
 	return &resolver{
 		manifestManager: manifestManager,
 		databaseManager: databaseManager,
@@ -77,9 +77,7 @@ func (r *resolver) resolveAlias(ctx context.Context, pkg *models.Package) (effec
 		Scripts:      targetPkg.Scripts,
 		Dependencies: mergedDeps,
 	}
-	downloadSource = source
-	targetVersion = targetManifest.Version
-	return
+	return effective, source, targetManifest.Version, nil
 }
 
 func mergeDependencies(base []string, extra []string) (merged []string) {
@@ -99,7 +97,7 @@ func mergeDependencies(base []string, extra []string) (merged []string) {
 			merged = append(merged, s)
 		}
 	}
-	return merged
+	return
 }
 
 func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package) (graph *models.DependencyGraph, err error) {
@@ -119,8 +117,8 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 	var rootVersion models.Version
 	var rootDownloadSource string
 	if pkg.Alias != "" {
-		var effective *models.Package
 		var targetVer string
+		var effective *models.Package
 		if effective, rootDownloadSource, targetVer, err = r.resolveAlias(ctx, pkg); err != nil {
 			return
 		}
@@ -175,9 +173,9 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 			errMsg := err.Error()
 			multipleManifestsMsg := fmt.Sprintf(i18n.Msg("Package %s found in multiple manifests"), packageName)
 			if strings.Contains(errMsg, multipleManifestsMsg) || strings.Contains(errMsg, "найден в нескольких манифестах") {
+				var resolveErr error
 				var selectedPkg *models.Package
 				var selectedManifest *models.Manifest
-				var resolveErr error
 				if selectedPkg, selectedManifest, resolveErr = r.resolveSourceConflict(ctx, packageName, source); resolveErr != nil {
 					return nil, fmt.Errorf(i18n.Msg("Failed to resolve dependency %s: %w"), packageName, resolveErr)
 				}
@@ -194,8 +192,8 @@ func (r *resolver) ResolveDependencies(ctx context.Context, pkg *models.Package)
 			depVersion, _ = version.Parse(depManifest.Version)
 		}
 		if depPkg.Alias != "" {
-			var effectiveDep *models.Package
 			var targetVer string
+			var effectiveDep *models.Package
 			if effectiveDep, depDownloadSource, targetVer, err = r.resolveAlias(ctx, depPkg); err != nil {
 				return nil, fmt.Errorf(i18n.Msg("Failed to resolve alias for dependency %s: %w"), packageName, err)
 			}
@@ -279,8 +277,7 @@ func (r *resolver) SortForInstallation(ctx context.Context, graph *models.Depend
 
 	select {
 	case <-ctx.Done():
-		err = ctx.Err()
-		return
+		return nil, ctx.Err()
 	default:
 	}
 
@@ -336,8 +333,8 @@ func (r *resolver) CheckCompatibility(ctx context.Context, installed *models.Pac
 		return true
 	}
 
-	var installation *models.Installation
 	var err error
+	var installation *models.Installation
 	if installation, err = r.databaseManager.FindByPackage(ctx, required.Source, installed.Name); err != nil {
 		return false
 	}
@@ -430,10 +427,10 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 	}
 
 	var conflictMessage strings.Builder
-	conflictMessage.WriteString(fmt.Sprintf(i18n.Msg("Package %s found in multiple sources:")+"\n", packageName))
+	_, _ = fmt.Fprintf(&conflictMessage, i18n.Msg("Package %s found in multiple sources:")+"\n", packageName)
 
 	if installed != nil {
-		conflictMessage.WriteString(fmt.Sprintf(i18n.Msg("Currently installed: %s (source: %s, version: %s)")+"\n", packageName, installed.Source, installed.Version))
+		_, _ = fmt.Fprintf(&conflictMessage, i18n.Msg("Currently installed: %s (source: %s, version: %s)")+"\n", packageName, installed.Source, installed.Version)
 	}
 
 	conflictMessage.WriteString(i18n.Msg("Available sources:") + "\n")
@@ -442,7 +439,7 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 	packageMap := make(map[string]*managers.PackageWithSource, len(allPackages))
 
 	if requestedSource != "" {
-		conflictMessage.WriteString(fmt.Sprintf(i18n.Msg("Requested source: %s")+"\n", requestedSource))
+		_, _ = fmt.Fprintf(&conflictMessage, i18n.Msg("Requested source: %s")+"\n", requestedSource)
 	}
 
 	for i := range allPackages {
@@ -471,7 +468,7 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 
 		options = append(options, optionText)
 		packageMap[optionText] = pkgWithSource
-		conflictMessage.WriteString(fmt.Sprintf("  - %s\n", optionText))
+		_, _ = fmt.Fprintf(&conflictMessage, "  - %s\n", optionText)
 	}
 
 	pterm.Warning.Println(conflictMessage.String())
@@ -491,7 +488,9 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		}
 	}
 
+	var exists bool
 	var selected string
+	var selectedPkg *managers.PackageWithSource
 	if selected, err = pterm.DefaultInteractiveSelect.
 		WithOptions(options).
 		WithMaxHeight(utils.GetMaxHeightForSelect(len(options))).
@@ -499,8 +498,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 		return nil, nil, errors.New(i18n.Msg("Package source selection cancelled"))
 	}
 
-	var exists bool
-	var selectedPkg *managers.PackageWithSource
 	if selectedPkg, exists = packageMap[selected]; !exists {
 		return nil, nil, errors.New(i18n.Msg("Selected package source not found"))
 	}
@@ -522,7 +519,6 @@ func (r *resolver) resolveSourceConflict(ctx context.Context, packageName string
 }
 
 func (r *resolver) normalizeURI(ctx context.Context, spec string) (normalizedURI uri.URI, err error) {
-
 	parsedURI, parseErr := uri.New(spec)
 	if parseErr == nil {
 		normalizedURI = parsedURI
@@ -576,11 +572,11 @@ func (r *resolver) ensureManifestLoaded(ctx context.Context, source string) (err
 			slog.Debug(i18n.Msg("Updating GitHub manifest"), slog.String("source", source))
 			if err = r.manifestManager.UpdateManifest(ctx, source, false); err != nil {
 				slog.Error(i18n.Msg("Failed to update GitHub manifest"), slog.String("source", source), slog.Any("error", err))
-				return err
+				return
 			}
 			if err = r.manifestManager.ReloadIndex(ctx); err != nil {
 				slog.Error(i18n.Msg("Failed to reload index after updating manifest"), slog.String("source", source), slog.Any("error", err))
-				return err
+				return
 			}
 			slog.Debug(i18n.Msg("Successfully updated and reloaded GitHub manifest"), slog.String("source", source))
 			return

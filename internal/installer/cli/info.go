@@ -15,7 +15,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// HandleInfo обрабатывает команду info.
 func (inst *Installer) HandleInfo(ctx context.Context, args []string) (err error) {
 
 	var packageName string
@@ -47,7 +46,6 @@ func (inst *Installer) HandleInfo(ctx context.Context, args []string) (err error
 	return
 }
 
-// selectPackageInteractive предлагает интерактивный выбор пакета из установленных.
 func (inst *Installer) selectPackageInteractive(ctx context.Context) (packageName string, err error) {
 
 	var installations []models.Installation

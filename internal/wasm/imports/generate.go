@@ -13,7 +13,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// Generate вызывает функцию generate плагина для генерации кода.
 func Generate(ctx context.Context, h *host.Host, rootDir string, moduleName string) (err error) {
 
 	if ctx.Err() != nil {

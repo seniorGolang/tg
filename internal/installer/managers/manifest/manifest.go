@@ -52,7 +52,7 @@ type manager struct {
 	indexOnce     sync.Once
 }
 
-func NewManager(scopeName string) managers.ManifestManager {
+func NewManager(scopeName string) (mgr managers.ManifestManager) {
 	return &manager{
 		scopeName:     scopeName,
 		loadedURLs:    make(map[string]bool),
@@ -90,7 +90,7 @@ func (m *manager) ReloadIndex(ctx context.Context) (err error) {
 		lastUpdate:    time.Now(),
 	}
 
-	err = filepath.Walk(catalogDir, func(path string, info os.FileInfo, walkErr error) error {
+	if err = filepath.Walk(catalogDir, func(path string, info os.FileInfo, walkErr error) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -137,9 +137,7 @@ func (m *manager) ReloadIndex(ctx context.Context) (err error) {
 		}
 
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		err = fmt.Errorf(i18n.Msg("Failed to load manifest index: %w"), err)
 		return
 	}
@@ -178,8 +176,7 @@ func (m *manager) LoadManifestCascade(ctx context.Context, manifestURL string, s
 		return
 	}
 
-	loadedSources = m.loadedSources
-	return
+	return m.loadedSources, nil
 }
 
 func (m *manager) UpdateManifest(ctx context.Context, source string, force bool) (err error) {
@@ -313,12 +310,10 @@ func (m *manager) ValidateManifest(ctx context.Context, manifest *models.Manifes
 		return
 	}
 
-	var v models.Version
-	if v, err = version.Parse(manifest.Version); err != nil {
+	if _, err = version.Parse(manifest.Version); err != nil {
 		err = fmt.Errorf(i18n.Msg("Invalid version format: %w"), err)
 		return
 	}
-	_ = v
 
 	return
 }
@@ -328,7 +323,8 @@ func (m *manager) GetCatalog(ctx context.Context) (manifests []managers.Manifest
 	dbFile := storage.GetPackagesDBFile(m.scopeName)
 	sourceSet := make(map[string]bool)
 
-	if _, statErr := os.Stat(dbFile); statErr == nil {
+	var statErr error
+	if _, statErr = os.Stat(dbFile); statErr == nil {
 		data, readErr := os.ReadFile(dbFile)
 		if readErr == nil {
 			var db models.InstallationDatabase
@@ -399,6 +395,7 @@ func (m *manager) GetManifestVersion(ctx context.Context, url string) (versionSt
 
 	cachedList, exists := m.index.bySource[normalizedSource]
 	if !exists || len(cachedList) == 0 {
+		versionStr = ""
 		err = errors.New(i18n.Msg("Manifest not found"))
 		return
 	}
@@ -414,8 +411,7 @@ func (m *manager) GetManifestVersion(ctx context.Context, url string) (versionSt
 		}
 	}
 
-	versionStr = latestCached.manifest.Version
-	return
+	return latestCached.manifest.Version, nil
 }
 
 func (m *manager) GetAllManifests(ctx context.Context) (manifests []managers.ManifestWithSource, err error) {
@@ -463,14 +459,12 @@ func (m *manager) buildManifestURLForUpdate(ctx context.Context, source string) 
 
 	var parsedURI uri.URI
 	if parsedURI, err = uri.New(source); err != nil {
-		err = fmt.Errorf("failed to parse source URL: %w", err)
-		return
+		return "", fmt.Errorf("failed to parse source URL: %w", err)
 	}
 
 	if manifestURL, err = parsedURI.ManifestURL(ctx, ""); err != nil {
 		slog.Error(i18n.Msg("Failed to get manifest"), slog.String("source", source), slog.Any("error", err))
-		err = fmt.Errorf(i18n.Msg("Failed to get manifest: %w"), err)
-		return
+		return "", fmt.Errorf(i18n.Msg("Failed to get manifest: %w"), err)
 	}
 
 	slog.Debug(i18n.Msg("Built manifest URL"), slog.String("source", source), slog.String("manifestURL", manifestURL))
@@ -490,19 +484,23 @@ func (m *manager) downloadManifest(ctx context.Context, url string) (content []b
 	var req *http.Request
 	if req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil); err != nil {
 		slog.Error(fmt.Sprintf(i18n.Msg("Failed to create %s"), "HTTP request for manifest"), slog.String("url", url), slog.Any("error", err))
+		content = nil
 		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "request", err)
 		return
 	}
 
 	client := &http.Client{}
 	var resp *http.Response
+	//nolint:gosec // G704: URL манифеста из конфигурации, валидация на уровне вызывающего кода
 	if resp, err = client.Do(req); err != nil {
 		slog.Error(i18n.Msg("Failed to execute HTTP request for manifest"), slog.String("url", url), slog.Any("error", err))
+		content = nil
 		err = fmt.Errorf(i18n.Msg("Failed to load manifest: %w"), err)
 		return
 	}
 	defer resp.Body.Close()
 
+	//nolint:gosec // G706: url и статус из ответа для отладки, не пользовательский ввод
 	slog.Debug(i18n.Msg("Received response for manifest"), slog.String("url", url), slog.Int("statusCode", resp.StatusCode), slog.String("status", resp.Status))
 
 	if resp.StatusCode != http.StatusOK {
@@ -513,13 +511,17 @@ func (m *manager) downloadManifest(ctx context.Context, url string) (content []b
 			bodyStr = bodyStr[:500] + "..."
 		}
 
+		//nolint:gosec // G706: url и статус из ответа для отладки, не пользовательский ввод
 		slog.Error(i18n.Msg("Manifest download returned non-OK status"), slog.String("url", url), slog.Int("statusCode", resp.StatusCode), slog.String("status", resp.Status), slog.String("responseBody", bodyStr))
+		content = nil
 		err = fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
 		return
 	}
 
 	if content, err = io.ReadAll(resp.Body); err != nil {
+		//nolint:gosec // G706: url и статус из ответа для отладки, не пользовательский ввод
 		slog.Error(i18n.Msg("Failed to read manifest response body"), slog.String("url", url), slog.Int("statusCode", resp.StatusCode), slog.Any("error", err))
+		content = nil
 		err = fmt.Errorf(i18n.Msg("Failed to read response body: %w"), err)
 		return
 	}

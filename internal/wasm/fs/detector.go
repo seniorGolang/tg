@@ -13,7 +13,6 @@ const (
 	pathPrefixTG = "@tg"
 )
 
-// PathType представляет тип пути.
 type PathType int
 
 const (
@@ -31,7 +30,6 @@ const (
 	PathTypeAbsolute
 )
 
-// detectPathType определяет тип пути по префиксу.
 func detectPathType(path string) (pathType PathType) {
 
 	if strings.HasPrefix(path, pathPrefixGo) {
@@ -59,6 +57,5 @@ func detectPathType(path string) (pathType PathType) {
 		return
 	}
 
-	pathType = PathTypeAbsolute
-	return
+	return PathTypeAbsolute
 }

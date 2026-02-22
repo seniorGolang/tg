@@ -31,7 +31,6 @@ func connRemoteAddr(ctx context.Context, h *host.Host, nm *netManager, connID ui
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))
 	}
 
-	// Читаем размер буфера из addrLenPtr (входной параметр)
 	var lengthBytes []byte
 	var ok bool
 	if lengthBytes, ok = mem.Read(addrLenPtr, 4); !ok {
@@ -47,7 +46,6 @@ func connRemoteAddr(ctx context.Context, h *host.Host, nm *netManager, connID ui
 		return writeError(ctx, h, errors.New(i18n.Msg("address length out of range")))
 	}
 
-	// Записываем адрес в буфер (не более размера буфера)
 	writeLen := remoteAddrLen
 	if writeLen > int(bufferSize) {
 		writeLen = int(bufferSize)
@@ -59,7 +57,6 @@ func connRemoteAddr(ctx context.Context, h *host.Host, nm *netManager, connID ui
 		}
 	}
 
-	// Записываем реальную длину адреса в addrLenPtr (выходной параметр)
 	if !mem.WriteUint32Le(addrLenPtr, uint32(remoteAddrLen)) { //nolint:gosec // проверка на переполнение выполнена выше
 		return writeError(ctx, h, errors.New(i18n.Msg("failed to write address length")))
 	}
@@ -84,7 +81,6 @@ func connLocalAddr(ctx context.Context, h *host.Host, nm *netManager, connID uin
 		return writeError(ctx, h, errors.New(i18n.Msg("memory is not available")))
 	}
 
-	// Читаем размер буфера из addrLenPtr (входной параметр)
 	var lengthBytes []byte
 	var ok bool
 	if lengthBytes, ok = mem.Read(addrLenPtr, 4); !ok {
@@ -100,7 +96,6 @@ func connLocalAddr(ctx context.Context, h *host.Host, nm *netManager, connID uin
 		return writeError(ctx, h, errors.New(i18n.Msg("address length out of range")))
 	}
 
-	// Записываем адрес в буфер (не более размера буфера)
 	writeLen := localAddrLen
 	if writeLen > int(bufferSize) {
 		writeLen = int(bufferSize)
@@ -112,7 +107,6 @@ func connLocalAddr(ctx context.Context, h *host.Host, nm *netManager, connID uin
 		}
 	}
 
-	// Записываем реальную длину адреса в addrLenPtr (выходной параметр)
 	if !mem.WriteUint32Le(addrLenPtr, uint32(localAddrLen)) { //nolint:gosec // проверка на переполнение выполнена выше
 		return writeError(ctx, h, errors.New(i18n.Msg("failed to write address length")))
 	}

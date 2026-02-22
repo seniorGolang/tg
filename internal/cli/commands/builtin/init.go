@@ -28,9 +28,7 @@ func HandlePluginInit(ctx types.CommandContext) (err error) {
 		errorMsg := i18n.Msg("Failed to get current working directory") + ": " + wdErr.Error()
 		return errors.New(errorMsg)
 	}
-	initRootDir := wd
 
-	ctx2 := context.Background()
 	logger := slog.With(
 		slog.String("operation", "create_plugin"),
 		slog.Group("plugin",
@@ -39,10 +37,9 @@ func HandlePluginInit(ctx types.CommandContext) (err error) {
 		),
 	)
 	logger.Info(i18n.Msg("Creating plugin"))
-	if err = generator.RunInit(ctx2, initRootDir, name, command, deployType, license, moduleName, kind); err != nil {
+	if err = generator.RunInit(context.Background(), wd, name, command, deployType, license, moduleName, kind); err != nil {
 		logger.Error(i18n.Msg("Error creating plugin"), slog.String("error", err.Error()))
-		errorMsg := i18n.Msg("Error creating plugin") + ": " + err.Error()
-		return errors.New(errorMsg)
+		return errors.New(i18n.Msg("Error creating plugin") + ": " + err.Error())
 	}
 	logger.Info(i18n.Msg("Plugin successfully created"))
 	return

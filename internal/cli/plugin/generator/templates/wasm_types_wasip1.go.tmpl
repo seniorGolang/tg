@@ -4,9 +4,7 @@ import "{{.ModuleName}}/core/data"
 
 // ExecuteRequest содержит аргументы для Execute.
 type ExecuteRequest struct {
-	RootDir string       `json:"rootDir"`
-	Request data.Storage `json:"request"`        // data.Storage напрямую
-	Path    []string     `json:"path,omitempty"` // путь команды, которая была вызвана
+	Request data.Storage `json:"request"`
 }
 
 // ExecuteResponse содержит результат выполнения Execute.

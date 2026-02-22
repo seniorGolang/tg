@@ -138,7 +138,7 @@ func formatPackageOption(pkgWithSource *managers.PackageWithSource) (optionText 
 	if pkgWithSource.Package.Descr != "" {
 		optionText += docDescriptionSeparator + pkgWithSource.Package.Descr
 	}
-	return optionText
+	return
 }
 
 func findInstallation(installations []models.Installation, pluginName string, version string) (foundInstallation *models.Installation) {

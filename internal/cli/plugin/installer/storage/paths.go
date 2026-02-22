@@ -37,8 +37,7 @@ func GetPluginsDir() (pluginsDir string) {
 		}
 	}
 
-	pluginsDir = pluginsPath
-	return
+	return pluginsPath
 }
 
 // GetPluginInstallPath формирует путь установки плагина с учетом источника (как в Go).
@@ -48,7 +47,8 @@ func GetPluginInstallPath(repoURL string, pluginName string, version string) (in
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(repoURL); err != nil {
-		return "", err
+		installPath = ""
+		return
 	}
 
 	sourcePath := filepath.Join(parsedURL.Host, strings.TrimPrefix(parsedURL.Path, "/"))
@@ -63,7 +63,8 @@ func GetPluginInstallPathRelative(repoURL string, pluginName string, version str
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(repoURL); err != nil {
-		return "", err
+		installPath = ""
+		return
 	}
 
 	sourcePath := filepath.Join(parsedURL.Host, strings.TrimPrefix(parsedURL.Path, "/"))
@@ -82,12 +83,13 @@ func GetAbsoluteInstallPath(installPath string) (absolutePath string, err error)
 
 	pluginsDir := GetPluginsDir()
 	if pluginsDir == "" {
-		return "", errors.New(i18n.Msg("Failed to get plugins directory"))
+		absolutePath = ""
+		err = errors.New(i18n.Msg("Failed to get plugins directory"))
+		return
 	}
 
 	absolutePath = filepath.Join(pluginsDir, installPath)
-	absolutePath = filepath.Clean(absolutePath)
-	return
+	return filepath.Clean(absolutePath), nil
 }
 
 // CleanupInstallPath удаляет директорию установки плагина и все её содержимое.

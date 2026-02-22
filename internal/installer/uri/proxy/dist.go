@@ -21,7 +21,6 @@ const (
 	distName = "proxy"
 )
 
-// Dist реализует Dist для proxy источников.
 type Dist struct{}
 
 func NewDist() (d *Dist) {
@@ -38,7 +37,6 @@ func (d *Dist) Name() (name string) {
 
 func (d *Dist) IsMine(urlStr string) (isMine bool) {
 
-	// Proxy определяется по наличию пути в URL
 	var err error
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(urlStr); err != nil {
@@ -46,14 +44,13 @@ func (d *Dist) IsMine(urlStr string) (isMine bool) {
 	}
 
 	if parsedURL.Scheme == "" {
-		// Пробуем добавить схему
 		testURL := "https://" + urlStr
 		if parsedURL, err = url.Parse(testURL); err != nil {
 			return false
 		}
 	}
 
-	// Proxy определяется по наличию пути (не file:// и не GitHub)
+	// Proxy определяется по наличию пути (не file:// и не GitHub).
 	if parsedURL.Scheme == storage.URLSchemeFile {
 		return false
 	}
@@ -69,70 +66,60 @@ func (d *Dist) GetVersions(ctx context.Context, source string) (versions []strin
 
 	var base *url.URL
 	if base, err = d.requestBaseURL(source); err != nil {
-		err = fmt.Errorf("request base URL: %w", err)
-		return
+		return nil, fmt.Errorf("request base URL: %w", err)
 	}
 
 	versionsURL := joinPathToURL(base, "versions")
 
 	var req *http.Request
 	if req, err = http.NewRequestWithContext(ctx, http.MethodGet, versionsURL, nil); err != nil {
-		err = fmt.Errorf("failed to create HTTP request: %w", err)
-		return
+		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	client := &http.Client{}
 	var resp *http.Response
+	//nolint:gosec // G704: URL из конфигурации прокси, валидация на уровне вызывающего кода
 	if resp, err = client.Do(req); err != nil {
-		err = fmt.Errorf("failed to execute HTTP request: %w", err)
-		return
+		return nil, fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		return
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	var body []byte
 	if body, err = io.ReadAll(resp.Body); err != nil {
-		err = fmt.Errorf("failed to read response body: %w", err)
-		return
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if err = json.Unmarshal(body, &versions); err != nil {
-		err = fmt.Errorf("failed to parse JSON response: %w", err)
-		return
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 
 	if len(versions) == 0 {
-		err = fmt.Errorf("empty versions list")
-		return
+		return nil, fmt.Errorf("empty versions list")
 	}
 
 	return
 }
 
-// ManifestURL формирует URL манифеста для формата tg-proxy.
 func (d *Dist) ManifestURL(ctx context.Context, source string, versionStr string) (manifestURL string, err error) {
 
 	var base *url.URL
 	if base, err = d.requestBaseURL(source); err != nil {
-		err = fmt.Errorf("request base URL: %w", err)
-		return
+		return "", fmt.Errorf("request base URL: %w", err)
 	}
 
 	// Если version пустая или "latest", получаем последнюю версию
 	if versionStr == "" || versionStr == version.LatestVersion {
 		var versions []string
 		if versions, err = d.GetVersions(ctx, source); err != nil {
-			err = fmt.Errorf("get versions: %w", err)
-			return
+			return "", fmt.Errorf("get versions: %w", err)
 		}
 
 		if len(versions) == 0 {
-			err = fmt.Errorf("no versions available")
-			return
+			return "", fmt.Errorf("no versions available")
 		}
 
 		parsedVersions := make([]models.Version, 0, len(versions))
@@ -145,31 +132,25 @@ func (d *Dist) ManifestURL(ctx context.Context, source string, versionStr string
 		}
 
 		if len(parsedVersions) == 0 {
-			err = fmt.Errorf("no valid versions found")
-			return
+			return "", fmt.Errorf("no valid versions found")
 		}
 
 		versionStr = version.Latest(parsedVersions).Original
 	}
 
-	manifestURL = joinPathToURL(base, versionStr, storage.ManifestFileName)
-	return
+	return joinPathToURL(base, versionStr, storage.ManifestFileName), nil
 }
 
-// FileURL формирует URL для загрузки файла из proxy.
 func (d *Dist) FileURL(source string, version string, filename string) (fileURL string, err error) {
 
 	var base *url.URL
 	if base, err = d.requestBaseURL(source); err != nil {
-		err = fmt.Errorf("request base URL: %w", err)
-		return
+		return "", fmt.Errorf("request base URL: %w", err)
 	}
 
-	fileURL = joinPathToURL(base, version, filename)
-	return
+	return joinPathToURL(base, version, filename), nil
 }
 
-// joinPathToURL присоединяет сегменты пути к базовому URL через path.Join и возвращает полный URL.
 func joinPathToURL(base *url.URL, segments ...string) (fullURL string) {
 
 	u := *base
@@ -182,13 +163,11 @@ func (d *Dist) requestBaseURL(source string) (base *url.URL, err error) {
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(source); err != nil {
-		err = fmt.Errorf("parse source URL: %w", err)
-		return
+		return nil, fmt.Errorf("parse source URL: %w", err)
 	}
-	base = &url.URL{
+	return &url.URL{
 		Scheme: parsedURL.Scheme,
 		Host:   parsedURL.Host,
 		Path:   parsedURL.Path,
-	}
-	return
+	}, nil
 }

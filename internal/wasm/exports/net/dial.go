@@ -26,28 +26,24 @@ func validateHost(allowedHosts []string, address string) (err error) {
 		return errors.New(i18n.Msg("host is not allowed: plugin has no allowed hosts"))
 	}
 
-	// Извлекаем хост из адреса (может быть в формате host:port или просто host)
 	host := address
 	if hostPart, _, splitErr := net.SplitHostPort(address); splitErr == nil {
 		host = hostPart
 	}
 
-	// Проверяем каждый разрешённый хост
 	for _, allowed := range allowedHosts {
 		if isHostAllowed(host, allowed) {
-			return nil
+			return
 		}
 	}
 
 	// Если хост - это не IP-адрес, пытаемся резолвить домен и проверить IP
 	if hostIP := parseIP(host); hostIP == nil {
-		// Это доменное имя, резолвим его
 		if resolvedIPs, resolveErr := net.LookupIP(host); resolveErr == nil {
-			// Проверяем, попадает ли хотя бы один резолвленный IP в разрешённые диапазоны
 			for _, resolvedIP := range resolvedIPs {
 				for _, allowed := range allowedHosts {
 					if isIPAllowed(resolvedIP, allowed) {
-						return nil
+						return
 					}
 				}
 			}
@@ -58,30 +54,22 @@ func validateHost(allowedHosts []string, address string) (err error) {
 }
 
 // isHostAllowed: точное совпадение, wildcard (*.example.com), CIDR для IP.
-func isHostAllowed(host string, pattern string) bool {
+func isHostAllowed(host string, pattern string) (allowed bool) {
 
-	// Точное совпадение
 	if host == pattern {
 		return true
 	}
 
-	// Пытаемся распарсить хост как IP-адрес
 	hostIP := parseIP(host)
 	if hostIP != nil {
-		// Хост - это IP-адрес, проверяем паттерн
 		return isIPAllowed(hostIP, pattern)
 	}
 
-	// Хост - это доменное имя, проверяем wildcard паттерн
 	if strings.HasPrefix(pattern, "*.") {
-		// Убираем "*." из начала паттерна
 		suffix := pattern[2:]
-		// Проверяем, заканчивается ли хост на suffix
 		if strings.HasSuffix(host, suffix) {
-			// Проверяем, что перед suffix есть хотя бы одна поддоменная часть
 			// Это предотвращает совпадение "example.com" с паттерном "*.example.com"
 			prefix := host[:len(host)-len(suffix)]
-			// prefix должен начинаться с точки и содержать хотя бы один символ
 			if len(prefix) > 1 && prefix[0] == '.' {
 				return true
 			}
@@ -93,9 +81,8 @@ func isHostAllowed(host string, pattern string) bool {
 
 // parseIP парсит IP-адрес из строки, поддерживая IPv4 и IPv6.
 // Для IPv6 адресов убирает квадратные скобки, если они есть.
-func parseIP(host string) net.IP {
+func parseIP(host string) (ip net.IP) {
 
-	// Убираем квадратные скобки для IPv6 адресов (например, [::1] -> ::1)
 	if len(host) > 0 && host[0] == '[' && host[len(host)-1] == ']' {
 		host = host[1 : len(host)-1]
 	}
@@ -104,14 +91,12 @@ func parseIP(host string) net.IP {
 }
 
 // isIPAllowed: точное совпадение или CIDR.
-func isIPAllowed(ip net.IP, pattern string) bool {
+func isIPAllowed(ip net.IP, pattern string) (allowed bool) {
 
-	// Точное совпадение IP-адреса
 	if patternIP := parseIP(pattern); patternIP != nil {
 		return ip.Equal(patternIP)
 	}
 
-	// Проверка CIDR нотации (например, 192.168.1.0/24)
 	if _, ipNet, err := net.ParseCIDR(pattern); err == nil {
 		return ipNet.Contains(ip)
 	}
@@ -121,8 +106,8 @@ func isIPAllowed(ip net.IP, pattern string) bool {
 
 func connDial(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, connIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -135,7 +120,6 @@ func connDial(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint
 	network := string(networkBytes)
 	address := string(addressBytes)
 
-	// Проверяем, разрешён ли хост для подключения
 	if err = validateHost(h.Info.AllowedHosts, address); err != nil {
 		return writeError(ctx, h, err)
 	}
@@ -177,8 +161,8 @@ func connDial(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint
 
 func connDialContext(ctx context.Context, h *host.Host, nm *netManager, deadline uint64, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, connIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -191,10 +175,8 @@ func connDialContext(ctx context.Context, h *host.Host, nm *netManager, deadline
 	network := string(networkBytes)
 	address := string(addressBytes)
 
-	// Создаём dial context с deadline, если он указан
 	dialCtx := ctx
 	if deadline > 0 {
-		// Проверяем, что deadline не превышает максимальное значение int64
 		const maxInt64 = uint64(1<<63 - 1)
 		if deadline > maxInt64 {
 			return writeError(ctx, h, errors.New(i18n.Msg("deadline value too large")))
@@ -205,7 +187,6 @@ func connDialContext(ctx context.Context, h *host.Host, nm *netManager, deadline
 		defer cancel()
 	}
 
-	// Используем net.Dialer для поддержки контекста
 	dialer := &net.Dialer{}
 	var conn net.Conn
 	if conn, err = dialer.DialContext(dialCtx, network, address); err != nil {
@@ -244,8 +225,8 @@ func connDialContext(ctx context.Context, h *host.Host, nm *netManager, deadline
 
 func connDialTLS(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, connIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -258,12 +239,10 @@ func connDialTLS(ctx context.Context, h *host.Host, nm *netManager, networkPtr u
 	network := string(networkBytes)
 	address := string(addressBytes)
 
-	// Проверяем, разрешён ли хост для подключения
 	if err = validateHost(h.Info.AllowedHosts, address); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Для TLS используем DialContext для TCP, затем tls.Client для TLS handshake
 	dialer := &net.Dialer{}
 	var tcpConn net.Conn
 	if tcpConn, err = dialer.DialContext(ctx, network, address); err != nil {
@@ -271,28 +250,26 @@ func connDialTLS(ctx context.Context, h *host.Host, nm *netManager, networkPtr u
 		return writeError(ctx, h, err)
 	}
 
-	// Извлекаем hostname из address для ServerName
 	hostname := address
-	if host, _, err := net.SplitHostPort(address); err == nil {
+	var host string
+	if host, _, err = net.SplitHostPort(address); err == nil {
 		hostname = host
 	}
 
-	// Выполняем TLS handshake с системными корневыми сертификатами
-	// Используем конфигурацию TLS из Host
-	tlsConfig := &tls.Config{
+	tlsCfg := &tls.Config{
 		MinVersion:         tls.VersionTLS12,
-		ServerName:         hostname,                       // Устанавливаем ServerName для SNI и проверки сертификата
+		ServerName:         hostname,
 		InsecureSkipVerify: h.TLSConfig.InsecureSkipVerify, //nolint:gosec // контролируется конфигурацией хоста
 	}
 
-	// Пытаемся загрузить системные корневые сертификаты, если проверка не отключена
-	if !tlsConfig.InsecureSkipVerify {
-		if systemRoots, err := x509.SystemCertPool(); err == nil && systemRoots != nil {
-			tlsConfig.RootCAs = systemRoots
+	if !tlsCfg.InsecureSkipVerify {
+		var systemRoots *x509.CertPool
+		if systemRoots, err = x509.SystemCertPool(); err == nil && systemRoots != nil {
+			tlsCfg.RootCAs = systemRoots
 		}
 	}
 
-	tlsConn := tls.Client(tcpConn, tlsConfig)
+	tlsConn := tls.Client(tcpConn, tlsCfg)
 	if err = tlsConn.HandshakeContext(ctx); err != nil {
 		tcpConn.Close()
 		return writeError(ctx, h, err)
@@ -322,8 +299,8 @@ func connDialTLS(ctx context.Context, h *host.Host, nm *netManager, networkPtr u
 
 func connDialTLSContext(ctx context.Context, h *host.Host, nm *netManager, deadline uint64, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, connIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -336,16 +313,13 @@ func connDialTLSContext(ctx context.Context, h *host.Host, nm *netManager, deadl
 	network := string(networkBytes)
 	address := string(addressBytes)
 
-	// Проверяем, разрешён ли хост для подключения
 	if err = validateHost(h.Info.AllowedHosts, address); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	// Создаём dial context с deadline, если он указан
 	dialCtx := ctx
 	if deadline > 0 {
-		// Проверяем, что deadline не превышает максимальное значение int64
-		const maxInt64 = uint64(1<<63 - 1) // максимальное значение int64 как uint64
+		const maxInt64 = uint64(1<<63 - 1)
 		if deadline > maxInt64 {
 			return writeError(ctx, h, errors.New(i18n.Msg("deadline too large")))
 		}
@@ -355,7 +329,6 @@ func connDialTLSContext(ctx context.Context, h *host.Host, nm *netManager, deadl
 		defer cancel()
 	}
 
-	// Для TLS используем DialContext для TCP с deadline, затем tls.Client для TLS handshake
 	dialer := &net.Dialer{}
 	var tcpConn net.Conn
 	if tcpConn, err = dialer.DialContext(dialCtx, network, address); err != nil {
@@ -363,28 +336,26 @@ func connDialTLSContext(ctx context.Context, h *host.Host, nm *netManager, deadl
 		return writeError(ctx, h, err)
 	}
 
-	// Извлекаем hostname из address для ServerName
 	hostname := address
-	if host, _, err := net.SplitHostPort(address); err == nil {
+	var host string
+	if host, _, err = net.SplitHostPort(address); err == nil {
 		hostname = host
 	}
 
-	// Выполняем TLS handshake с системными корневыми сертификатами
-	// Используем конфигурацию TLS из Host
-	tlsConfig := &tls.Config{
+	tlsCfg := &tls.Config{
 		MinVersion:         tls.VersionTLS12,
-		ServerName:         hostname,                       // Устанавливаем ServerName для SNI и проверки сертификата
+		ServerName:         hostname,
 		InsecureSkipVerify: h.TLSConfig.InsecureSkipVerify, //nolint:gosec // контролируется конфигурацией хоста
 	}
 
-	// Пытаемся загрузить системные корневые сертификаты, если проверка не отключена
-	if !tlsConfig.InsecureSkipVerify {
-		if systemRoots, err := x509.SystemCertPool(); err == nil && systemRoots != nil {
-			tlsConfig.RootCAs = systemRoots
+	if !tlsCfg.InsecureSkipVerify {
+		var systemRoots *x509.CertPool
+		if systemRoots, err = x509.SystemCertPool(); err == nil && systemRoots != nil {
+			tlsCfg.RootCAs = systemRoots
 		}
 	}
 
-	tlsConn := tls.Client(tcpConn, tlsConfig)
+	tlsConn := tls.Client(tcpConn, tlsCfg)
 	if err = tlsConn.HandshakeContext(dialCtx); err != nil {
 		slog.Error(i18n.Msg("ConnDialTLSContext: TLS handshake failed"), "error", err)
 		tcpConn.Close()
@@ -424,7 +395,6 @@ type tlsConfig struct {
 
 func parseTLSConfig(cfg tlsConfig) (tlsCfg *tls.Config, err error) {
 
-	// Устанавливаем безопасное значение по умолчанию
 	tlsCfg = &tls.Config{
 		MinVersion: tls.VersionTLS12,
 	}
@@ -521,8 +491,8 @@ func parseTLSConfig(cfg tlsConfig) (tlsCfg *tls.Config, err error) {
 // ConnDialTLSWithConfig: configPtr и configLen — JSON конфигурация TLS в памяти WASM.
 func connDialTLSWithConfig(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, configPtr uint32, configLen uint32, connIDPtr uint32) (result uint64) {
 
-	var networkBytes []byte
 	var err error
+	var networkBytes []byte
 	if networkBytes, err = memory.Read(h, networkPtr, networkLen); err != nil {
 		return writeError(ctx, h, fmt.Errorf(i18n.Msg("failed to read network: %w"), err))
 	}
@@ -535,7 +505,6 @@ func connDialTLSWithConfig(ctx context.Context, h *host.Host, nm *netManager, ne
 	network := string(networkBytes)
 	address := string(addressBytes)
 
-	// Проверяем, разрешён ли хост для подключения
 	if err = validateHost(h.Info.AllowedHosts, address); err != nil {
 		return writeError(ctx, h, err)
 	}
@@ -577,23 +546,22 @@ func connDialTLSWithConfig(ctx context.Context, h *host.Host, nm *netManager, ne
 	return 0
 }
 
-// ConnTLSHandshake выполняет TLS handshake для соединения.
 func connTLSHandshake(ctx context.Context, h *host.Host, nm *netManager, connID uint64) (result uint64) {
 
-	var conn net.Conn
 	var err error
+	var conn net.Conn
 	if conn, err = nm.GetConn(connID); err != nil {
 		return writeError(ctx, h, err)
 	}
 
-	var tlsConn *tls.Conn
 	var ok bool
+	var tlsConn *tls.Conn
 	if tlsConn, ok = conn.(*tls.Conn); !ok {
 		return writeError(ctx, h, errors.New(i18n.Msg("connection is not a TLS connection")))
 	}
 
-	var handshakeCtx context.Context
 	var cancel context.CancelFunc
+	var handshakeCtx context.Context
 	handshakeCtx, cancel = context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 

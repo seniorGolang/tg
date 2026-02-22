@@ -84,8 +84,8 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		installID := m.generateInstallationID(pkg.Name, v.Original)
 		var existingInstallation *models.Installation
 		if existingInstallation, err = m.databaseManager.GetInstallation(ctx, installID); err == nil && existingInstallation != nil {
-			var scopeConfig *storage.ScopeConfig
 			var scopeErr error
+			var scopeConfig *storage.ScopeConfig
 			if scopeConfig, scopeErr = storage.LoadScopeConfig(m.scopeName); scopeErr == nil && m.verifyInstalledFilesChecksums(ctx, pkg, scopeConfig) {
 				slog.Debug(i18n.Msg("Install: package already installed, skipping"), slog.String("package", pkg.Name), slog.String("version", v.Original), slog.String("id", installID))
 				if collector := m.treeCollectorFromContext(ctx); collector != nil {
@@ -138,8 +138,8 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	packageStatus := make(map[string]string)
 
 	var sessionSet *SessionInstalledSet
-	if v := ctx.Value(contextkeys.SessionInstalledIDs); v != nil {
-		sessionSet, _ = v.(*SessionInstalledSet)
+	if sessionVal := ctx.Value(contextkeys.SessionInstalledIDs); sessionVal != nil {
+		sessionSet, _ = sessionVal.(*SessionInstalledSet)
 	}
 
 	findNodeByPackage := func(graph *models.DependencyGraph, pkg *models.Package) (node *models.DependencyNode) {
@@ -224,15 +224,15 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 	default:
 	}
 
+	var mainPkg *models.Package
 	var rootNode *models.DependencyNode
+	var rootSource string
+	var mainVersion models.Version
 	if pkg.Alias != "" {
 		rootNode = graph.Nodes[pkg.Name]
 	} else {
 		rootNode = findNodeByPackage(graph, pkg)
 	}
-	var rootSource string
-	var mainPkg *models.Package
-	var mainVersion models.Version
 	if rootNode != nil {
 		rootSource = rootNode.Source
 		mainPkg = rootNode.Package
@@ -249,8 +249,8 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 		return
 	}
 	if !checkResultMain.shouldInstall {
-		var scopeConfig *storage.ScopeConfig
 		var scopeErr error
+		var scopeConfig *storage.ScopeConfig
 		if scopeConfig, scopeErr = storage.LoadScopeConfig(m.scopeName); scopeErr == nil && m.verifyInstalledFilesChecksums(ctx, mainPkg, scopeConfig) {
 			if m.treeCollectorFromContext(ctx) != nil {
 				m.printPackageProgressLine(mainPkg.Name)
@@ -260,7 +260,7 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 					*skipped = true
 				}
 			}
-			packagesInfo := make([]packageToInstallInfo, 0)
+			treePackagesInfo := make([]packageToInstallInfo, 0)
 			statusUnchanged := m.subtreePackageNames(graph, pkg.Name)
 			for _, name := range statusUnchanged {
 				packageStatus[name] = installStatusUnchanged
@@ -270,7 +270,7 @@ func (m *manager) Install(ctx context.Context, pkg *models.Package, v models.Ver
 				rootDisplay, deps := m.buildPackageFlatInfo(graph, packageStatus, pkg.Name, v)
 				collector.AddTree(source, rootDisplay, deps)
 			} else {
-				m.printDependencyTree(ctx, graph, packagesInfo, packageStatus, pkg.Name, v)
+				m.printDependencyTree(ctx, graph, treePackagesInfo, packageStatus, pkg.Name, v)
 			}
 			return
 		}
@@ -388,8 +388,8 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	extractedDirs := make(map[string]string)
 	downloadedFiles := make(map[string]string)
 
-	var hasProgressWork bool
 	var packageBar *ui.ProgressBar
+	var hasProgressWork bool
 	defer func() {
 
 		if hasProgressWork && packageBar != nil {
@@ -599,8 +599,8 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 				defer func() { close(workDone) }()
 			}
 
-			var rawBytes []byte
 			var readErr error
+			var rawBytes []byte
 			if rawBytes, readErr = os.ReadFile(file.Path); readErr != nil {
 				return fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), readErr)
 			}
@@ -612,15 +612,15 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 
 			loggerAdapter := logger.NewSlogAdapter(slog.Default())
 
-			var compilationCache wazero.CompilationCache
 			var cacheErr error
+			var compilationCache wazero.CompilationCache
 			compilationCache, cacheErr = cache.GetCompilationCache(ctx)
 			if cacheErr != nil {
 				slog.Warn(i18n.Msg("Failed to get compilation cache, continuing without cache"), slog.Any("error", cacheErr))
 			}
 
-			var tempHost *host.Host
 			var hostErr error
+			var tempHost *host.Host
 			tgPath := scopeConfig.ConfigDir
 			if compilationCache != nil {
 				tempHost, hostErr = wasm.New(ctx, wasmBytes, plugin.Info{}, ".", loggerAdapter, wasm.WithCompilationCache(compilationCache), wasm.WithTGPath(tgPath), wasm.MuteLogs())
@@ -706,7 +706,9 @@ func (m *manager) findFileInstForDownload(pkg *models.Package, fileName string) 
 
 func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedFiles map[string]string, extractedDirs map[string]string) (path string, err error) {
 
-	if extractedDir, exists := extractedDirs[fileName]; exists {
+	var exists bool
+	var extractedDir string
+	if extractedDir, exists = extractedDirs[fileName]; exists {
 		if sourcePath != "" {
 			fullPath := filepath.Join(extractedDir, sourcePath)
 			if _, statErr := os.Stat(fullPath); statErr == nil {
@@ -726,7 +728,8 @@ func (m *manager) findSourceFile(fileName string, sourcePath string, downloadedF
 		}
 	}
 
-	if downloadedFile, exists := downloadedFiles[fileName]; exists {
+	var downloadedFile string
+	if downloadedFile, exists = downloadedFiles[fileName]; exists {
 		if sourcePath != "" {
 			path = filepath.Join(filepath.Dir(downloadedFile), sourcePath)
 			return
@@ -767,7 +770,7 @@ func (m *manager) subtreePackageNames(graph *models.DependencyGraph, rootPackage
 			}
 		}
 	}
-	return names
+	return
 }
 
 func (m *manager) resolveTreeSourceEarly(ctx context.Context, pkg *models.Package) (source string) {
@@ -781,7 +784,7 @@ func (m *manager) resolveTreeSourceEarly(ctx context.Context, pkg *models.Packag
 	if source, err = m.findPackageSource(ctx, pkg); err != nil {
 		return noSourcePlaceholder
 	}
-	return source
+	return
 }
 
 func (m *manager) printPackageProgressLine(packageName string) {
@@ -861,8 +864,8 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 
 	needsNormalization := false
 	for _, depStr := range pkg.Dependencies {
-		var parsedURI uri.URI
 		var parseErr error
+		var parsedURI uri.URI
 		if parsedURI, parseErr = uri.New(depStr); parseErr != nil {
 			continue
 		}
@@ -887,8 +890,8 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 	}
 
 	for i, depStr := range pkg.Dependencies {
-		var parsedURI uri.URI
 		var parseErr error
+		var parsedURI uri.URI
 		if parsedURI, parseErr = uri.New(depStr); parseErr != nil {
 			normalized.Dependencies[i] = depStr
 			continue
@@ -909,7 +912,7 @@ func (m *manager) normalizePackage(ctx context.Context, pkg *models.Package) (no
 		}
 	}
 
-	return normalized
+	return
 }
 
 func (m *manager) downloadWithProgress(ctx context.Context, url string, destination string, bar *ui.ProgressBar) (err error) {
@@ -998,7 +1001,7 @@ func (m *manager) resolveTreeSource(ctx context.Context, graph *models.Dependenc
 	if source, err = m.findPackageSource(ctx, rootPkg); err != nil {
 		return noSourcePlaceholder
 	}
-	return source
+	return
 }
 
 func (m *manager) buildPackageFlatInfo(graph *models.DependencyGraph, packageStatus map[string]string, rootPackageName string, rootVersion models.Version) (rootDisplay string, deps []PackageDisplay) {
@@ -1049,7 +1052,7 @@ func (m *manager) buildPackageFlatInfo(graph *models.DependencyGraph, packageSta
 			queue = append(queue, child)
 		}
 	}
-	return rootDisplay, deps
+	return
 }
 
 func (m *manager) installStatusPrefix(status string) (prefix string) {

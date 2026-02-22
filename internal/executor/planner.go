@@ -84,9 +84,9 @@ func (p *Planner) collectPlanData(commandPluginName string) (allInstallations ma
 
 func (p *Planner) Plan(commandPluginName string, initialRequest plugin.Storage, rootDir string, commandPath []string, commandArgs []string) (plan Plan, err error) {
 
-	var dependencyGraph map[string][]string
 	var alwaysPre map[string]*models.Installation
 	var alwaysPost map[string]*models.Installation
+	var dependencyGraph map[string][]string
 	var allInstallations map[string]*models.Installation
 	if allInstallations, dependencyGraph, alwaysPre, alwaysPost, err = p.collectPlanData(commandPluginName); err != nil {
 		return
@@ -111,9 +111,9 @@ func (p *Planner) Plan(commandPluginName string, initialRequest plugin.Storage, 
 
 func (p *Planner) GetMergedOptionsForCommand(commandPluginName string, commandPath []string) (options []models.OptionInfo, err error) {
 
-	var dependencyGraph map[string][]string
 	var alwaysPre map[string]*models.Installation
 	var alwaysPost map[string]*models.Installation
+	var dependencyGraph map[string][]string
 	var allInstallations map[string]*models.Installation
 	if allInstallations, dependencyGraph, alwaysPre, alwaysPost, err = p.collectPlanData(commandPluginName); err != nil {
 		return
@@ -124,8 +124,7 @@ func (p *Planner) GetMergedOptionsForCommand(commandPluginName string, commandPa
 		return
 	}
 
-	options = p.mergeOptionsFromSteps(steps, allInstallations, commandPluginName, commandPath)
-	return
+	return p.mergeOptionsFromSteps(steps, allInstallations, commandPluginName, commandPath), nil
 }
 
 func (p *Planner) mergeOptionsFromSteps(steps []Step, allInstallations map[string]*models.Installation, commandPluginName string, commandPath []string) (result []models.OptionInfo) {

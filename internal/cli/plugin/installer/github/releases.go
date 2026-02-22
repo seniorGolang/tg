@@ -23,20 +23,26 @@ func (c *Client) ListPlugins(ctx context.Context) (plugins []PluginInfo, err err
 
 	var latestTag string
 	if latestTag, err = c.FindLatestVersionTag(ctx); err != nil {
-		return nil, fmt.Errorf(i18n.Msg("Failed to find latest release: %w"), err)
+		plugins = nil
+		err = fmt.Errorf(i18n.Msg("Failed to find latest release: %w"), err)
+		return
 	}
 
 	slog.Debug(i18n.Msg("Latest tag found"), "tag", latestTag, "repo", fmt.Sprintf("%s/%s", c.owner, c.repo))
 
 	var manifestPaths []string
 	if manifestPaths, err = c.DownloadManifest(ctx, latestTag); err != nil {
-		return nil, fmt.Errorf(i18n.Msg("Failed to download manifest.json: %w"), err)
+		plugins = nil
+		err = fmt.Errorf(i18n.Msg("Failed to download manifest.json: %w"), err)
+		return
 	}
 
 	slog.Debug(i18n.Msg("manifest.json downloaded"), "count", len(manifestPaths), "tag", latestTag)
 
 	if len(manifestPaths) == 0 {
-		return nil, fmt.Errorf(i18n.Msg("manifest.json is empty, no plugins found in tag %s"), latestTag)
+		plugins = nil
+		err = fmt.Errorf(i18n.Msg("manifest.json is empty, no plugins found in tag %s"), latestTag)
+		return
 	}
 
 	baseURL := fmt.Sprintf(GitHubReleasesBaseURL, c.owner, c.repo, latestTag)
@@ -49,14 +55,11 @@ func (c *Client) ListPlugins(ctx context.Context) (plugins []PluginInfo, err err
 	}
 	results := make(chan result, len(manifestPaths))
 
-	// Для каждого пути из manifest.json скачиваем соответствующий манифест параллельно
 	for _, manifestPath := range manifestPaths {
 		go func(path string) {
-			sem <- struct{}{}        // занимаем слот
-			defer func() { <-sem }() // освобождаем слот
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
-			// Скачиваем манифест плагина
-			// Убираем ведущий слэш, если есть
 			cleanPath := strings.TrimPrefix(path, "/")
 			manifestURL := fmt.Sprintf("%s/%s", baseURL, cleanPath)
 			slog.Debug(i18n.Msg("Downloading plugin manifest"), "path", path, "url", manifestURL)
@@ -70,26 +73,22 @@ func (c *Client) ListPlugins(ctx context.Context) (plugins []PluginInfo, err err
 		}(manifestPath)
 	}
 
-	// Собираем результаты
 	var downloadErrors []error
 	successCount := 0
 	for i := 0; i < len(manifestPaths); i++ {
 		res := <-results
 		if res.err != nil {
-			// Сохраняем ошибки для логирования
 			downloadErrors = append(downloadErrors, res.err)
 			slog.Debug(i18n.Msg("Failed to download plugin manifest"), "error", res.err)
 			continue
 		}
 
-		// Извлекаем версию из тега
 		var version string
 		if version, err = parseTag(latestTag); err != nil {
 			slog.Debug(i18n.Msg("Failed to parse tag"), "tag", latestTag, "error", err)
 			continue
 		}
 
-		// Добавляем информацию о плагине
 		pluginsMap[res.manifest.Name] = append(pluginsMap[res.manifest.Name], VersionInfo{
 			Version: version,
 			Tag:     latestTag,
@@ -100,20 +99,21 @@ func (c *Client) ListPlugins(ctx context.Context) (plugins []PluginInfo, err err
 	// Если ни один манифест не удалось скачать, возвращаем ошибку
 	if successCount == 0 {
 		if len(downloadErrors) > 0 {
-			return nil, fmt.Errorf(i18n.Msg("Failed to download any plugin manifest from %d attempts. First error: %w"), len(manifestPaths), downloadErrors[0])
+			plugins = nil
+			err = fmt.Errorf(i18n.Msg("Failed to download any plugin manifest from %d attempts. First error: %w"), len(manifestPaths), downloadErrors[0])
+			return
 		}
-		return nil, fmt.Errorf(i18n.Msg("Failed to process any plugin from %d manifests"), len(manifestPaths))
+		plugins = nil
+		err = fmt.Errorf(i18n.Msg("Failed to process any plugin from %d manifests"), len(manifestPaths))
+		return
 	}
 
-	// Логируем предупреждение, если не все манифесты удалось скачать
 	if len(downloadErrors) > 0 {
 		slog.Warn(i18n.Msg("Some plugin manifests failed to download"), "failed", len(downloadErrors), "total", len(manifestPaths), "success", successCount)
 	}
 
-	// Преобразуем в список и сортируем версии
 	plugins = make([]PluginInfo, 0, len(pluginsMap))
 	for name, versions := range pluginsMap {
-		// Сортируем версии по убыванию (последняя версия первая)
 		sort.Slice(versions, func(i, j int) bool {
 			return compareVersions(versions[i].Version, versions[j].Version) > 0
 		})
@@ -124,14 +124,15 @@ func (c *Client) ListPlugins(ctx context.Context) (plugins []PluginInfo, err err
 		})
 	}
 
-	return plugins, nil
+	return
 }
 
 func (c *Client) ListVersions(ctx context.Context, pluginName string) (versions []VersionInfo, err error) {
 
 	var tags []string
 	if tags, err = c.listTags(ctx); err != nil {
-		return nil, err
+		versions = nil
+		return
 	}
 
 	var versionTags []string
@@ -176,7 +177,6 @@ func (c *Client) ListVersions(ctx context.Context, pluginName string) (versions 
 	return
 }
 
-// FindLatestVersionTag находит последний тег формата v{version}.
 func (c *Client) FindLatestVersionTag(ctx context.Context) (tag string, err error) {
 
 	var tags []string
@@ -211,15 +211,13 @@ func (c *Client) FindLatestVersionTag(ctx context.Context) (tag string, err erro
 		return compareVersions(v1, v2) > 0
 	})
 
-	tag = versionTags[0]
-	return
+	return versionTags[0], nil
 }
 
 const (
 	bodyPreviewLimit = 200
 )
 
-// downloadPluginManifest скачивает манифест плагина и возвращает PluginManifest.
 func (c *Client) downloadPluginManifest(ctx context.Context, manifestURL string) (manifest PluginManifest, err error) {
 
 	var body []byte
@@ -244,6 +242,5 @@ func (c *Client) downloadPluginManifest(ctx context.Context, manifestURL string)
 		return PluginManifest{}, fmt.Errorf(i18n.Msg("Failed to parse manifest: %w"), err)
 	}
 
-	manifest = pluginManifest
-	return
+	return pluginManifest, nil
 }

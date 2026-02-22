@@ -87,7 +87,7 @@ func resolveMounts(rootDir string, tgPath string, info plugin.Info) (out []Resol
 		return out[i].MountPoint < out[j].MountPoint
 	})
 
-	return out
+	return
 }
 
 func (b *Builder) buildFromResolved(resolved []ResolvedMount) (fsConfig wazero.FSConfig) {

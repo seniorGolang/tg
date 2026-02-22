@@ -8,8 +8,6 @@ import (
 
 // executeRequest представляет JSON формат запроса для выполнения плагина.
 type executeRequest struct {
-	RootDir string         `json:"rootDir"`
-	Path    []string       `json:"path"`
 	Request plugin.Storage `json:"request"`
 }
 

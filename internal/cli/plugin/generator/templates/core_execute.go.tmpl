@@ -20,8 +20,8 @@ func SetPluginInstance(p plugin.Plugin) {
 			}
 			return json.Marshal(info)
 		},
-		func(rootDir string, request data.Storage, path ...string) (response data.Storage, err error) {
-			return p.Execute(rootDir, request, path...)
+		func(request data.Storage) (response data.Storage, err error) {
+			return p.Execute(request)
 		},
 	)
 }

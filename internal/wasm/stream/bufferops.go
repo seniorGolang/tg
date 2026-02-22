@@ -17,7 +17,7 @@ func writeToRingBufferWithRetry(ctx context.Context, h memory.Host, bufferPtr ui
 	for written < len(data) {
 		var w int
 		if w, err = WriteToRingBuffer(ctx, h, bufferPtr, dataSize, data[written:]); err != nil {
-			return written, err
+			return
 		}
 
 		if w == 0 {

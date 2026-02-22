@@ -17,7 +17,6 @@ import (
 // Возвращает уровень, сообщение и массив аргументов для slog (чередующиеся ключ-значение).
 func parseLogMessage(msgBytes string) (level slog.Level, message string, args []any) {
 
-	// Декодируем JSON сообщение
 	var logData logMessage
 	if err := json.Unmarshal([]byte(msgBytes), &logData); err != nil {
 		// Если не удалось распарсить, пытаемся интерпретировать как простое сообщение
@@ -26,7 +25,6 @@ func parseLogMessage(msgBytes string) (level slog.Level, message string, args []
 		return
 	}
 
-	// Преобразуем строковый уровень в slog.Level
 	switch logData.Level {
 	case "debug":
 		level = slog.LevelDebug
@@ -40,7 +38,6 @@ func parseLogMessage(msgBytes string) (level slog.Level, message string, args []
 		level = slog.LevelInfo
 	}
 
-	// Если сообщение пустое, используем исходную строку
 	if logData.Message == "" {
 		message = msgBytes
 		return
@@ -48,7 +45,6 @@ func parseLogMessage(msgBytes string) (level slog.Level, message string, args []
 
 	message = logData.Message
 
-	// Преобразуем attrs в массив аргументов (чередующиеся ключ-значение)
 	if len(logData.Attrs) == 0 {
 		return
 	}
@@ -62,7 +58,6 @@ func parseLogMessage(msgBytes string) (level slog.Level, message string, args []
 	return
 }
 
-// HostLog обрабатывает вызов функции логирования из плагина.
 func HostLog(ctx context.Context, logger plugin.Logger, h *host.Host, msgPtr uint32, msgLen uint32) {
 
 	var err error

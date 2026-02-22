@@ -37,6 +37,7 @@ func (c *Client) listTags(ctx context.Context) (tags []string, err error) {
 	req.Header.Set("Accept", "*/*")
 
 	var resp *http.Response
+	//nolint:gosec // G704: URL репозитория GitHub из конфигурации
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf(i18n.Msg("Failed to execute request: %w"), err)
 	}

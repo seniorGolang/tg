@@ -18,14 +18,12 @@ func (e *Executor) executeStep(step *Step, plan *Plan, request plugin.Storage, h
 
 	var installation *models.Installation
 	if installation, err = e.loader.GetInfo(step.Name); err != nil {
-		err = fmt.Errorf(i18n.Msg("plugin %s not found: %w"), step.Name, err)
-		return
+		return nil, fmt.Errorf(i18n.Msg("plugin %s not found: %w"), step.Name, err)
 	}
 
 	var wasmHost *host.Host
 	if wasmHost, err = e.loader.LoadExecutor(step.Name, e.stateManager.RootDir); err != nil {
-		err = fmt.Errorf(i18n.Msg("failed to load plugin executor: %w"), err)
-		return
+		return nil, fmt.Errorf(i18n.Msg("failed to load plugin executor: %w"), err)
 	}
 	defer func() {
 		if closeErr := wasm.Close(e.ctx, wasmHost); closeErr != nil {
@@ -45,8 +43,7 @@ func (e *Executor) executeStep(step *Step, plan *Plan, request plugin.Storage, h
 
 	for _, hook := range hooks {
 		if err = hook.beforeStep(stepCtx); err != nil {
-			err = fmt.Errorf(i18n.Msg("error in BeforeStep hook: %w"), err)
-			return
+			return nil, fmt.Errorf(i18n.Msg("error in BeforeStep hook: %w"), err)
 		}
 	}
 
@@ -56,9 +53,16 @@ func (e *Executor) executeStep(step *Step, plan *Plan, request plugin.Storage, h
 		e.logger.Debug(i18n.Msg("executing plugin"), "plugin", step.Name, "kind", step.Kind)
 	}
 
-	if response, err = imports.Execute(e.ctx, wasmHost, plan.RootDir, stepCtx.Request, plan.CommandPath...); err != nil {
-		err = fmt.Errorf(i18n.Msg("error executing plugin %s: %w"), step.Name, err)
-		return
+	if err = stepCtx.Request.Set(optionKeyRunDir, plan.RootDir); err != nil {
+		return nil, fmt.Errorf(i18n.Msg("error setting runDir: %w"), err)
+	}
+
+	if err = stepCtx.Request.Set(optionKeyCommandPath, plan.CommandPath); err != nil {
+		return nil, fmt.Errorf(i18n.Msg("error setting command path: %w"), err)
+	}
+
+	if response, err = imports.Execute(e.ctx, wasmHost, stepCtx.Request); err != nil {
+		return nil, fmt.Errorf(i18n.Msg("error executing plugin %s: %w"), step.Name, err)
 	}
 
 	duration := time.Since(startTime)

@@ -60,11 +60,13 @@ func (l *DatabasePluginLoader) GetInfo(packageName string) (installation *models
 	var exists bool
 	installation, exists = l.installations[packageName]
 	if !exists {
+		installation = nil
 		err = fmt.Errorf(i18n.Msg("package %s not found"), packageName)
 		return
 	}
 
 	if !l.isPlugin(installation) {
+		installation = nil
 		err = fmt.Errorf(i18n.Msg("package %s is not a plugin"), packageName)
 		return
 	}
@@ -78,6 +80,7 @@ func (l *DatabasePluginLoader) LoadExecutor(name string, rootDir string) (wasmHo
 	var installation *models.Installation
 	installation, exists = l.installations[name]
 	if !exists {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("package %s not found"), name)
 		return
 	}
@@ -91,18 +94,21 @@ func (l *DatabasePluginLoader) LoadExecutor(name string, rootDir string) (wasmHo
 	}
 
 	if wasmFilePath == "" {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("plugin %s has no .tgp file"), name)
 		return
 	}
 
 	var rawBytes []byte
 	if rawBytes, err = os.ReadFile(wasmFilePath); err != nil {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), err)
 		return
 	}
 
 	var wasmBytes []byte
 	if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
+		wasmHost = nil
 		return
 	}
 
@@ -141,6 +147,7 @@ func (l *DatabasePluginLoader) LoadExecutor(name string, rootDir string) (wasmHo
 	}
 
 	if wasmHost, err = wasm.New(ctx, wasmBytes, info, rootDir, loggerAdapter, opts...); err != nil {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", err)
 		return
 	}
@@ -154,6 +161,7 @@ func (l *DatabasePluginLoader) LoadHost(name string, rootDir string, useInitPkgs
 	var installation *models.Installation
 	installation, exists = l.installations[name]
 	if !exists {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("package %s not found"), name)
 		return
 	}
@@ -167,18 +175,21 @@ func (l *DatabasePluginLoader) LoadHost(name string, rootDir string, useInitPkgs
 	}
 
 	if wasmFilePath == "" {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("plugin %s has no .tgp file"), name)
 		return
 	}
 
 	var rawBytes []byte
 	if rawBytes, err = os.ReadFile(wasmFilePath); err != nil {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("failed to read WASM file: %w"), err)
 		return
 	}
 
 	var wasmBytes []byte
 	if wasmBytes, err = plugin.DecodeTGPBytes(rawBytes); err != nil {
+		wasmHost = nil
 		return
 	}
 
@@ -226,6 +237,7 @@ func (l *DatabasePluginLoader) LoadHost(name string, rootDir string, useInitPkgs
 	}
 
 	if wasmHost, err = wasm.New(ctx, wasmBytes, info, rootDir, loggerAdapter, opts...); err != nil {
+		wasmHost = nil
 		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", err)
 		return
 	}
@@ -247,7 +259,6 @@ func (l *DatabasePluginLoader) GetList() (plugins []models.Installation, err err
 
 func (l *DatabasePluginLoader) isPlugin(installation *models.Installation) (isPlugin bool) {
 
-	// Пакет является плагином, если у него есть команды
 	if len(installation.Commands) > 0 {
 		return true
 	}
@@ -299,7 +310,6 @@ func convertOptionInfosToPluginOptions(optionInfos []models.OptionInfo) (options
 	return
 }
 
-// LoadInfoFromTGP загружает .tgp по пути и возвращает plugin.Info через WASM-хост с кэшем scope.
 func LoadInfoFromTGP(ctx context.Context, scopeName string, tgpPath string) (info plugin.Info, err error) {
 
 	var rawBytes []byte

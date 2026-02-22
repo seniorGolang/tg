@@ -27,8 +27,7 @@ func HandleUpdateWithPrompt(ctx types.CommandContext, promptOptionsFunc func([]t
 
 	var states map[string]state.PluginState
 	if states, err = ctx.StateManager.LoadAllStates(); err != nil {
-		failedMsg := i18n.Msg("Failed to load states: ") + err.Error()
-		return errors.New(failedMsg)
+		return errors.New(i18n.Msg("Failed to load states: ") + err.Error())
 	}
 
 	if len(states) == 0 {

@@ -7,38 +7,35 @@ package wasm
 var initGeneratorGenerateFunc func(rootDir string, moduleName string) (err error)
 var initGeneratorCleanupFunc func(rootDir string) (err error)
 
-// SetInitGeneratorInstance устанавливает экземпляр генератора для plugin init.
-func SetInitGeneratorInstance(
-	generateFunc func(rootDir string, moduleName string) (err error),
-	cleanupFunc func(rootDir string) (err error),
-) {
+// SetInitGeneratorInstance сохраняет экземпляр генератора для экспорта через WASM.
+func SetInitGeneratorInstance(generateFunc func(rootDir string, moduleName string) (err error), cleanupFunc func(rootDir string) (err error)) {
 
 	initGeneratorGenerateFunc = generateFunc
 	initGeneratorCleanupFunc = cleanupFunc
 }
 
-// generateRequest представляет запрос на генерацию кода.
+// generateRequest — параметры для generate (rootDir, moduleName).
 type generateRequest struct {
 	RootDir    string `json:"rootDir"`
 	ModuleName string `json:"moduleName"`
 }
 
-// generateResponse представляет ответ на генерацию кода.
+// generateResponse — ошибка при генерации (если есть).
 type generateResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-// cleanupRequest представляет запрос на очистку сгенерированных файлов.
+// cleanupRequest — параметр rootDir для очистки.
 type cleanupRequest struct {
 	RootDir string `json:"rootDir"`
 }
 
-// cleanupResponse представляет ответ на очистку.
+// cleanupResponse — ошибка при очистке (если есть).
 type cleanupResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-// generateHandler обрабатывает запрос на генерацию кода.
+// generateHandler вызывает initGeneratorGenerateFunc; для WASM вызывается из export.
 func generateHandler(req generateRequest) (resp generateResponse, err error) {
 
 	if initGeneratorGenerateFunc == nil {
@@ -47,13 +44,13 @@ func generateHandler(req generateRequest) (resp generateResponse, err error) {
 
 	if err = initGeneratorGenerateFunc(req.RootDir, req.ModuleName); err != nil {
 		resp.Error = err.Error()
-		return resp, nil
+		return
 	}
 
-	return resp, nil
+	return
 }
 
-// cleanupHandler обрабатывает запрос на очистку сгенерированных файлов.
+// cleanupHandler вызывает initGeneratorCleanupFunc; для WASM вызывается из export.
 func cleanupHandler(req cleanupRequest) (resp cleanupResponse, err error) {
 
 	if initGeneratorCleanupFunc == nil {
@@ -62,13 +59,13 @@ func cleanupHandler(req cleanupRequest) (resp cleanupResponse, err error) {
 
 	if err = initGeneratorCleanupFunc(req.RootDir); err != nil {
 		resp.Error = err.Error()
-		return resp, nil
+		return
 	}
 
-	return resp, nil
+	return
 }
 
-// GenerateExported обертка для экспорта функции generate через WASM.
+// GenerateExported — go:wasmexport generate; обёртка для вызова из хоста.
 //
 //go:wasmexport generate
 func GenerateExported(ptr uint32, size uint32) (result uint64) {
@@ -76,7 +73,7 @@ func GenerateExported(ptr uint32, size uint32) (result uint64) {
 	return exportWrapper(generateHandler)(ptr, size)
 }
 
-// CleanupExported обертка для экспорта функции cleanup через WASM.
+// CleanupExported — go:wasmexport cleanup; обёртка для вызова из хоста.
 //
 //go:wasmexport cleanup
 func CleanupExported(ptr uint32, size uint32) (result uint64) {

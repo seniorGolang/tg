@@ -355,20 +355,18 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 	return
 }
 
+type combinedTreeEntry struct {
+	source      string
+	rootDisplay string
+	deps        []installation.PackageDisplay
+}
+
 type batchTreeCollector struct {
-	trees []struct {
-		source      string
-		rootDisplay string
-		deps        []installation.PackageDisplay
-	}
+	trees []combinedTreeEntry
 }
 
 func (c *batchTreeCollector) AddTree(source string, rootDisplay string, deps []installation.PackageDisplay) {
-	c.trees = append(c.trees, struct {
-		source      string
-		rootDisplay string
-		deps        []installation.PackageDisplay
-	}{source: source, rootDisplay: rootDisplay, deps: deps})
+	c.trees = append(c.trees, combinedTreeEntry{source: source, rootDisplay: rootDisplay, deps: deps})
 }
 
 var _ installation.TreeCollector = (*batchTreeCollector)(nil)
@@ -385,11 +383,7 @@ func installStatusPriority(status string) (p int) {
 	}
 }
 
-func (inst *Installer) renderCombinedDependencyTree(trees []struct {
-	source      string
-	rootDisplay string
-	deps        []installation.PackageDisplay
-}) {
+func (inst *Installer) renderCombinedDependencyTree(trees []combinedTreeEntry) {
 
 	if len(trees) == 0 {
 		return
@@ -493,7 +487,7 @@ func (inst *Installer) handleInstallPackageFromSource(ctx context.Context, sourc
 	return inst.installationManager.Install(ctx, pkg, v)
 }
 
-func isMultipleManifestsError(err error) bool {
+func isMultipleManifestsError(err error) (ok bool) {
 
 	if err == nil {
 		return false
@@ -517,7 +511,7 @@ func (inst *Installer) getManifestForPackage(ctx context.Context, pkg *models.Pa
 		}
 		fullName := src + "/" + pkgName
 		_, manifest, err = inst.manifestManager.FindPackage(ctx, fullName)
-		return manifest, err
+		return
 	}
 
 	if _, manifest, err = inst.manifestManager.FindPackage(ctx, pkg.Name); err != nil && isMultipleManifestsError(err) {
@@ -533,7 +527,7 @@ func (inst *Installer) getManifestForPackage(ctx context.Context, pkg *models.Pa
 			_ = resPkg
 		}
 	}
-	return manifest, err
+	return
 }
 
 func (inst *Installer) resolvePackageWithSourceSelection(ctx context.Context, packageName string) (pkg *models.Package, manifest *models.Manifest, selectedSource string, err error) {
@@ -585,10 +579,7 @@ func (inst *Installer) resolvePackageWithSourceSelection(ctx context.Context, pa
 		return nil, nil, "", errors.New(i18n.Msg("Selected package source not found"))
 	}
 
-	pkg = selectedPws.Package
-	manifest = selectedPws.Manifest
-	selectedSource = selectedPws.Source
-	return
+	return selectedPws.Package, selectedPws.Manifest, selectedPws.Source, nil
 }
 
 func (inst *Installer) selectPackagesInteractively(ctx context.Context, packages []models.Package, version string, selectedSourceForConflict *string) (selectedPackages []*models.Package, err error) {
@@ -643,8 +634,8 @@ func (inst *Installer) selectPackagesInteractively(ctx context.Context, packages
 
 	selectedPackages = make([]*models.Package, 0, len(selectedOptions))
 	for _, option := range selectedOptions {
-		var pkg *models.Package
 		var ok bool
+		var pkg *models.Package
 		if pkg, ok = packageMap[option]; !ok {
 			return nil, fmt.Errorf(i18n.Msg("Selected package not found: %s"), option)
 		}

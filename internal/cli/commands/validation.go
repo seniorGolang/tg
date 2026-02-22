@@ -13,7 +13,6 @@ func hasRequiredOptions(options []Option) (hasRequired bool) {
 	return
 }
 
-// validateRequiredOptions валидирует обязательные опции
 func validateRequiredOptions(options map[string]any, commandOptions []Option) (allProvided bool) {
 
 	allProvided = true
@@ -21,8 +20,7 @@ func validateRequiredOptions(options map[string]any, commandOptions []Option) (a
 		if opt.Required {
 			val, exists := options[opt.Name]
 			if !exists || val == "" || val == nil {
-				allProvided = false
-				return
+				return false
 			}
 		}
 	}

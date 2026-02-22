@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// RegisterTaskFunctions регистрирует все функции управления задачами в модуле env.
 func RegisterTaskFunctions(builder wazero.HostModuleBuilder, h *host.Host) {
 
 	builder.NewFunctionBuilder().

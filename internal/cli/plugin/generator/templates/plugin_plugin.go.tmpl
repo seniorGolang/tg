@@ -14,7 +14,7 @@ var docContent string
 type {{.PluginNameTitleCase}}Plugin struct{}
 
 // Execute выполняет основную логику плагина.
-func (p *{{.PluginNameTitleCase}}Plugin) Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error) {
+func (p *{{.PluginNameTitleCase}}Plugin) Execute(request data.Storage) (response data.Storage, err error) {
 
 	// TODO реализуйте логику плагина здесь
 	// Подробная информация о работе с системными ресурсами: см. раздел "Работа с системными ресурсами в плагинах" в readme.md

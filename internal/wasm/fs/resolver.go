@@ -10,7 +10,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/env"
 )
 
-// envResolver резолвит переменные окружения.
 type envResolver struct {
 	cache map[string]string
 }
@@ -27,9 +26,7 @@ func newEnvResolver() (resolver *envResolver) {
 func (r *envResolver) resolve(key string) (value string, ok bool) {
 
 	if cached, found := r.cache[key]; found {
-		value = cached
-		ok = true
-		return
+		return cached, true
 	}
 
 	value, ok = env.GetValue(key)
@@ -41,12 +38,10 @@ func (r *envResolver) resolve(key string) (value string, ok bool) {
 	return
 }
 
-// tgPathResolver резолвит путь к папке настроек.
 type tgPathResolver struct {
 	basePath string
 }
 
-// newTGPathResolver создаёт резолвер для маркера @tg/.
 // basePath берётся из customPath (wasm.WithTGPath / fs.NewBuilder); если не передан — пустая строка, @tg/ не резолвится.
 func newTGPathResolver(customPath string) (resolver *tgPathResolver) {
 
@@ -67,7 +62,6 @@ func (r *tgPathResolver) resolve(path string) (resolvedPath string) {
 	return filepath.Join(r.basePath, relativePath)
 }
 
-// rootPathResolver резолвит путь относительно rootDir.
 type rootPathResolver struct {
 	rootDir string
 }
@@ -118,7 +112,6 @@ func findGoModRoot(startDir string) (rootDir string, found bool) {
 	}
 }
 
-// goPathResolver резолвит путь относительно корня Go модуля.
 type goPathResolver struct {
 	rootDir string
 }
@@ -172,6 +165,5 @@ func expandHome(path string) (expandedPath string, err error) {
 		return
 	}
 
-	expandedPath = filepath.Join(homeDir, path[1:])
-	return
+	return filepath.Join(homeDir, path[1:]), nil
 }

@@ -45,7 +45,6 @@ func isGoEnvVar(key string) (isGo bool) {
 	return
 }
 
-// goEnvProvider реализует envProvider для Go-переменных окружения.
 type goEnvProvider struct{}
 
 func newGoEnvProvider() (provider envProvider) {
@@ -59,5 +58,5 @@ func (p *goEnvProvider) get(key string) (value string, ok bool) {
 	if !ok || value == "" {
 		return "", false
 	}
-	return
+	return value, true
 }

@@ -43,22 +43,17 @@ func (d *Dist) IsMine(urlStr string) (isMine bool) {
 // GetVersions: для file:// версии не поддерживаются.
 func (d *Dist) GetVersions(ctx context.Context, source string) (versions []string, err error) {
 
-	// file:// URL не поддерживают получение версии, возвращаем пустой массив
 	return []string{}, nil
 }
 
-// ManifestURL формирует URL манифеста для file:// источника.
-// version игнорируется для file:// URL.
 func (d *Dist) ManifestURL(ctx context.Context, source string, version string) (manifestURL string, err error) {
 
-	// Если source уже указывает на файл манифеста, возвращаем его
 	if strings.HasSuffix(source, storage.ManifestFileExtYAML) ||
 		strings.HasSuffix(source, storage.ManifestFileExtYML) ||
 		strings.HasSuffix(source, storage.ManifestFileExtJSON) {
 		return source, nil
 	}
 
-	// Иначе добавляем имя файла манифеста
 	return trimTrailingSeparator(source) + storage.PathSeparator + storage.ManifestFileName, nil
 }
 
@@ -66,18 +61,14 @@ func (d *Dist) ManifestURL(ctx context.Context, source string, version string) (
 // Возвращает относительный путь от source.
 func (d *Dist) FileURL(source string, version string, filename string) (fileURL string, err error) {
 
-	// Если filename уже полный путь или URL, возвращаем его
 	if strings.HasPrefix(filename, "/") || strings.Contains(filename, "://") {
 		fileURL = filename
 		return
 	}
 
-	// Иначе формируем путь относительно source
-	fileURL = trimTrailingSeparator(source) + storage.PathSeparator + filename
-	return
+	return trimTrailingSeparator(source) + storage.PathSeparator + filename, nil
 }
 
-// trimTrailingSeparator убирает завершающий разделитель пути.
 func trimTrailingSeparator(path string) (trimmed string) {
 
 	if path == "" {

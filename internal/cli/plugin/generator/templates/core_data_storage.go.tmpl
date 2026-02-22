@@ -10,6 +10,16 @@ import (
 	"{{.ModuleName}}/core/i18n"
 )
 
+// Ключи request/response, передаваемые хостом.
+const (
+	CommandStatusError   = "_error_"
+	CommandStatusSuccess = "_success_"
+	OptionKeyRunDir      = "_runDir_"
+	ExecutionPlanKey     = "_execute_plan_"
+	OptionKeyCommandPath = "_command_path_"
+	CommandStatusKey     = "_command_status_"
+)
+
 var (
 	// ErrNotFound возвращается, когда ключ не найден в хранилище.
 	ErrNotFound = errors.New(i18n.Msg("key not found"))

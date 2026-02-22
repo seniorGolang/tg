@@ -31,8 +31,7 @@ func (m *manager) selectURLForDownload(downloads []models.PlatformDownload) (url
 		return "", fmt.Errorf(i18n.Msg("No suitable URL found for platform %s/%s"), currentOS, currentArch)
 	}
 
-	url = bestMatch.URL
-	return
+	return bestMatch.URL, nil
 }
 
 // calculatePriority: 4 = OS+Arch, 3 = только OS, 2 = только Arch, 1 = оба пустые, 0 = не подходит.

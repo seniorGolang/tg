@@ -58,6 +58,7 @@ func main() {
 	rootCmd.PersistentFlags().Bool("version", false, i18n.Msg("Show version information"))
 
 	commands.RegisterAllCommands(rootCmd, wd)
+	rootCmd.SetArgs(commands.PreprocessArgs(os.Args[1:]))
 
 	if err = rootCmd.ExecuteContext(ctx); err != nil {
 		slog.Error(i18n.Msg("Error"), "error", err)

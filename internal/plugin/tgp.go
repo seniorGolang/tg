@@ -12,18 +12,14 @@ import (
 )
 
 const (
-	// gzipMagicLen — минимальное количество байт для определения gzip по магии.
 	gzipMagicLen = 2
 )
 
 var (
-	// gzipMagic — магические байты gzip (RFC 1952): 0x1f 0x8b.
 	gzipMagic = []byte{0x1f, 0x8b}
 )
 
-// DecodeTGPBytes возвращает байты WASM-модуля из сырого содержимого .tgp.
-// Если в начале raw обнаружена магия gzip (0x1f 0x8b), данные распаковываются через gzip.
-// Иначе raw возвращается без изменений.
+// DecodeTGPBytes: при магии gzip (0x1f 0x8b) в начале raw распаковывает данные; иначе возвращает raw без изменений.
 func DecodeTGPBytes(raw []byte) (wasmBytes []byte, err error) {
 
 	if len(raw) < gzipMagicLen {

@@ -120,18 +120,16 @@ func (m *manager) getScopeInfo(ctx context.Context, scopeName string, currentSco
 				packageCount++
 			}
 		}
-	} else if os.IsNotExist(err) {
-		err = nil
+	} else if !os.IsNotExist(err) {
+		return models.ScopeInfo{}, err
 	}
 
-	scopeInfo = models.ScopeInfo{
+	return models.ScopeInfo{
 		Name:          scopeName,
 		IsActive:      scopeName == currentScope,
 		PackageCount:  packageCount,
 		ManifestCount: manifestCount,
-	}
-
-	return
+	}, nil
 }
 
 func (m *manager) GetCurrentScope(ctx context.Context) (name string, err error) {

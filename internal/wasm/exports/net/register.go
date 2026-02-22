@@ -11,10 +11,8 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// RegisterNetFunctions регистрирует все сетевые функции в модуле net.
 func RegisterNetFunctions(builder wazero.HostModuleBuilder, h *host.Host, nm *netManager, hm *httpManager) {
 
-	// Функции для работы с соединениями
 	builder.NewFunctionBuilder().
 		WithFunc(func(ctx context.Context, m api.Module, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, connIDPtr uint32) (result uint64) {
 			return connDial(ctx, h, nm, networkPtr, networkLen, addressPtr, addressLen, connIDPtr)

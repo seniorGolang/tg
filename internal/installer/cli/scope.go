@@ -18,7 +18,6 @@ import (
 	mdrender "github.com/seniorGolang/tg/v3/internal/markdown"
 )
 
-// HandleScopeUse обрабатывает команду scope use.
 func (inst *Installer) HandleScopeUse(ctx context.Context, args []string) (err error) {
 
 	if len(args) == 0 {
@@ -33,7 +32,6 @@ func (inst *Installer) HandleScopeUse(ctx context.Context, args []string) (err e
 	return
 }
 
-// HandleScopeList обрабатывает команду scope list.
 func (inst *Installer) HandleScopeList(ctx context.Context) (err error) {
 
 	var scopes []models.ScopeInfo
@@ -77,7 +75,6 @@ func (inst *Installer) HandleScopeList(ctx context.Context) (err error) {
 	return
 }
 
-// HandleScopeDelete обрабатывает команду scope del.
 func (inst *Installer) HandleScopeDelete(ctx context.Context, args []string, force bool) (err error) {
 
 	if len(args) == 0 {
@@ -91,7 +88,6 @@ func (inst *Installer) HandleScopeDelete(ctx context.Context, args []string, for
 	return
 }
 
-// HandleScopeShow обрабатывает команду scope show.
 func (inst *Installer) HandleScopeShow(ctx context.Context, args []string) (err error) {
 
 	var scopeName string
@@ -138,28 +134,18 @@ func renderMarkdownTable(header []string, rows [][]string) (err error) {
 
 	markdownContent := buf.String()
 
-	// Вычисляем ширину таблицы на основе содержимого
 	tableWidth := mdrender.CalculateTableWidth(header, rows)
 
-	// Рендерим с вычисленной шириной
 	var rendered string
 	if rendered, err = mdrender.RenderContent(markdownContent, mdrender.WithWidth(tableWidth)); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to render markdown table: %w"), err)
 	}
 
-	// Обрезаем лишние переносы строк в начале и конце
-	rendered = trimNewlines(rendered)
+	rendered = strings.Trim(rendered, "\n\r")
 
 	fmt.Print(rendered)
 	fmt.Println()
 	fmt.Println()
 
 	return
-}
-
-// trimNewlines обрезает лишние переносы строк в начале и конце строки.
-func trimNewlines(s string) (trimmed string) {
-
-	// Обрезаем все переносы строк в начале и конце
-	return strings.Trim(s, "\n\r")
 }

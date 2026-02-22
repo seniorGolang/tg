@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/storage"
 )
 
-// HandleRepo обрабатывает команду repo.
 func (inst *Installer) HandleRepo(ctx context.Context, args []string, force bool) (err error) {
 
 	if len(args) == 0 {

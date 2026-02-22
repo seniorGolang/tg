@@ -12,20 +12,17 @@ func removeFileNameFromPath(path string) (cleanedPath string) {
 	cleanedPath = strings.TrimSuffix(path, PathSeparator+ManifestFileName)
 	cleanedPath = strings.TrimSuffix(cleanedPath, PathSeparator+ManifestFileNameYAML)
 	cleanedPath = strings.TrimSuffix(cleanedPath, ManifestFileName)
-	cleanedPath = strings.TrimSuffix(cleanedPath, ManifestFileNameYAML)
-
-	return
+	return strings.TrimSuffix(cleanedPath, ManifestFileNameYAML)
 }
 
 func sanitizePathComponent(component string) (sanitized string) {
 
-	sanitized = strings.Map(func(r rune) rune {
+	return strings.Map(func(r rune) rune {
 		if unsafeChars[r] {
 			return '_'
 		}
 		return r
 	}, component)
-	return
 }
 
 func sanitizePath(path string) (sanitized string) {

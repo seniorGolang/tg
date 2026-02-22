@@ -9,7 +9,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 )
 
-// HandleUpgrade обрабатывает команду upgrade.
 func (inst *Installer) HandleUpgrade(ctx context.Context, args []string) (err error) {
 
 	return errors.New(i18n.Msg("Upgrade command not implemented"))

@@ -28,7 +28,6 @@ var commandResponses = struct {
 	data: make(map[uint32]*CommandResponse),
 }
 
-// HostExecuteCommand обрабатывает вызов host_execute_command из плагина.
 // Выполняет команду на стороне хоста с валидацией по AllowedShellCMDs.
 // commandPtr, commandLen - указатель и размер строки с командой (например, "go")
 // argsPtr, argsLen - указатель и размер JSON массива строк с аргументами
@@ -46,13 +45,13 @@ func HostExecuteCommand(ctx context.Context, h *host.Host, commandPtr uint32, co
 	var workDir string
 	var command string
 	if command, args, workDir, err = readCommandInputs(h, commandPtr, commandLen, argsPtr, argsLen, workDirPtr, workDirLen); err != nil {
-		result := CommandResponse{Error: err.Error()}
-		return memory.WriteObjectToPtrSize(ctx, h, result, resultPtrPtr, resultSizePtr)
+		resp := CommandResponse{Error: err.Error()}
+		return memory.WriteObjectToPtrSize(ctx, h, resp, resultPtrPtr, resultSizePtr)
 	}
 
 	if err = validateCommand(h.Info, command); err != nil {
-		result := CommandResponse{Error: err.Error()}
-		return memory.WriteObjectToPtrSize(ctx, h, result, resultPtrPtr, resultSizePtr)
+		resp := CommandResponse{Error: err.Error()}
+		return memory.WriteObjectToPtrSize(ctx, h, resp, resultPtrPtr, resultSizePtr)
 	}
 
 	result := executeCommand(ctx, h, command, args, h.RootDir, workDir)
@@ -95,8 +94,6 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	cmd.Dir = fullWorkDir
 	cmd.Env = os.Environ()
 
-	// Получаем pipe для stdout и stderr ДО запуска команды
-	// Это позволяет читать данные в реальном времени
 	cmdStdoutPipe, stdoutErr := cmd.StdoutPipe()
 	if stdoutErr != nil {
 		return CommandResponse{
@@ -115,7 +112,6 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	// Создаем потоки в реестре ДО запуска команды
 	// Подключаем cmdStdoutPipe напрямую к StreamState.Reader
 	// Это гарантирует, что потоки доступны плагину до того, как команда начнет выводить данные
-	// Используем размер буфера по умолчанию для кольцевых буферов
 	if h.StreamRegistry == nil {
 		cmdStdoutPipe.Close()
 		cmdStderrPipe.Close()
@@ -202,28 +198,29 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	stdoutStreamIDInt32 := int32(stdoutStreamID) //nolint:gosec // streamID всегда < MaxInt32
 	stderrStreamIDInt32 := int32(stderrStreamID) //nolint:gosec // streamID всегда < MaxInt32
 
-	result := CommandResponse{
+	response = CommandResponse{
 		ExitCode:       -2,
 		StdoutStreamID: stdoutStreamIDInt32,
 		StderrStreamID: stderrStreamIDInt32,
 	}
 
 	commandResponses.mu.Lock()
-	commandResponses.data[stdoutStreamID] = &result
+	commandResponses.data[stdoutStreamID] = &response
 	commandResponses.mu.Unlock()
 
-	return result
+	return
 }
 
 func validateCommand(info plugin.Info, command string) (err error) {
 
 	if len(info.AllowedShellCMDs) == 0 {
-		return fmt.Errorf(i18n.Msg("command %s is not allowed: plugin has no allowed commands"), command)
+		err = fmt.Errorf(i18n.Msg("command %s is not allowed: plugin has no allowed commands"), command)
+		return
 	}
 
 	for _, allowed := range info.AllowedShellCMDs {
 		if allowed == command {
-			return nil
+			return
 		}
 	}
 
@@ -235,18 +232,15 @@ func validateCommand(info plugin.Info, command string) (err error) {
 // Возвращает: 0 - успех, иначе код ошибки
 func HostGetStreamReadBufferPtr(ctx context.Context, h *host.Host, streamID uint32, bufferPtrPtr uint32) (resultCode uint32) {
 
-	// Проверяем доступность реестра потоков
 	if h.StreamRegistry == nil {
 		return 1
 	}
 
-	// Получаем указатель на буфер из реестра потоков
 	bufferPtr, ok := h.StreamRegistry.GetReadBufferPtr(streamID)
 	if !ok || bufferPtr == 0 {
 		return 1
 	}
 
-	// Записываем указатель в память (little-endian uint32)
 	ptrBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(ptrBytes, bufferPtr)
 
@@ -267,7 +261,6 @@ func HostGetCommandResponse(ctx context.Context, h *host.Host, streamID uint32, 
 	commandResponses.mu.RUnlock()
 
 	if !exists {
-		// Если CommandResponse еще не доступен, возвращаем пустой ответ
 		resp = &CommandResponse{ExitCode: -1}
 	}
 

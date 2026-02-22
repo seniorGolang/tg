@@ -13,15 +13,13 @@ import (
 
 func ValidateChecksum(pluginTGP []byte, pluginSHA256 []byte) (err error) {
 
-	// Вычисляем SHA256 хеш файла плагина
 	hash := sha256.Sum256(pluginTGP)
 	computedHash := hex.EncodeToString(hash[:])
-
-	// Получаем ожидаемый checksum из файла
 	expectedHash := strings.TrimSpace(string(pluginSHA256))
 
 	if computedHash != expectedHash {
-		return fmt.Errorf(i18n.Msg("Checksum mismatch:\n  computed:   %s\n  expected:  %s"), computedHash, expectedHash)
+		err = fmt.Errorf(i18n.Msg("Checksum mismatch:\n  computed:   %s\n  expected:  %s"), computedHash, expectedHash)
+		return
 	}
 
 	return

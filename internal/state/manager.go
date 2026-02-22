@@ -93,14 +93,11 @@ func (sm *Manager) loadAllStatesUnsafe() (states map[string]PluginState, err err
 	states = make(map[string]PluginState)
 
 	var data []byte
-	data, err = os.ReadFile(sm.stateFile)
-	if os.IsNotExist(err) {
-		err = nil
-		return
-	}
-	if err != nil {
-		err = fmt.Errorf("%s: %w", i18n.Msg("failed to read state file"), err)
-		return
+	if data, err = os.ReadFile(sm.stateFile); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s: %w", i18n.Msg("failed to read state file"), err)
 	}
 
 	if len(data) == 0 {
@@ -109,8 +106,7 @@ func (sm *Manager) loadAllStatesUnsafe() (states map[string]PluginState, err err
 
 	//nolint:musttag // yaml теги удалены по запросу, используется прямое именование полей
 	if err = yaml.Unmarshal(data, &states); err != nil {
-		err = fmt.Errorf("%s: %w", i18n.Msg("failed to unmarshal state"), err)
-		return
+		return nil, fmt.Errorf("%s: %w", i18n.Msg("failed to unmarshal state"), err)
 	}
 
 	return
@@ -120,20 +116,17 @@ func (sm *Manager) saveAllStatesUnsafe(states map[string]PluginState) (err error
 
 	stateDir := filepath.Dir(sm.stateFile)
 	if err = os.MkdirAll(stateDir, stateDirPerm); err != nil {
-		err = fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "state directory", err)
-		return
+		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "state directory", err)
 	}
 
 	var data []byte
 	//nolint:musttag // yaml теги удалены по запросу, используется прямое именование полей
 	if data, err = yaml.Marshal(states); err != nil {
-		err = fmt.Errorf("%s: %w", i18n.Msg("failed to marshal state"), err)
-		return
+		return fmt.Errorf("%s: %w", i18n.Msg("failed to marshal state"), err)
 	}
 
 	if err = os.WriteFile(sm.stateFile, data, stateFilePerm); err != nil {
-		err = fmt.Errorf("%s: %w", i18n.Msg("failed to write state file"), err)
-		return
+		return fmt.Errorf("%s: %w", i18n.Msg("failed to write state file"), err)
 	}
 
 	return

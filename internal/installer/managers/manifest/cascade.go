@@ -125,8 +125,7 @@ func (m *manager) getExistingManifestVersion(manifestDir string) (version string
 		return "", fmt.Errorf(i18n.Msg("Failed to parse manifest: %w"), err)
 	}
 
-	version = manifest.Version
-	return
+	return manifest.Version, nil
 }
 
 func (m *manager) loadExistingManifest(manifestDir string) (manifest *models.Manifest, err error) {

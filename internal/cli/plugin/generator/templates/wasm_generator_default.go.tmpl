@@ -4,12 +4,6 @@
 
 package wasm
 
-// SetInitGeneratorInstance устанавливает экземпляр генератора для plugin init.
-// Для не-WASM сборок ничего не делает.
-func SetInitGeneratorInstance(
-	generateFunc func(rootDir string, moduleName string) (err error),
-	cleanupFunc func(rootDir string) (err error),
-) {
-
-	// Для не-WASM сборок ничего не делаем
+// Для не-WASM сборок заглушка: экземпляр генератора не сохраняется.
+func SetInitGeneratorInstance(generateFunc func(rootDir string, moduleName string) (err error), cleanupFunc func(rootDir string) (err error)) {
 }

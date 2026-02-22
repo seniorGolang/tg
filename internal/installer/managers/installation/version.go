@@ -71,8 +71,7 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 
 	if len(foundInstallations) == 0 {
 		slog.Debug(i18n.Msg("checkPackageVersion: no installed package found, proceeding with installation"))
-		result = versionCheckResult{shouldInstall: true, installStatus: installStatusNew}
-		return
+		return versionCheckResult{shouldInstall: true, installStatus: installStatusNew}, nil
 	}
 
 	var latestVersion models.Version
@@ -100,12 +99,11 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 
 	if sameVersionInstalled != nil {
 		slog.Debug(i18n.Msg("checkPackageVersion: exact version match, skipping installation"))
-		result = versionCheckResult{
+		return versionCheckResult{
 			shouldInstall: false,
 			skipReason:    fmt.Sprintf(i18n.Msg("Package %s version %s is already installed. Skipping installation.")+"\n", pkgToCheck.Name, versionToCheck.Original),
 			installStatus: installStatusUnchanged,
-		}
-		return
+		}, nil
 	}
 
 	if versionConstraint != "" && latestInstalled != nil && latestVersion.Original != "" {
@@ -114,12 +112,11 @@ func (m *manager) checkPackageVersion(ctx context.Context, pkgToCheck *models.Pa
 		if parseErr == nil {
 			if version.Match(versionConstraint, installedVersionParsed) {
 				slog.Debug(i18n.Msg("checkPackageVersion: installed version satisfies constraint, skipping installation"), slog.String("installed_version", installedVersionStr), slog.String("constraint", versionConstraint))
-				result = versionCheckResult{
+				return versionCheckResult{
 					shouldInstall: false,
 					skipReason:    fmt.Sprintf(i18n.Msg("Package %s version %s satisfies requirement %s. Skipping installation.")+"\n", pkgToCheck.Name, installedVersionStr, versionConstraint),
 					installStatus: installStatusUnchanged,
-				}
-				return
+				}, nil
 			}
 		}
 	}

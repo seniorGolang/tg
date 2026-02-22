@@ -17,7 +17,6 @@ const (
 	distName = "github"
 )
 
-// Dist реализует Dist для GitHub источников.
 type Dist struct{}
 
 func NewDist() (d *Dist) {
@@ -41,38 +40,30 @@ func (d *Dist) IsMine(urlStr string) (isMine bool) {
 	}
 
 	if parsedURL.Scheme == "" {
-		// Пробуем добавить схему
 		testURL := "https://" + urlStr
 		if parsedURL, err = url.Parse(testURL); err != nil {
 			return false
 		}
 	}
 
-	isMine = parsedURL.Host == storage.GitHubHost || strings.HasSuffix(parsedURL.Host, storage.GitHubHostSuffix)
-	return
+	return parsedURL.Host == storage.GitHubHost || strings.HasSuffix(parsedURL.Host, storage.GitHubHostSuffix)
 }
 
 // GetVersions использует FindLatestVersionTag (listTags приватный).
-// Для получения всех версий можно расширить github.Client.
 func (d *Dist) GetVersions(ctx context.Context, source string) (versions []string, err error) {
 
 	var githubClient *github.Client
 	if githubClient, err = github.NewClient(source); err != nil {
-		err = fmt.Errorf("failed to create GitHub client: %w", err)
-		return
+		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 
 	var latestTag string
 	if latestTag, err = githubClient.FindLatestVersionTag(ctx); err != nil {
-		err = fmt.Errorf("failed to find latest version tag: %w", err)
-		return
+		return nil, fmt.Errorf("failed to find latest version tag: %w", err)
 	}
 
-	// Убираем префикс "v" из тега
 	versionStr := strings.TrimPrefix(latestTag, ver.VersionPrefix)
-	versions = []string{versionStr}
-
-	return
+	return []string{versionStr}, nil
 }
 
 // ManifestURL формирует URL манифеста для GitHub репозитория.
@@ -80,36 +71,30 @@ func (d *Dist) ManifestURL(ctx context.Context, source string, version string) (
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(source); err != nil {
-		err = fmt.Errorf("failed to parse source URL: %w", err)
-		return
+		return "", fmt.Errorf("failed to parse source URL: %w", err)
 	}
 
 	if !d.IsMine(source) {
-		err = fmt.Errorf("source is not a GitHub URL")
-		return
+		return "", fmt.Errorf("source is not a GitHub URL")
 	}
 
 	// Если version пустая или "latest", получаем последнюю версию
 	if version == "" || version == ver.LatestVersion {
 		var versions []string
 		if versions, err = d.GetVersions(ctx, source); err != nil {
-			err = fmt.Errorf("failed to get versions: %w", err)
-			return
+			return "", fmt.Errorf("failed to get versions: %w", err)
 		}
 
 		if len(versions) == 0 {
-			err = fmt.Errorf("no versions available")
-			return
+			return "", fmt.Errorf("no versions available")
 		}
 
-		// Берем первую версию (GetVersions возвращает последнюю)
 		version = versions[0]
 	}
 
 	pathParts := strings.Split(strings.TrimPrefix(parsedURL.Path, "/"), "/")
 	if len(pathParts) < 2 {
-		err = fmt.Errorf("invalid GitHub URL format: expected owner/repo")
-		return
+		return "", fmt.Errorf("invalid GitHub URL format: expected owner/repo")
 	}
 
 	owner := pathParts[0]
@@ -133,8 +118,7 @@ func (d *Dist) ManifestURL(ctx context.Context, source string, version string) (
 		Path:   storage.PathSeparator + manifestPath,
 	}
 
-	manifestURL = manifestURLObj.String()
-	return
+	return manifestURLObj.String(), nil
 }
 
 // FileURL формирует URL для загрузки файла из GitHub releases.
@@ -142,19 +126,16 @@ func (d *Dist) FileURL(source string, version string, filename string) (fileURL 
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(source); err != nil {
-		err = fmt.Errorf("failed to parse source URL: %w", err)
-		return
+		return "", fmt.Errorf("failed to parse source URL: %w", err)
 	}
 
 	if !d.IsMine(source) {
-		err = fmt.Errorf("source is not a GitHub URL")
-		return
+		return "", fmt.Errorf("source is not a GitHub URL")
 	}
 
 	pathParts := strings.Split(strings.TrimPrefix(parsedURL.Path, "/"), "/")
 	if len(pathParts) < 2 {
-		err = fmt.Errorf("invalid GitHub URL format: expected owner/repo")
-		return
+		return "", fmt.Errorf("invalid GitHub URL format: expected owner/repo")
 	}
 
 	owner := pathParts[0]
@@ -178,17 +159,13 @@ func (d *Dist) FileURL(source string, version string, filename string) (fileURL 
 		Path:   storage.PathSeparator + filePath,
 	}
 
-	fileURL = fileURLObj.String()
-	return
+	return fileURLObj.String(), nil
 }
 
-// ensureVersionPrefix добавляет префикс версии, если его нет.
 func ensureVersionPrefix(version string) (tag string) {
 
-	tag = version
-	if !strings.HasPrefix(tag, ver.VersionPrefix) {
-		tag = ver.VersionPrefix + tag
+	if !strings.HasPrefix(version, ver.VersionPrefix) {
+		return ver.VersionPrefix + version
 	}
-
-	return
+	return version
 }

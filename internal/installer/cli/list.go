@@ -18,12 +18,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// HandleList обрабатывает команду list.
 func (inst *Installer) HandleList(ctx context.Context, args []string) (err error) {
 
-	// Проверяем, был ли scope переопределен через --scope
-	// Если inst.currentScope отличается от текущего активного scope в хранилище,
-	// значит scope был переопределен и нужно показывать только его
 	activeScope, _ := inst.scopeManager.GetCurrentScope(ctx)
 	scopeOverridden := inst.currentScope != activeScope
 
@@ -41,20 +37,18 @@ func (inst *Installer) HandleList(ctx context.Context, args []string) (err error
 		scopesToProcess = []string{activeScope}
 	}
 
-	// Собираем установки из указанных scopes
 	for _, scopeName := range scopesToProcess {
 		allData[scopeName] = &scopeData{
 			sources: make(map[string]map[string][]models.Installation),
 		}
 
-		// Читаем установки для этого scope
 		dbFile := storage.GetPackagesDBFile(scopeName)
+		var data []byte
 		var statErr error
 		if _, statErr = os.Stat(dbFile); os.IsNotExist(statErr) {
 			continue
 		}
 
-		var data []byte
 		if data, err = os.ReadFile(dbFile); err != nil {
 			continue
 		}
@@ -65,7 +59,6 @@ func (inst *Installer) HandleList(ctx context.Context, args []string) (err error
 			continue
 		}
 
-		// Группируем по source -> package
 		for _, installation := range db.Installed {
 			source := installation.Source
 			if source == "" {
@@ -83,65 +76,54 @@ func (inst *Installer) HandleList(ctx context.Context, args []string) (err error
 		}
 	}
 
-	// Сортируем scopes
 	scopeNames := make([]string, 0, len(allData))
 	for scopeName := range allData {
 		scopeNames = append(scopeNames, scopeName)
 	}
 	sort.Strings(scopeNames)
 
-	// Если scope переопределен и пуст, выводим сообщение
 	if scopeOverridden && len(scopeNames) == 1 {
 		pterm.Info.Printf(i18n.Msg("Scope %s is empty (no packages installed)")+"\n", inst.currentScope)
 		return
 	}
 
-	// Строим дерево для pterm
 	scopeNodes := make([]pterm.TreeNode, 0, len(scopeNames))
 
 	for _, scopeName := range scopeNames {
-		scopeData := allData[scopeName]
+		sd := allData[scopeName]
 
-		// Сортируем источники
-		sourceNames := make([]string, 0, len(scopeData.sources))
-		for sourceName := range scopeData.sources {
+		sourceNames := make([]string, 0, len(sd.sources))
+		for sourceName := range sd.sources {
 			sourceNames = append(sourceNames, sourceName)
 		}
 		sort.Strings(sourceNames)
 
-		// Строим узлы источников
 		sourceNodes := make([]pterm.TreeNode, 0, len(sourceNames))
 
 		for _, sourceName := range sourceNames {
-			packages := scopeData.sources[sourceName]
+			packages := sd.sources[sourceName]
 
-			// Сортируем пакеты
 			packageNames := make([]string, 0, len(packages))
 			for packageName := range packages {
 				packageNames = append(packageNames, packageName)
 			}
 			sort.Strings(packageNames)
 
-			// Строим узлы пакетов
 			packageNodes := make([]pterm.TreeNode, 0, len(packageNames))
 
 			for _, packageName := range packageNames {
 				installations := packages[packageName]
 
-				// Строим узлы версий
 				versionNodes := make([]pterm.TreeNode, 0, len(installations))
 
 				for _, installation := range installations {
-					// Используем сохраненное описание
 					descr := installation.Descr
 
-					// Форматируем версию в едином формате (v2.4.14)
 					versionStr := installation.Version
 					if versionStr != "" && !strings.HasPrefix(versionStr, ver.VersionPrefix) {
 						versionStr = ver.VersionPrefix + versionStr
 					}
 
-					// Формируем текст версии
 					versionText := versionStr
 					if descr != "" {
 						versionText = fmt.Sprintf("%s - %s", versionStr, descr)
@@ -170,12 +152,10 @@ func (inst *Installer) HandleList(ctx context.Context, args []string) (err error
 		})
 	}
 
-	// Выводим дерево через pterm
 	for i, scopeNode := range scopeNodes {
 		if err = pterm.DefaultTree.WithRoot(scopeNode).Render(); err != nil {
 			return
 		}
-		// Добавляем пустую строку между деревьями, если их несколько
 		if i < len(scopeNodes)-1 {
 			fmt.Println()
 		}

@@ -36,20 +36,27 @@ func CheckExistingVersion(pluginName string, version string, expectedSHA256 stri
 
 	var statErr error
 	if _, statErr = os.Stat(versionDir); os.IsNotExist(statErr) {
-		return false, false, nil
+		exists = false
+		checksumMatch = false
+		return
 	}
 
 	sha256Path := filepath.Clean(filepath.Join(versionDir, fmt.Sprintf("%s%s", pluginName, sha256FileExt)))
 	var sha256Data []byte
 	if sha256Data, err = os.ReadFile(sha256Path); err != nil {
-		return true, false, nil
+		exists = true
+		checksumMatch = false
+		return
 	}
 
 	existingSHA256 := strings.TrimSpace(string(sha256Data))
 	expectedSHA256 = strings.TrimSpace(expectedSHA256)
 
 	if existingSHA256 != expectedSHA256 {
-		return true, false, fmt.Errorf(i18n.Msg("Plugin %s version %s already installed, but checksum mismatch:\n  installed:  %s\n  expected:  %s"), pluginName, version, existingSHA256, expectedSHA256)
+		exists = true
+		checksumMatch = false
+		err = fmt.Errorf(i18n.Msg("Plugin %s version %s already installed, but checksum mismatch:\n  installed:  %s\n  expected:  %s"), pluginName, version, existingSHA256, expectedSHA256)
+		return
 	}
 
 	return true, true, nil
@@ -72,11 +79,13 @@ func saveMetadata(versionDir string, metadata PluginMetadata) (err error) {
 	metadataPath := filepath.Clean(filepath.Join(versionDir, metadataJSONFilename))
 	var metadataJSON []byte
 	if metadataJSON, err = json.MarshalIndent(metadata, "", "  "); err != nil {
-		return fmt.Errorf(i18n.Msg("Failed to serialize metadata: %w"), err)
+		err = fmt.Errorf(i18n.Msg("Failed to serialize metadata: %w"), err)
+		return
 	}
 
 	if err = os.WriteFile(metadataPath, metadataJSON, metadataFilePerm); err != nil {
-		return fmt.Errorf(i18n.Msg("Failed to save metadata.json: %w"), err)
+		err = fmt.Errorf(i18n.Msg("Failed to save metadata.json: %w"), err)
+		return
 	}
 
 	return

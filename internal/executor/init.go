@@ -16,13 +16,11 @@ import (
 
 const wasmRootDir = "/"
 
-// ExecuteInitGenerator выполняет генерацию для плагина с InitPkgs.
 func ExecuteInitGenerator(ctx context.Context, pluginLoader pluginLoader, pluginName string, rootDir string, moduleName string) (err error) {
 
 	var installation *models.Installation
 	if installation, err = pluginLoader.GetInfo(pluginName); err != nil {
-		err = fmt.Errorf(i18n.Msg("plugin %s not found: %w"), pluginName, err)
-		return
+		return fmt.Errorf(i18n.Msg("plugin %s not found: %w"), pluginName, err)
 	}
 
 	if len(installation.InitPkgs) == 0 {
@@ -32,28 +30,23 @@ func ExecuteInitGenerator(ctx context.Context, pluginLoader pluginLoader, plugin
 	var ok bool
 	var dbLoader *loader.DatabasePluginLoader
 	if dbLoader, ok = pluginLoader.(*loader.DatabasePluginLoader); !ok {
-		err = fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
-		return
+		return fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
 	}
 
 	var wasmHost *host.Host
 	if wasmHost, err = dbLoader.LoadHost(pluginName, rootDir, true); err != nil {
-		err = fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
-		return
+		return fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
 	}
 	defer wasm.Close(ctx, wasmHost)
 
-	err = imports.Generate(ctx, wasmHost, wasmRootDir, moduleName)
-	return
+	return imports.Generate(ctx, wasmHost, wasmRootDir, moduleName)
 }
 
-// ExecuteInitCleanup выполняет очистку для плагина с InitPkgs.
 func ExecuteInitCleanup(ctx context.Context, pluginLoader pluginLoader, pluginName string, rootDir string) (err error) {
 
 	var installation *models.Installation
 	if installation, err = pluginLoader.GetInfo(pluginName); err != nil {
-		err = fmt.Errorf(i18n.Msg("plugin %s not found: %w"), pluginName, err)
-		return
+		return fmt.Errorf(i18n.Msg("plugin %s not found: %w"), pluginName, err)
 	}
 
 	if len(installation.InitPkgs) == 0 {
@@ -63,17 +56,14 @@ func ExecuteInitCleanup(ctx context.Context, pluginLoader pluginLoader, pluginNa
 	var ok bool
 	var dbLoader *loader.DatabasePluginLoader
 	if dbLoader, ok = pluginLoader.(*loader.DatabasePluginLoader); !ok {
-		err = fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
-		return
+		return fmt.Errorf("%s", i18n.Msg("loader is not DatabasePluginLoader"))
 	}
 
 	var wasmHost *host.Host
 	if wasmHost, err = dbLoader.LoadHost(pluginName, rootDir, true); err != nil {
-		err = fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
-		return
+		return fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
 	}
 	defer wasm.Close(ctx, wasmHost)
 
-	err = imports.Generate(ctx, wasmHost, wasmRootDir, "")
-	return
+	return imports.Generate(ctx, wasmHost, wasmRootDir, "")
 }

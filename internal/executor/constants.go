@@ -12,13 +12,14 @@ const (
 	requirementPrefixLess         = "<"
 	requirementPrefixEqual        = "="
 
+	commandStatusError   = "_error_"
+	commandStatusSuccess = "_success_"
 	commandStatusKey     = "_command_status_"
-	commandStatusSuccess = "success"
-	commandStatusError   = "error"
 
 	executionPlanKey = "_execute_plan_"
 
 	cyclePathSeparator = " -> "
 
-	optionKeyCommandPath = "_command_path"
+	optionKeyRunDir      = "_runDir_"
+	optionKeyCommandPath = "_command_path_"
 )

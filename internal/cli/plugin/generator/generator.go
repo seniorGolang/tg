@@ -186,7 +186,6 @@ func writeFile(path string, content string) (err error) {
 // RunUpgrade обновляет все сгенерированные файлы (core и CI/CD).
 func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployType string) (err error) {
 
-	// Удаляем всю директорию core/
 	coreDir := CoreDirName
 	var coreStatErr error
 	if _, coreStatErr = os.Stat(coreDir); coreStatErr == nil {
@@ -195,7 +194,6 @@ func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployTy
 		}
 	}
 
-	// Удаляем i18n/load.go
 	i18nLoadPath := filepath.Join("i18n", "load.go")
 	var i18nLoadStatErr error
 	if _, i18nLoadStatErr = os.Stat(i18nLoadPath); i18nLoadStatErr == nil {
@@ -204,7 +202,6 @@ func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployTy
 		}
 	}
 
-	// Удаляем i18n/core/ru.json
 	i18nCoreRuPath := filepath.Join("i18n", "core", "ru.json")
 	var i18nCoreRuStatErr error
 	if _, i18nCoreRuStatErr = os.Stat(i18nCoreRuPath); i18nCoreRuStatErr == nil {
@@ -213,7 +210,6 @@ func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployTy
 		}
 	}
 
-	// Удаляем CI/CD файлы, если они сгенерированы
 	cicdCreator := &CICDCreator{}
 	detectedDeployType := cicdCreator.DetectDeployType(rootDir)
 	if detectedDeployType != DeployTypeNone {
@@ -227,7 +223,6 @@ func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployTy
 		if cicdPath != "" {
 			var cicdStatErr error
 			if _, cicdStatErr = os.Stat(cicdPath); cicdStatErr == nil {
-				// Проверяем, что файл сгенерирован
 				var cicdData []byte
 				var readErr error
 				if cicdData, readErr = os.ReadFile(cicdPath); readErr == nil {
@@ -285,7 +280,6 @@ func RunUpgrade(ctx context.Context, rootDir string, moduleName string, deployTy
 	return
 }
 
-// RunInit выполняет команду init.
 func RunInit(ctx context.Context, rootDir string, name, command, deployType, license, moduleName, kind string) (err error) {
 
 	validator := &Validator{}
@@ -327,7 +321,6 @@ func RunInit(ctx context.Context, rootDir string, name, command, deployType, lic
 		}
 	}
 
-	// Нормализуем имя плагина
 	normalizedName := normalizePluginName(name)
 	pluginDir := filepath.Clean(filepath.Join(PluginsDirName, normalizedName))
 	if pluginCreator.Exists(pluginDir) {
@@ -358,7 +351,6 @@ func RunInit(ctx context.Context, rootDir string, name, command, deployType, lic
 			return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "root files", err)
 		}
 	} else {
-		// Если core уже существует, создаём только .gitignore если его нет
 		gitignorePath := ".gitignore"
 		var statErr error
 		if _, statErr = os.Stat(gitignorePath); os.IsNotExist(statErr) {
@@ -381,7 +373,6 @@ func RunInit(ctx context.Context, rootDir string, name, command, deployType, lic
 		}
 	}
 
-	// Генерация от плагинов с InitPkgs — после создания go.mod, до go mod tidy (плагинам нужен go.mod для импортов).
 	goModPath := filepath.Join(rootDir, GoModFileName)
 	var statErr error
 	if _, statErr = os.Stat(goModPath); os.IsNotExist(statErr) {
@@ -411,11 +402,9 @@ func RunInit(ctx context.Context, rootDir string, name, command, deployType, lic
 		return fmt.Errorf(i18n.Msg("failed to run go mod tidy: %w"), err)
 	}
 
-	// Сообщение о успехе выводится через logger в вызывающем коде
 	return
 }
 
-// RunAdd выполняет команду add.
 func RunAdd(rootDir string, name, command, dir, license, moduleName, kind string) (err error) {
 
 	validator := &Validator{}
@@ -431,14 +420,12 @@ func RunAdd(rootDir string, name, command, dir, license, moduleName, kind string
 		return
 	}
 
-	// Используем нормализованные значения
 	name = params.Name
 	command = params.Command
 	license = params.License
 	moduleName = params.ModuleName
 	kind = params.Kind
 
-	// Проверяем существование core/
 	coreCreator := &CoreCreator{}
 	if !coreCreator.Exists() {
 		return errors.New(i18n.Msg("core module not found, run plugin init first"))
@@ -449,15 +436,12 @@ func RunAdd(rootDir string, name, command, dir, license, moduleName, kind string
 		author = DefaultAuthor
 	}
 
-	// Нормализуем имя плагина
 	normalizedName := normalizePluginName(name)
 
-	// Если dir не указан, используем значение по умолчанию как в init
 	pluginDir := dir
 	if pluginDir == "" {
 		pluginDir = filepath.Clean(filepath.Join(PluginsDirName, normalizedName))
 	} else {
-		// Нормализуем указанный путь
 		pluginDir = filepath.Clean(pluginDir)
 	}
 
@@ -485,33 +469,24 @@ func RunAdd(rootDir string, name, command, dir, license, moduleName, kind string
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "plugin", err)
 	}
 
-	// Сообщение о успехе выводится через logger в вызывающем коде
 	return
 }
 
-// RunBuild выполняет команду build.
 func RunBuild(ctx context.Context, rootDir string, pluginDir string) (err error) {
 
-	// В WASM файловая система монтируется в корень "/", поэтому используем относительные пути
-	// Определяем путь к плагину относительно корня проекта
 	var pluginPath string
 	if pluginDir == "" {
-		// Если не указан, пытаемся определить из текущей директории
-		// В WASM os.Getwd() вернет "/", поэтому нужно использовать относительные пути
 		pluginPath = "."
 	} else {
 		pluginPath = pluginDir
 	}
 
-	// Нормализуем путь к плагину
 	pluginPath = filepath.Clean(pluginPath)
 
-	// Определяем имя плагина из пути и нормализуем
 	pluginNameOriginal := filepath.Base(pluginPath)
 	normalizedName := normalizePluginName(pluginNameOriginal)
 	pluginName := toCamelCase(normalizedName)
 
-	// Проверяем наличие go.mod в корне проекта
 	rootGoMod := GoModFileName
 	var statErr error
 	if _, statErr = os.Stat(rootGoMod); os.IsNotExist(statErr) {
@@ -523,10 +498,7 @@ func RunBuild(ctx context.Context, rootDir string, pluginDir string) (err error)
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "dist directory", err)
 	}
 
-	// Компилируем плагин из корня проекта с указанием пути к плагину
-	// Используем camelCase для имени файла
 	outputFile := filepath.Clean(filepath.Join(distDir, fmt.Sprintf("%s%s", pluginName, PluginExtension)))
-	// Сообщение о компиляции выводится через logger в вызывающем коде
 
 	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", outputFile, "-buildmode=c-shared", "./"+pluginPath)
 	buildCmd.Dir = "." // В WASM корень проекта - это текущая директория
@@ -537,7 +509,6 @@ func RunBuild(ctx context.Context, rootDir string, pluginDir string) (err error)
 		return fmt.Errorf(i18n.Msg("compilation error: %w\n%s"), err, string(output))
 	}
 
-	// Генерируем checksum
 	var pluginBytes []byte
 	if pluginBytes, err = os.ReadFile(outputFile); err != nil {
 		return fmt.Errorf(i18n.Msg("failed to read plugin file: %w"), err)
@@ -549,7 +520,6 @@ func RunBuild(ctx context.Context, rootDir string, pluginDir string) (err error)
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "checksum", err)
 	}
 
-	// Копируем plugin.json из директории плагина с именем плагина
 	pluginJson := filepath.Join(pluginPath, PluginJSONFileName)
 	distJson := filepath.Join(distDir, fmt.Sprintf("%s%s", pluginName, JSONExtension))
 	var jsonStatErr error
@@ -557,12 +527,10 @@ func RunBuild(ctx context.Context, rootDir string, pluginDir string) (err error)
 		var jsonBytes []byte
 		var readErr error
 		if jsonBytes, readErr = os.ReadFile(pluginJson); readErr == nil {
-			// Пытаемся записать plugin.json, но не критично для генерации
-			// Если не удалось скопировать, плагин всё равно будет работать
+			// Копирование не критично: при ошибке записи плагин всё равно будет работать.
 			_ = os.WriteFile(distJson, jsonBytes, 0600)
 		}
 	}
 
-	// Сообщение о успехе выводится через logger в вызывающем коде
 	return
 }

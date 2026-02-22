@@ -96,7 +96,7 @@ func buildCobraCommand(cmd Command, rootDir string, parent *cobra.Command, plann
 		if pluginCmd, ok := cmd.(*lazyPluginCommand); ok {
 			var mergedOpts []models.OptionInfo
 			if mergedOpts, err = planner.GetMergedOptionsForCommand(pluginCmd.metadata.pluginName, pluginCmd.metadata.command.Path); err != nil {
-				return nil, err
+				return
 			}
 			options = convertOptionInfoToOptions(mergedOpts)
 		} else {
@@ -170,8 +170,8 @@ func createSubcommandSelector(node *CommandNode, rootDir string) (selector func(
 
 		selectedPath := selected.GetPath()
 		cmdPath = append(cmdPath, selectedPath[len(cmdPath):]...)
-		var selectedCobraCmd *cobra.Command
 		var err error
+		var selectedCobraCmd *cobra.Command
 		if selectedCobraCmd, _, err = cobraCmd.Root().Find(cmdPath); err != nil {
 			slog.Error(i18n.Msg("Failed to find command"), "path", strings.Join(cmdPath, " "), "error", err)
 			return

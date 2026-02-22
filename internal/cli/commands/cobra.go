@@ -43,14 +43,12 @@ func addFlagFromOption(cmd *cobra.Command, opt Option) {
 			if str, ok := opt.Default.(string); ok {
 				defaultVal = str
 			}
+			addOptionalValueFlag(opt.Name)
 		}
 		if opt.Short != "" {
 			cmd.Flags().StringP(opt.Name, opt.Short, defaultVal, opt.Description)
 		} else {
 			cmd.Flags().String(opt.Name, defaultVal, opt.Description)
-		}
-		if defaultVal != "" {
-			cmd.Flags().Lookup(opt.Name).NoOptDefVal = defaultVal
 		}
 	case optionTypeInt:
 		defaultVal := 0

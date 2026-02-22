@@ -5,5 +5,5 @@ package plugin
 type Plugin interface {
 	Info() (info Info)
 
-	Execute(rootDir string, request Storage, path ...string) (response Storage, err error)
+	Execute(request Storage) (response Storage, err error)
 }

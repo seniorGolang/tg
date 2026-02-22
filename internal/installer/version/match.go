@@ -29,61 +29,61 @@ func Match(constraint string, v models.Version) (matches bool) {
 	}
 
 	if strings.HasPrefix(constraint, ">=") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, ">="))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, ">="))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) >= 0
+		return semver.Compare(versionStr, trimmed) >= 0
 	}
 
 	if strings.HasPrefix(constraint, "<=") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, "<="))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, "<="))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) <= 0
+		return semver.Compare(versionStr, trimmed) <= 0
 	}
 
 	if strings.HasPrefix(constraint, ">") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, ">"))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, ">"))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) > 0
+		return semver.Compare(versionStr, trimmed) > 0
 	}
 
 	if strings.HasPrefix(constraint, "<") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, "<"))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, "<"))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) < 0
+		return semver.Compare(versionStr, trimmed) < 0
 	}
 
 	if strings.HasPrefix(constraint, "~") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, "~"))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, "~"))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
 		majorMinorV := semver.MajorMinor(versionStr)
-		majorMinorC := semver.MajorMinor(constraintStr)
+		majorMinorC := semver.MajorMinor(trimmed)
 		if majorMinorV != majorMinorC {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) >= 0
+		return semver.Compare(versionStr, trimmed) >= 0
 	}
 
 	if strings.HasPrefix(constraint, "^") {
-		constraintStr := normalizeVersionString(strings.TrimPrefix(constraint, "^"))
-		if constraintStr == "" || !semver.IsValid(constraintStr) {
+		trimmed := normalizeVersionString(strings.TrimPrefix(constraint, "^"))
+		if trimmed == "" || !semver.IsValid(trimmed) {
 			return false
 		}
 		majorV := semver.Major(versionStr)
-		majorC := semver.Major(constraintStr)
+		majorC := semver.Major(trimmed)
 		if majorV != majorC {
 			return false
 		}
-		return semver.Compare(versionStr, constraintStr) >= 0
+		return semver.Compare(versionStr, trimmed) >= 0
 	}
 
 	constraintStr := normalizeVersionString(constraint)

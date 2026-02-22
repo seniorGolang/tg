@@ -27,8 +27,8 @@ const (
 
 func (m *manager) executeScript(ctx context.Context, script *models.ScriptAction, workDir string, extractedDirs map[string]string) (err error) {
 
-	var scriptPath string
 	var cmd *exec.Cmd
+	var scriptPath string
 
 	switch {
 	case script.Script != "":
@@ -123,6 +123,7 @@ func (m *manager) downloadScript(ctx context.Context, url string, destPath strin
 
 	client := &http.Client{}
 	var resp *http.Response
+	//nolint:gosec // G704: URL скрипта из манифеста/конфигурации
 	if resp, err = client.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download script: %w"), err)
 	}

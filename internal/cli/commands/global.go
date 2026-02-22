@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// extractGlobalOptions извлекает глобальные опции из корневой команды
 func extractGlobalOptions(cmd *cobra.Command) (globalOpts GlobalOptions) {
 
 	rootCmd := cmd.Root()
@@ -49,7 +48,7 @@ func globalOptsToMap(opts GlobalOptions) (m map[string]any) {
 		m[GlobalFlagScope] = opts.Scope
 	}
 
-	return m
+	return
 }
 
 func parseSlogLevel(level string) (slogLevel slog.Level) {

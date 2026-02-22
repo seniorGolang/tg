@@ -21,8 +21,8 @@ func compileAll(ctx context.Context, rootDir string, outDir string, version stri
 	}
 
 	var mu sync.Mutex
-	var firstErr error
 	var wg sync.WaitGroup
+	var firstErr error
 	maxConcurrency := runtime.NumCPU()
 	sem := make(chan struct{}, maxConcurrency)
 

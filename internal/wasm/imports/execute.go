@@ -15,10 +15,7 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// Execute выполняет плагин с переданными данными.
-// Использует глобальный канал для вызова WASM функции execute.
-// Все данные сериализуются в JSON и передаются через указатель на память.
-func Execute(ctx context.Context, h *host.Host, rootDir string, request plugin.Storage, path ...string) (response plugin.Storage, err error) {
+func Execute(ctx context.Context, h *host.Host, request plugin.Storage) (response plugin.Storage, err error) {
 
 	startTime := time.Now()
 
@@ -28,22 +25,16 @@ func Execute(ctx context.Context, h *host.Host, rootDir string, request plugin.S
 		if requestJSON, marshalErr = json.Marshal(request); marshalErr != nil {
 			if !h.MuteLogs {
 				slog.Debug(i18n.Msg("Execute: failed to marshal request for logging"),
-					slog.String("rootDir", rootDir),
-					slog.Any("path", path),
 					slog.String("error", marshalErr.Error()),
 				)
 			}
 		} else if !h.MuteLogs {
 			slog.Debug(i18n.Msg("Execute: starting"),
-				slog.String("rootDir", rootDir),
-				slog.Any("path", path),
 				slog.String("request", string(requestJSON)),
 			)
 		}
 	} else if !h.MuteLogs {
 		slog.Debug(i18n.Msg("Execute: starting"),
-			slog.String("rootDir", rootDir),
-			slog.Any("path", path),
 			slog.String("request", "null"),
 		)
 	}
@@ -96,20 +87,13 @@ func Execute(ctx context.Context, h *host.Host, rootDir string, request plugin.S
 		return nil, fmt.Errorf("%s: %w", i18n.Msg("context cancelled"), ctx.Err())
 	}
 
-	// Подготавливаем запрос
-	req := executeRequest{
-		RootDir: rootDir,
-		Request: request,
-		Path:    path,
-	}
+	req := executeRequest{Request: request}
 
-	// Сериализуем запрос в JSON
 	var requestData []byte
 	if requestData, err = json.Marshal(req); err != nil {
 		return nil, fmt.Errorf("%s: %w", i18n.Msg("failed to marshal request"), err)
 	}
 
-	// Вызываем функцию через глобальный канал
 	var resp *executeResponse
 	if resp, err = callWithResult[executeResponse](ctx, h, h.CallChannel, "execute", requestData); err != nil {
 		return nil, fmt.Errorf("%s: %w", i18n.Msg("failed to call execute"), err)

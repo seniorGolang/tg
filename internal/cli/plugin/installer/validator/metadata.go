@@ -13,31 +13,38 @@ import (
 func ValidateMetadata(pluginInfo plugin.Info, expectedName string, expectedVersion string) (err error) {
 
 	if pluginInfo.Name == "" {
-		return errors.New(i18n.Msg("Field name is required"))
+		err = errors.New(i18n.Msg("Field name is required"))
+		return
 	}
 
 	if pluginInfo.Version == "" {
-		return errors.New(i18n.Msg("Field version is required"))
+		err = errors.New(i18n.Msg("Field version is required"))
+		return
 	}
 
 	if pluginInfo.Description == "" {
-		return errors.New(i18n.Msg("Field description is required"))
+		err = errors.New(i18n.Msg("Field description is required"))
+		return
 	}
 
 	if pluginInfo.Author == "" {
-		return errors.New(i18n.Msg("Field author is required"))
+		err = errors.New(i18n.Msg("Field author is required"))
+		return
 	}
 
 	if pluginInfo.License == "" {
-		return errors.New(i18n.Msg("Field license is required"))
+		err = errors.New(i18n.Msg("Field license is required"))
+		return
 	}
 
 	if expectedName != "" && pluginInfo.Name != expectedName {
-		return fmt.Errorf(i18n.Msg("Plugin name mismatch: expected %s, got %s"), expectedName, pluginInfo.Name)
+		err = fmt.Errorf(i18n.Msg("Plugin name mismatch: expected %s, got %s"), expectedName, pluginInfo.Name)
+		return
 	}
 
 	if expectedVersion != "" && pluginInfo.Version != expectedVersion {
-		return fmt.Errorf(i18n.Msg("Plugin version mismatch: expected %s, got %s"), expectedVersion, pluginInfo.Version)
+		err = fmt.Errorf(i18n.Msg("Plugin version mismatch: expected %s, got %s"), expectedVersion, pluginInfo.Version)
+		return
 	}
 
 	return

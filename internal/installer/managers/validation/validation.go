@@ -18,10 +18,9 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/managers"
 )
 
-// engine реализует ValidationEngine.
 type engine struct{}
 
-func NewEngine() managers.ValidationEngine {
+func NewEngine() (eng managers.ValidationEngine) {
 	return &engine{}
 }
 

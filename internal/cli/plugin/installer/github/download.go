@@ -37,6 +37,7 @@ func (c *Client) downloadFile(ctx context.Context, url string, filePath string, 
 	req.Header.Set("Accept", "application/octet-stream")
 
 	var resp *http.Response
+	//nolint:gosec // G704: URL из конфигурации плагина GitHub
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return 0, fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
@@ -131,30 +132,25 @@ func (c *Client) downloadFile(ctx context.Context, url string, filePath string, 
 	return fileInfo.Size(), nil
 }
 
-// progressReader оборачивает io.Reader и отслеживает прогресс чтения для отображения в прогресс-баре.
 type progressReader struct {
 	total      int64
 	downloaded int64
 
+	bar    *pterm.ProgressbarPrinter
 	reader io.Reader
-
-	bar *pterm.ProgressbarPrinter
 }
 
-// Read переопределяет метод Read для отслеживания прогресса.
 func (pr *progressReader) Read(p []byte) (n int, err error) {
 
 	n, err = pr.reader.Read(p)
 	if n > 0 {
 		pr.downloaded += int64(n)
 
-		// Обновляем прогресс-бар
 		if pr.bar != nil && pr.total > 0 {
 			percentage := int(float64(pr.downloaded) / float64(pr.total) * 100)
 			if percentage > 100 {
 				percentage = 100
 			}
-			// Обновляем прогресс-бар до текущего процента
 			current := pr.bar.Current
 			if percentage > current {
 				for i := current; i < percentage; i++ {
@@ -163,16 +159,13 @@ func (pr *progressReader) Read(p []byte) (n int, err error) {
 			}
 		}
 	}
-	return n, err
+	return
 }
 
 const (
 	pluginJSONFilename = "plugin.json"
 )
 
-// DownloadPluginFiles скачивает все необходимые файлы плагина и записывает их напрямую на диск.
-// installPath - относительный путь от projectRoot (например, "plugins/test/1.2.10").
-// Возвращает относительные пути к сохранённым файлам и размеры файлов.
 func (c *Client) DownloadPluginFiles(ctx context.Context, pluginName string, version string, installPath string) (jsonPath string, jsonSize int64, tgpPath string, tgpSize int64, sha256Path string, sha256Size int64, err error) {
 
 	tag := fmt.Sprintf("%s%s", VersionTagPrefix, version)
@@ -207,8 +200,6 @@ func (c *Client) DownloadPluginFiles(ctx context.Context, pluginName string, ver
 	return
 }
 
-// DownloadManifestContent скачивает содержимое файла по URL и возвращает его как байты.
-// Используется для скачивания manifest.json и манифестов плагинов.
 func (c *Client) DownloadManifestContent(ctx context.Context, url string) (content []byte, err error) {
 
 	var req *http.Request
@@ -219,6 +210,7 @@ func (c *Client) DownloadManifestContent(ctx context.Context, url string) (conte
 	req.Header.Set("Accept", "application/json")
 
 	var resp *http.Response
+	//nolint:gosec // G704: URL из конфигурации плагина GitHub
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}

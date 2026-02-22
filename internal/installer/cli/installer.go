@@ -17,15 +17,15 @@ import (
 )
 
 const (
-	packagePathSeparator = "/"
-	changeTypeNew        = "new"
-	changeTypeUpdated    = "updated"
-	changeTypeUnchanged  = "unchanged"
-	manifestYAMLExt      = ".yaml"
+	changeTypeNew       = "new"
+	changeTypeUpdated   = "updated"
+	changeTypeUnchanged = "unchanged"
+
 	manifestYMLExt       = ".yml"
+	manifestYAMLExt      = ".yaml"
+	packagePathSeparator = "/"
 )
 
-// Installer представляет установщик пакетов с всеми компонентами.
 type Installer struct {
 	scopeManager        managers.ScopeManager
 	currentScope        string

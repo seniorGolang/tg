@@ -23,10 +23,8 @@ type PluginManifest = github.PluginManifest
 // PluginSource представляет интерфейс для источника плагинов.
 // Позволяет абстрагироваться от конкретной реализации (GitHub, GitLab и т.д.).
 type PluginSource interface {
-	// ListPlugins возвращает список всех доступных плагинов в репозитории.
 	ListPlugins(ctx context.Context) (plugins []PluginInfo, err error)
 
-	// ListVersions возвращает список версий конкретного плагина.
 	ListVersions(ctx context.Context, pluginName string) (versions []VersionInfo, err error)
 
 	// DownloadPluginFiles скачивает все необходимые файлы плагина и записывает их напрямую на диск.

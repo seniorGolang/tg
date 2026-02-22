@@ -3,12 +3,8 @@
 package commands
 
 const (
-	// GlobalFlagScope имя флага для указания scope.
-	GlobalFlagScope = "scope"
-	// GlobalFlagHideCmd имя флага для скрытия команды.
-	GlobalFlagHideCmd = "hide-cmd"
-	// GlobalFlagLogLevel имя флага для уровня логирования.
-	GlobalFlagLogLevel = "log-level"
-	// GlobalFlagFailOnMissing имя флага для ошибки при отсутствии опций.
+	GlobalFlagScope         = "scope"
+	GlobalFlagHideCmd       = "hide-cmd"
+	GlobalFlagLogLevel      = "log-level"
 	GlobalFlagFailOnMissing = "fail-on-missing"
 )

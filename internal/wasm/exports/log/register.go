@@ -12,7 +12,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// RegisterLogFunctions регистрирует все функции логирования в модуле env.
 func RegisterLogFunctions(builder wazero.HostModuleBuilder, logger plugin.Logger, h *host.Host) {
 
 	builder.NewFunctionBuilder().

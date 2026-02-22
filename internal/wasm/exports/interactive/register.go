@@ -11,7 +11,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 )
 
-// RegisterInteractiveFunctions регистрирует все функции интерактивного выбора в модуле env.
 func RegisterInteractiveFunctions(builder wazero.HostModuleBuilder, h *host.Host) {
 
 	builder.NewFunctionBuilder().

@@ -15,7 +15,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/storage/yamlstore"
 )
 
-// manager реализует DatabaseManager.
 type manager struct {
 	scopeName string
 	store     *yamlstore.YAMLCollectionStore[models.Installation, string]
@@ -105,11 +104,9 @@ func (m *manager) FindByPackage(ctx context.Context, source string, packageName 
 
 	for _, inst := range installations {
 		if inst.Package == packageName {
-			// Если source пустой, возвращаем первую найденную установку с таким именем пакета
 			if source == "" {
 				return &inst, nil
 			}
-			// Если source указан, проверяем точное совпадение
 			if inst.Source == source {
 				return &inst, nil
 			}

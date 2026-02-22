@@ -32,8 +32,9 @@ func getTerminalWidth() (width int) {
 	width = defaultTerminalWidth
 	var w int
 	var err error
+	//nolint:gosec // G115: fd stdout на всех платформах в пределах int
 	if w, _, err = term.GetSize(int(os.Stdout.Fd())); err == nil && w > 0 {
-		width = w
+		return w
 	}
 	return
 }

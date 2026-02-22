@@ -20,20 +20,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// HandleUpdate обрабатывает команду update.
 func (inst *Installer) HandleUpdate(ctx context.Context, args []string, force bool) (err error) {
 
 	if len(args) > 0 {
 		source := args[0]
 		pterm.Info.Printf(i18n.Msg("Updating manifest: %s")+"\n", source)
 
-		// Нормализуем source через URI (аналогично TransformURL)
 		var parsedURI uri.URI
 		if parsedURI, err = uri.New(source); err == nil {
 			source = parsedURI.Source()
 		}
 
-		// Получаем manifestURL через parsedURI
 		if parsedURI, err = uri.New(source); err != nil {
 			return fmt.Errorf("failed to parse source URL: %w", err)
 		}
@@ -79,14 +76,12 @@ func (inst *Installer) HandleUpdate(ctx context.Context, args []string, force bo
 			pterm.Info.Printf(i18n.Msg("Updating manifest: %s")+"\n", info.URL)
 		}
 
-		// Нормализуем source через URI (аналогично TransformURL)
 		source := info.URL
 		var parsedURI uri.URI
 		if parsedURI, err = uri.New(source); err == nil {
 			source = parsedURI.Source()
 		}
 
-		// Получаем manifestURL через parsedURI
 		if parsedURI, err = uri.New(source); err != nil {
 			return fmt.Errorf("failed to parse source URL: %w", err)
 		}
@@ -111,7 +106,6 @@ func (inst *Installer) HandleUpdate(ctx context.Context, args []string, force bo
 	return
 }
 
-// updateManifestWithURL обновляет манифест используя уже построенный manifestURL.
 func (inst *Installer) updateManifestWithURL(ctx context.Context, source string, manifestURL string, force bool) (err error) {
 
 	normalizedSource := storage.NormalizeSource(source)
@@ -148,12 +142,12 @@ func (inst *Installer) updateManifestWithURL(ctx context.Context, source string,
 func (inst *Installer) getExistingManifestVersion(manifestDir string) (version string, err error) {
 
 	manifestFile := filepath.Join(manifestDir, storage.ManifestFileName)
+	var data []byte
 	var statErr error
 	if _, statErr = os.Stat(manifestFile); os.IsNotExist(statErr) {
 		return "", errors.New(i18n.Msg("Manifest file not found"))
 	}
 
-	var data []byte
 	if data, err = os.ReadFile(manifestFile); err != nil {
 		return "", fmt.Errorf(i18n.Msg("Failed to read manifest file: %w"), err)
 	}
@@ -166,7 +160,6 @@ func (inst *Installer) getExistingManifestVersion(manifestDir string) (version s
 	return manifest.Version, nil
 }
 
-// printPackageChanges выводит изменения в пакетах после обновления манифеста.
 func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 
 	var err error
@@ -185,7 +178,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 		return
 	}
 
-	// Читаем старый манифест для сравнения
 	normalizedSource := storage.NormalizeSource(source)
 	manifestDir := storage.GetManifestDir(inst.currentScope, normalizedSource)
 	manifestFile := filepath.Join(manifestDir, storage.ManifestFileName)
@@ -204,7 +196,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 		}
 	}
 
-	// Создаем карту пакетов из старого манифеста
 	oldPackagesMap := make(map[string]bool)
 	if oldManifest != nil {
 		for _, pkg := range oldManifest.Packages {
@@ -217,8 +208,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 		return
 	}
 
-	// Создаем карту установленных пакетов по source + package name
-	// Для каждого пакета берем запись с максимальной версией
 	installedMap := make(map[string]*models.Installation)
 	for i := range installations {
 		if installations[i].Source == source {
@@ -227,7 +216,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 			if !exists {
 				installedMap[key] = &installations[i]
 			} else {
-				// Сравниваем версии и берем более новую
 				existingVersion, err1 := version.Parse(existing.Version)
 				newVersion, err2 := version.Parse(installations[i].Version)
 				if err1 == nil && err2 == nil {
@@ -248,7 +236,7 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 		isInstalled bool
 	}
 
-	var updated, newPackages, unchanged []packageChange
+	var updated, unchanged, newPackages []packageChange
 	var newManifestVersion models.Version
 	if newManifestVersion, err = version.Parse(newManifest.Version); err != nil {
 		return
@@ -262,12 +250,10 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 	}
 
 	for _, pkg := range newManifest.Packages {
-		// Проверяем, был ли пакет в старом манифесте
 		wasInOldManifest := oldPackagesMap[pkg.Name]
 
 		installed, isInstalled := installedMap[pkg.Name]
 
-		// Новый пакет - тот, которого не было в старом манифесте
 		if !wasInOldManifest {
 			newPackages = append(newPackages, packageChange{
 				name:        pkg.Name,
@@ -278,10 +264,7 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 			continue
 		}
 
-		// Если пакет был в старом манифесте, проверяем, обновился ли он
 		if !isInstalled {
-			// Пакет был в старом манифесте, но не установлен
-			// Сравниваем версии манифестов
 			if oldManifestVersion.Original != "" {
 				comparison := version.Compare(newManifestVersion, oldManifestVersion)
 				if comparison > 0 {
@@ -332,10 +315,8 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 	}
 
 	if len(updated) > 0 || len(newPackages) > 0 || len(unchanged) > 0 {
-		// Строим дерево для pterm
 		var categoryNodes []pterm.TreeNode
 
-		// Узел "Updated packages"
 		if len(updated) > 0 {
 			var updatedNodes []pterm.TreeNode
 			for _, pkg := range updated {
@@ -353,7 +334,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 			})
 		}
 
-		// Узел "New packages"
 		if len(newPackages) > 0 {
 			var newNodes []pterm.TreeNode
 			for _, pkg := range newPackages {
@@ -371,7 +351,6 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 			})
 		}
 
-		// Узел "Unchanged packages"
 		if len(unchanged) > 0 {
 			var unchangedNodes []pterm.TreeNode
 			for _, pkg := range unchanged {
@@ -392,13 +371,11 @@ func (inst *Installer) printPackageChanges(ctx context.Context, source string) {
 			})
 		}
 
-		// Корневой узел - source
 		rootNode := pterm.TreeNode{
 			Text:     source,
 			Children: categoryNodes,
 		}
 
-		// Выводим дерево через pterm
 		pterm.Println()
 		if err = pterm.DefaultTree.WithRoot(rootNode).Render(); err != nil {
 			return

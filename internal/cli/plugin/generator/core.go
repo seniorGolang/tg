@@ -14,7 +14,6 @@ type CoreCreator struct{}
 
 func (c *CoreCreator) Create(rootDir string, moduleName string) (err error) {
 
-	// В WASM файловая система монтируется в корень "/", поэтому используем относительные пути
 	coreDir := CoreDirName
 	if err = os.MkdirAll(coreDir, 0755); err != nil {
 		return

@@ -22,8 +22,7 @@ func writeError(ctx context.Context, h *host.Host, err error) (result uint64) {
 	var errPtr uint32
 	var allocErr error
 	if errPtr, allocErr = memory.Allocate(ctx, h, uint64(len(errBytes))); allocErr != nil {
-		// Если не удалось выделить память, возвращаем ошибку в другом формате
-		// Используем простую строку в памяти модуля
+		// При ошибке аллокации гость не сможет прочитать строку; возвращаем 0 как признак ошибки.
 		return 0
 	}
 
@@ -33,11 +32,9 @@ func writeError(ctx context.Context, h *host.Host, err error) (result uint64) {
 		return 0
 	}
 
-	// Формируем результат: верхние 32 бита - указатель, нижние 32 бита - длина с установленным флагом ошибки (31-й бит)
-	// Это соответствует формату, который ожидает RetUint64ToError на guest стороне
+	// Формат результата: верхние 32 бита — указатель, нижние 32 — длина с флагом ошибки (31-й бит).
 	errLen := len(errBytes)
 	if errLen > int(^uint32(0)>>1) {
-		// Если длина превышает максимальное значение для uint32 (без учета флага), обрезаем
 		errLen = int(^uint32(0) >> 1)
 	}
 	length := uint32(errLen) | (uint32(1) << 31) //nolint:gosec // проверка на переполнение выполнена выше

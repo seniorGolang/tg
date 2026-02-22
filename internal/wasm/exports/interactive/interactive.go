@@ -16,7 +16,6 @@ import (
 	"github.com/pterm/pterm"
 )
 
-// HostInteractiveSelect обрабатывает вызов host_interactive_select из плагина.
 // Выполняет интерактивный выбор на стороне хоста через pterm.
 // promptPtr, promptLen - указатель и размер строки с заголовком
 // optionsPtr, optionsLen - указатель и размер JSON массива строк с опциями
@@ -32,7 +31,6 @@ func HostInteractiveSelect(ctx context.Context, h *host.Host, promptPtr uint32, 
 		return 1
 	}
 
-	// Читаем входные данные
 	var err error
 	var prompt string
 	var options []string
@@ -41,13 +39,11 @@ func HostInteractiveSelect(ctx context.Context, h *host.Host, promptPtr uint32, 
 		return 1
 	}
 
-	// Выполняем выбор
 	var resultBytes []byte
 	if resultBytes, err = performSelection(prompt, options, config); err != nil {
 		return 1
 	}
 
-	// Записываем результат в память WASM
 	return writeSelectResult(ctx, h, resultBytes, resultPtrPtr, resultSizePtr)
 }
 
@@ -57,7 +53,6 @@ func readSelectInputs(h *host.Host, promptPtr uint32, promptLen uint32, optionsP
 		return "", nil, selectConfig{}, err
 	}
 
-	// Декодируем options из JSON
 	if optionsLen > 0 {
 		optionsJSONBytes, readErr := memory.ReadString(h, optionsPtr, optionsLen)
 		if readErr != nil {
@@ -70,7 +65,6 @@ func readSelectInputs(h *host.Host, promptPtr uint32, promptLen uint32, optionsP
 		}
 	}
 
-	// Декодируем config из JSON
 	if configLen > 0 {
 		configJSONBytes, readErr := memory.ReadString(h, configPtr, configLen)
 		if readErr != nil {
@@ -127,7 +121,6 @@ func performSingleSelect(prompt string, options []string) (result []byte, err er
 		return nil, errors.New(i18n.Msg("selection cancelled or failed"))
 	}
 
-	// Кодируем результат в JSON (одиночный выбор как массив с одним элементом)
 	respJSON := selectResponse{
 		Selected: []string{selected},
 	}
@@ -141,7 +134,6 @@ func performMultiSelect(prompt string, options []string, defaultOptions []string
 		WithOptions(options).
 		WithMaxHeight(utils.GetMaxHeightForSelect(len(options)))
 
-	// Если указаны опции по умолчанию, устанавливаем их
 	if len(defaultOptions) > 0 {
 		multiselect = multiselect.WithDefaultOptions(defaultOptions)
 	}
@@ -151,7 +143,6 @@ func performMultiSelect(prompt string, options []string, defaultOptions []string
 		return
 	}
 
-	// Кодируем результат в JSON
 	respJSON := selectResponse{
 		Selected: selected,
 	}

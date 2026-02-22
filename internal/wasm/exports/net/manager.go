@@ -24,7 +24,6 @@ type connState struct {
 	streamID uint32 // ID потока для стриминга через кольцевой буфер
 }
 
-// netManager управляет сетевыми соединениями и слушателями.
 type netManager struct {
 	connLock     sync.RWMutex
 	connID       uint64
@@ -80,29 +79,30 @@ func (nm *netManager) StoreConnWithStream(ctx context.Context, h any, conn net.C
 	connID = nm.connID
 	nm.connMap[connID] = conn
 
-	// Определяем, является ли соединение TLS
 	var reader *bufio.Reader
+	var tlsConn *tls.Conn
+	var ok bool
 	isTLS := false
-	if tlsConn, ok := conn.(*tls.Conn); ok {
+	if tlsConn, ok = conn.(*tls.Conn); ok {
 		isTLS = true
 		// Для TLS соединений создаем bufio.Reader для поддержки Peek (как в net/http)
 		reader = bufio.NewReader(tlsConn)
 	}
 
 	var streamID uint32
-	// Создаем кольцевой буфер для стриминга, если доступны Host и StreamRegistry
 	if ctx != nil && h != nil {
-		if host, ok := h.(*host.Host); ok && host != nil && host.StreamRegistry != nil {
-			if sid, err := host.StreamRegistry.NewStream(ctx, host, conn, conn, 0); err == nil {
+		var hostOK bool
+		var hst *host.Host
+		if hst, hostOK = h.(*host.Host); hostOK && hst != nil && hst.StreamRegistry != nil {
+			if sid, err := hst.StreamRegistry.NewStream(ctx, hst, conn, conn, 0); err == nil {
 				streamID = sid
 
-				// Запускаем горутины для синхронизации данных между net.Conn и кольцевым буфером
-				// Используем StreamReader и StreamWriter для синхронизации
-				if streamReg, ok := host.StreamRegistry.(*stream.Registry); ok && streamReg != nil {
-					streamReader := stream.NewStreamReader(ctx, sid, streamReg, host)
-					streamWriter := stream.NewStreamWriter(ctx, sid, streamReg, host)
+				var streamOK bool
+				var streamReg *stream.Registry
+				if streamReg, streamOK = hst.StreamRegistry.(*stream.Registry); streamOK && streamReg != nil {
+					streamReader := stream.NewStreamReader(ctx, sid, streamReg, hst)
+					streamWriter := stream.NewStreamWriter(ctx, sid, streamReg, hst)
 
-					// Запускаем горутины для чтения/записи
 					streamReader.StartReader()
 					streamWriter.StartWriter()
 				}
@@ -121,7 +121,6 @@ func (nm *netManager) StoreConnWithStream(ctx context.Context, h any, conn net.C
 	return
 }
 
-// DelConn удаляет соединение по ID и закрывает его.
 func (nm *netManager) DelConn(connID uint64) {
 
 	nm.connLock.Lock()
@@ -194,8 +193,7 @@ func (nm *netManager) StoreListener(listener net.Listener) (listenerID uint64) {
 	nm.listenerID++
 	nm.listenerMap[nm.listenerID] = listener
 
-	listenerID = nm.listenerID
-	return
+	return nm.listenerID
 }
 
 // DelListener удаляет слушатель по ID и закрывает его.

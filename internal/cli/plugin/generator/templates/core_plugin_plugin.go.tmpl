@@ -8,5 +8,5 @@ import (
 // Plugin определяет интерфейс плагина.
 type Plugin interface {
 	Info() (info Info, err error)
-	Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error)
+	Execute(request data.Storage) (response data.Storage, err error)
 }

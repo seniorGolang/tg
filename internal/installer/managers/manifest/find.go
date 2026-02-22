@@ -103,8 +103,7 @@ func (m *manager) FindPackage(ctx context.Context, packageName string) (pkg *mod
 	}
 }
 
-// parsePackageName парсит имя пакета на source и package.
-// Формат: "source/package" (source может содержать "/", например github.com/org/repo); последний сегмент — имя пакета.
+// Формат: "source/package" (source может содержать "/"); последний сегмент — имя пакета.
 func (m *manager) parsePackageName(packageName string) (source string, packageNameOnly string) {
 
 	parts := strings.Split(packageName, packageNameSeparator)

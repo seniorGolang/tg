@@ -30,6 +30,5 @@ func (c *Client) DownloadManifest(ctx context.Context, tag string) (manifestPath
 		return nil, fmt.Errorf(i18n.Msg("Failed to parse manifest.json: %w"), err)
 	}
 
-	manifestPaths = manifests
-	return
+	return manifests, nil
 }

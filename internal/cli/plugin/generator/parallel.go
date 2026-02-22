@@ -13,7 +13,6 @@ import (
 	pluginloader "github.com/seniorGolang/tg/v3/internal/loader"
 )
 
-// ExecuteInitGenerators выполняет генерацию плагинов параллельно.
 func ExecuteInitGenerators(ctx context.Context, loader pluginLoader, pluginNames []string, rootDir string, moduleName string) (err error) {
 
 	if len(pluginNames) == 0 {
@@ -53,7 +52,6 @@ func ExecuteInitGenerators(ctx context.Context, loader pluginLoader, pluginNames
 	return
 }
 
-// ExecuteInitCleanup выполняет очистку плагинов параллельно.
 func ExecuteInitCleanup(ctx context.Context, loader pluginLoader, pluginNames []string, rootDir string) (err error) {
 
 	if len(pluginNames) == 0 {

@@ -9,9 +9,10 @@ import (
 
 func formatDurationFixed(d time.Duration) (result string) {
 
+	var str string
 	if d < time.Second {
 		ms := d.Milliseconds()
-		str := fmt.Sprintf(timeFormatMs, ms)
+		str = fmt.Sprintf(timeFormatMs, ms)
 		if len(str) > timeWidth {
 			str = str[:timeWidth]
 		}
@@ -20,14 +21,13 @@ func formatDurationFixed(d time.Duration) (result string) {
 
 	if d < time.Minute {
 		sec := int(d.Seconds())
-		str := fmt.Sprintf(timeFormatS, sec)
+		str = fmt.Sprintf(timeFormatS, sec)
 		return fmt.Sprintf(widthFormat, timeWidth, str)
 	}
 
 	minutes := int(d.Minutes())
 	seconds := int(d.Seconds()) % 60
 
-	var str string
 	if seconds == 0 {
 		str = fmt.Sprintf(timeFormatM, minutes)
 	} else {

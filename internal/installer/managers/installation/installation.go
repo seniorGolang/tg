@@ -13,7 +13,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/storage"
 )
 
-// manager реализует InstallationManager.
 type manager struct {
 	scopeName          string
 	manifestManager    managers.ManifestManager
@@ -47,9 +46,7 @@ func (m *manager) Uninstall(ctx context.Context, packageID string, keepFiles boo
 		packageSpec := installation.Source + "/" + installation.Package
 		var manifest *models.Manifest
 		if pkg, manifest, err = m.manifestManager.FindPackage(ctx, packageSpec); err != nil {
-			// Пробуем найти пакет без source (только имя)
 			if pkg, manifest, err = m.manifestManager.FindPackage(ctx, installation.Package); err != nil {
-				// Если не удалось найти пакет, продолжаем без скриптов
 				pkg = nil
 			}
 		}

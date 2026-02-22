@@ -28,8 +28,7 @@ func safeIntToUint32(val int) (result uint32, err error) {
 		return 0, errors.New(i18n.Msg("value exceeds uint32 range"))
 	}
 
-	result = uint32(val)
-	return
+	return uint32(val), nil
 }
 
 type RequestContext struct {
@@ -85,8 +84,7 @@ func (hm *httpManager) StoreHandler(handler http.Handler) (handlerID uint64) {
 	hm.handlerID++
 	hm.handlerMap[hm.handlerID] = handler
 
-	handlerID = hm.handlerID
-	return
+	return hm.handlerID
 }
 
 func (hm *httpManager) GetHandler(handlerID uint64) (handler http.Handler, err error) {
@@ -99,7 +97,7 @@ func (hm *httpManager) GetHandler(handlerID uint64) (handler http.Handler, err e
 		return nil, fmt.Errorf(i18n.Msg("handler id %d does not exist"), handlerID)
 	}
 
-	return
+	return handler, nil
 }
 
 func (hm *httpManager) StoreServer(server *http.Server, addr string, handler http.Handler) (serverID uint64) {
@@ -115,8 +113,7 @@ func (hm *httpManager) StoreServer(server *http.Server, addr string, handler htt
 		DoneChan: make(chan struct{}),
 	}
 
-	serverID = hm.serverID
-	return
+	return hm.serverID
 }
 
 func (hm *httpManager) GetServer(serverID uint64) (state *httpServerState, err error) {
@@ -152,8 +149,7 @@ func (hm *httpManager) StoreRequest(ctx *RequestContext) (requestID uint64) {
 	hm.requestID++
 	hm.requestMap[hm.requestID] = ctx
 
-	requestID = hm.requestID
-	return
+	return hm.requestID
 }
 
 func (hm *httpManager) GetRequest(requestID uint64) (ctx *RequestContext, err error) {

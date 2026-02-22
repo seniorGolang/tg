@@ -4,7 +4,6 @@ package env
 
 import "os"
 
-// osEnvProvider реализует envProvider для обычных переменных окружения.
 type osEnvProvider struct{}
 
 func newOSEnvProvider() (provider envProvider) {

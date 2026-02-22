@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// pathExpander расширяет пути с учетом их типа.
 type pathExpander struct {
 	envResolver  *envResolver
 	tgResolver   *tgPathResolver
@@ -25,7 +24,6 @@ func newPathExpander(rootDir string, tgPath string) (expander *pathExpander) {
 	}
 }
 
-// expand расширяет путь в зависимости от его типа.
 func (e *pathExpander) expand(path string) (expandedPath string, err error) {
 
 	pathType := detectPathType(path)
@@ -33,7 +31,7 @@ func (e *pathExpander) expand(path string) (expandedPath string, err error) {
 	switch pathType {
 	case PathTypeGo:
 		if expandedPath = e.goResolver.resolve(path); expandedPath == "" {
-			slog.Warn("go path expanded path is empty")
+			slog.Debug("go path expanded path is empty")
 		}
 		return
 
@@ -59,19 +57,15 @@ func (e *pathExpander) expand(path string) (expandedPath string, err error) {
 	}
 }
 
-// expandEnv расширяет переменные окружения в пути.
 func (e *pathExpander) expandEnv(path string) (expandedPath string, err error) {
 
-	// Извлекаем переменные из пути и заменяем их
 	result := osExpandEnv(path, e.envResolver)
 	if result == "" {
 		return "", nil
 	}
 
-	// Нормализуем путь
 	expandedPath = filepath.Clean(result)
 
-	// Делаем путь абсолютным, если он еще не абсолютный
 	if !filepath.IsAbs(expandedPath) {
 		var absErr error
 		expandedPath, absErr = filepath.Abs(expandedPath)
@@ -83,11 +77,10 @@ func (e *pathExpander) expandEnv(path string) (expandedPath string, err error) {
 	return
 }
 
-// osExpandEnv расширяет переменные окружения в строке с использованием резолвера.
 func osExpandEnv(s string, resolver *envResolver) (result string) {
 
-	var resultBuilder strings.Builder
 	var i int
+	var resultBuilder strings.Builder
 
 	for i < len(s) {
 		if s[i] == '$' {
@@ -105,11 +98,9 @@ func osExpandEnv(s string, resolver *envResolver) (result string) {
 		i++
 	}
 
-	result = resultBuilder.String()
-	return
+	return resultBuilder.String()
 }
 
-// extractVarName извлекает имя переменной из строки, начиная с $.
 func extractVarName(s string) (varName string, consumed int) {
 
 	if len(s) < 2 {
@@ -117,17 +108,14 @@ func extractVarName(s string) (varName string, consumed int) {
 	}
 
 	if s[1] == '{' {
-		// Формат ${VAR}
 		end := strings.IndexByte(s[2:], '}')
 		if end == -1 {
 			return "", 0
 		}
-		varName = s[2 : end+2]
-		consumed = end + 3
-		return
+		return s[2 : end+2], end + 3
 	}
 
-	// Формат $VAR
+	// $VAR
 	var i int
 	for i = 1; i < len(s); i++ {
 		c := s[i]
@@ -140,7 +128,5 @@ func extractVarName(s string) (varName string, consumed int) {
 		return "", 0
 	}
 
-	varName = s[1:i]
-	consumed = i
-	return
+	return s[1:i], i
 }

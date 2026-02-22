@@ -79,7 +79,7 @@ tg plugin add \
 ```go
 type Plugin interface {
     Info() (info Info, err error)
-    Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error)
+    Execute(request data.Storage) (response data.Storage, err error)
 }
 ```
 
@@ -118,7 +118,7 @@ func (p *{{.PluginNameTitleCase}}Plugin) Info() (info plugin.Info, err error) {
 
 ### Метод `Execute()`
 
-Содержит основную логику плагина:
+Содержит основную логику плагина. Рабочая директория передаётся в `request` под ключом `_runDir_`.
 
 ```go
 import (
@@ -126,7 +126,7 @@ import (
     "{{.ModuleName}}/core/data"
 )
 
-func (p *{{.PluginNameTitleCase}}Plugin) Execute(rootDir string, request data.Storage, path ...string) (response data.Storage, err error) {
+func (p *{{.PluginNameTitleCase}}Plugin) Execute(request data.Storage) (response data.Storage, err error) {
 
     slog.Info("{{.PluginName}} плагин запущен")
 
@@ -494,7 +494,7 @@ https://github.com/{owner}/{repo}/releases/tag/v{version}
 
 1. **Однопоточность**: WASM выполняется в одном потоке, горутины технически можно создавать, но они не дают параллелизма и выполняются асинхронно
 
-2. **Изоляция файловой системы**: Доступ только к файлам проекта через WASI (монтируется через `os.DirFS(rootDir)`) и путям из `AllowedPaths`
+2. **Изоляция файловой системы**: Доступ только к файлам проекта через WASI (рабочая директория передаётся в `request` под ключом `_runDir_`) и путям из `AllowedPaths`
 
 3. **Безопасность**: Все внешние операции контролируются хостом:
    - Сетевые подключения валидируются по `AllowedHosts`

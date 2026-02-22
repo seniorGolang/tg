@@ -61,7 +61,6 @@ type DownloadManager interface {
 	DownloadWithProgress(ctx context.Context, url string, destination string, progress chan<- int) (err error)
 }
 
-// ValidationEngine выполняет валидацию файлов.
 type ValidationEngine interface {
 	ValidateChecksum(ctx context.Context, filePath string, algorithm string, expected string) (err error)
 	ValidateSignature(ctx context.Context, filePath string, signature string) (err error)

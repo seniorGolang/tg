@@ -22,8 +22,8 @@ var (
 func GetCompilationCache(ctx context.Context) (cache wazero.CompilationCache, err error) {
 
 	cacheOnce.Do(func() {
-		var scopeName string
 		var scopeErr error
+		var scopeName string
 		scopeName, scopeErr = storage.GetEffectiveScope()
 		if scopeErr != nil {
 			cacheErr = fmt.Errorf("failed to get current scope: %w", scopeErr)
@@ -45,9 +45,7 @@ func GetCompilationCache(ctx context.Context) (cache wazero.CompilationCache, er
 		}
 	})
 
-	cache = compilationCache
-	err = cacheErr
-	return
+	return compilationCache, cacheErr
 }
 
 func CloseCompilationCache(ctx context.Context) (err error) {

@@ -50,14 +50,12 @@ func (r *Reader) Read(buffer []byte) (n int, err error) {
 		return 0, io.ErrClosedPipe
 	}
 
-	// Используем временный буфер для чтения из Reader
 	if len(readBuffer) < len(buffer) {
 		readBuffer = make([]byte, len(buffer))
 	} else {
 		readBuffer = readBuffer[:len(buffer)]
 	}
 
-	// Читаем данные из io.Reader
 	var readN int
 	if readN, err = reader.Read(readBuffer); err != nil && err != io.EOF {
 		return 0, err
@@ -65,30 +63,25 @@ func (r *Reader) Read(buffer []byte) (n int, err error) {
 
 	if readN == 0 {
 		if err == io.EOF {
-			// Закрываем поток при EOF
 			r.registry.CloseStream(r.ctx, r.host, r.streamID)
 			return 0, io.EOF
 		}
 		return 0, nil
 	}
 
-	// Записываем данные в кольцевой буфер для чтения (хост → WASM)
-	// Блокируем до полной записи всех данных, если буфер полон
-	// В Read нет канала уведомлений, поэтому передаем nil
+	// Блокируем до полной записи всех данных, если буфер полон. В Read нет канала уведомлений, поэтому передаем nil.
 	var written int
 	if written, err = writeToRingBufferWithRetry(r.ctx, r.host, state.ReadBufferPtr, state.ReadBufferDataSize, readBuffer[:readN], nil); err != nil {
 		return 0, err
 	}
 
-	n = written
-	return
+	return written, nil
 }
 
 // StartReader запускает горутину для непрерывного чтения данных из Reader
 // и записи их в кольцевой буфер.
 func (r *Reader) StartReader() {
 
-	// Получаем state и увеличиваем счетчик WaitGroup перед запуском горутины
 	state, ok := r.registry.GetStreamState(r.streamID)
 	if !ok || state == nil {
 		return
@@ -96,19 +89,17 @@ func (r *Reader) StartReader() {
 	state.readerDone.Add(1)
 
 	go func() {
-		// Уменьшаем счетчик WaitGroup при завершении горутины
 		defer state.readerDone.Done()
 
 		buffer := make([]byte, 4096)
 		for {
-			// Проверяем контекст
 			select {
 			case <-r.ctx.Done():
 				return
 			default:
 			}
 
-			state, ok := r.registry.GetStreamState(r.streamID)
+			state, ok = r.registry.GetStreamState(r.streamID)
 			if !ok || state == nil {
 				return
 			}
@@ -122,19 +113,12 @@ func (r *Reader) StartReader() {
 				return
 			}
 
-			// Читаем данные из Reader
-			// ВАЖНО: pipe.Read() блокирует до появления данных или EOF
-			// Для коротких команд (echo) данные могут быть доступны сразу
+			// pipe.Read блокирует до данных или EOF; при EOF возможно n>0 — данные уже прочитаны, но ещё не записаны в буфер.
 			var n int
 			var err error
 			if n, err = reader.Read(buffer); err != nil {
 				if err == io.EOF {
-					// Команда завершилась, данных больше не будет
-					// НО: возможно, мы уже прочитали данные, но еще не записали их в буфер
-					// Проверяем, есть ли данные для записи
 					if n > 0 {
-						// Есть данные, записываем их перед закрытием
-						// В StartReader нет канала уведомлений, поэтому передаем nil
 						written, writeErr := writeToRingBufferWithRetry(r.ctx, r.host, state.ReadBufferPtr, state.ReadBufferDataSize, buffer[:n], nil)
 						if writeErr != nil {
 							if writeErr == io.EOF {
@@ -142,24 +126,18 @@ func (r *Reader) StartReader() {
 							}
 							return
 						}
-						// Проверяем, что все данные записаны
 						if written != n {
-							// Не все данные записаны - это ошибка
 							return
 						}
 					}
 
-					// Помечаем поток как закрытый для чтения
 					state.Mu.Lock()
 					state.Reader = nil
 					state.Mu.Unlock()
 
-					// Выходим из горутины - больше данных не будет
-					// readerDone.Done() будет вызван в defer
 					return
 				}
 
-				// Другие ошибки
 				return
 			}
 
@@ -167,9 +145,6 @@ func (r *Reader) StartReader() {
 				continue
 			}
 
-			// Записываем данные в кольцевой буфер для чтения (хост → WASM)
-			// Блокируем до появления места в буфере, если буфер полон
-			// В StartReader нет канала уведомлений, поэтому передаем nil
 			written, writeErr := writeToRingBufferWithRetry(r.ctx, r.host, state.ReadBufferPtr, state.ReadBufferDataSize, buffer[:n], nil)
 			if writeErr != nil {
 				if writeErr == io.EOF {
@@ -177,9 +152,7 @@ func (r *Reader) StartReader() {
 				}
 				return
 			}
-			// Проверяем, что все данные записаны
 			if written != n {
-				// Не все данные записаны - это ошибка
 				return
 			}
 		}

@@ -22,18 +22,16 @@ func (u *URI) parse(spec string) (err error) {
 		if u.version.Original != "" && !u.HasVersionConstraint() {
 			var parsedVersion models.Version
 			if parsedVersion, err = version.Parse(u.version.Original); err != nil {
-				err = nil
-			} else {
-				u.version = parsedVersion
+				return
 			}
+			u.version = parsedVersion
 		}
 	}
 
 	schemeSeparator := "://"
 	schemeIndex := strings.Index(specWithoutVersion, schemeSeparator)
 	if schemeIndex < 0 {
-		err = fmt.Errorf("URL must have a scheme")
-		return
+		return fmt.Errorf("URL must have a scheme")
 	}
 
 	scheme := specWithoutVersion[:schemeIndex]
@@ -66,17 +64,17 @@ func (u *URI) parse(spec string) (err error) {
 					}
 				}
 			} else {
-				afterColon := restAfterScheme[lastColonIndex+1:]
-				if len(afterColon) > 0 {
+				afterColonSuffix := restAfterScheme[lastColonIndex+1:]
+				if len(afterColonSuffix) > 0 {
 					urlPartAfterScheme = restAfterScheme[:lastColonIndex]
-					extractedPackageName = afterColon
+					extractedPackageName = afterColonSuffix
 				}
 			}
 		} else {
-			afterColon := restAfterScheme[lastColonIndex+1:]
-			if len(afterColon) > 0 {
+			afterColonSuffix := restAfterScheme[lastColonIndex+1:]
+			if len(afterColonSuffix) > 0 {
 				urlPartAfterScheme = restAfterScheme[:lastColonIndex]
-				extractedPackageName = afterColon
+				extractedPackageName = afterColonSuffix
 			}
 		}
 	}
@@ -84,13 +82,11 @@ func (u *URI) parse(spec string) (err error) {
 	fullURL := scheme + schemeSeparator + urlPartAfterScheme
 	parsedURL, parseErr := url.Parse(fullURL)
 	if parseErr != nil {
-		err = fmt.Errorf("failed to parse URL: %w", parseErr)
-		return
+		return fmt.Errorf("failed to parse URL: %w", parseErr)
 	}
 
 	if parsedURL.Scheme == "" {
-		err = fmt.Errorf("URL must have a scheme")
-		return
+		return fmt.Errorf("URL must have a scheme")
 	}
 
 	u.parsedURL = parsedURL

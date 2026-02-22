@@ -2,48 +2,42 @@
 // This file is subject to the terms and conditions defined in file 'LICENSE', which is part of this project source code.
 package commands
 
-// Константы путей команд
 const (
-	// Команда воспроизведения сохраненных плагинов
 	cmdPathReplay = "replay"
 
-	// Команды управления пакетами
-	cmdSubPkgAdd      = "add"
-	cmdSubPkgDel      = "del"
-	cmdSubPkgInfo     = "info"
-	cmdSubPkgList     = "list"
-	cmdSubPkgRepo     = "repo"
-	cmdSubPkgUpdate   = "update"
-	cmdSubPkgUpgrade  = "upgrade"
 	cmdPathPkgAdd     = "pkg"
 	cmdPathPkgDel     = "pkg"
 	cmdPathPkgInfo    = "pkg"
 	cmdPathPkgList    = "pkg"
 	cmdPathPkgRepo    = "pkg"
+	cmdSubPkgAdd      = "add"
+	cmdSubPkgDel      = "del"
+	cmdSubPkgInfo     = "info"
+	cmdSubPkgList     = "list"
+	cmdSubPkgRepo     = "repo"
 	cmdPathPkgUpdate  = "pkg"
 	cmdPathPkgUpgrade = "pkg"
+	cmdSubPkgUpdate   = "update"
+	cmdSubPkgUpgrade  = "upgrade"
 
-	// Команды разработки плагинов
+	cmdPathPluginAdd    = "plugin"
+	cmdPathPluginBuild  = "plugin"
+	cmdPathPluginDoc    = "plugin"
+	cmdPathPluginInit   = "plugin"
 	cmdSubPluginAdd     = "add"
 	cmdSubPluginBuild   = "build"
 	cmdSubPluginDoc     = "doc"
 	cmdSubPluginInit    = "init"
 	cmdSubPluginUpdate  = "update"
-	cmdPathPluginAdd    = "plugin"
-	cmdPathPluginBuild  = "plugin"
-	cmdPathPluginDoc    = "plugin"
-	cmdPathPluginInit   = "plugin"
 	cmdPathPluginUpdate = "plugin"
 
-	// Группа команд управления scope
+	cmdPathPkgScope = "pkg"
+	cmdSubPkgScope  = "scope"
 	cmdSubScopeDel  = "del"
 	cmdSubScopeList = "list"
 	cmdSubScopeShow = "show"
 	cmdSubScopeUse  = "use"
-	cmdPathPkgScope = "pkg"
-	cmdSubPkgScope  = "scope"
 
-	// Группа команд completion
 	cmdSubCompletionBash       = "bash"
 	cmdSubCompletionFish       = "fish"
 	cmdSubCompletionZsh        = "zsh"

@@ -31,8 +31,7 @@ func HandlePluginAdd(ctx types.CommandContext) (err error) {
 	logger.Info(i18n.Msg("Adding plugin"))
 	if err = generator.RunAdd(ctx.RootDir, name, command, dir, license, moduleName, kind); err != nil {
 		logger.Error(i18n.Msg("Error adding plugin"), slog.String("error", err.Error()))
-		errorMsg := i18n.Msg("Error adding plugin") + ": " + err.Error()
-		return errors.New(errorMsg)
+		return errors.New(i18n.Msg("Error adding plugin") + ": " + err.Error())
 	}
 	logger.Info(i18n.Msg("Plugin successfully added"))
 	return

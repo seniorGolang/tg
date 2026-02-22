@@ -34,12 +34,9 @@ func getSubcommandPriority(subcommandName string) (priority int) {
 		return
 	}
 
-	// Команды, не в списке приоритетов, идут в конце
-	priority = 999
-	return
+	return 999
 }
 
-// PromptSubcommandSelection показывает интерактивный выбор подкоманды
 func PromptSubcommandSelection(cmdPath []string, subcommands []Command) (selected Command) {
 
 	if len(subcommands) == 0 {
@@ -47,7 +44,6 @@ func PromptSubcommandSelection(cmdPath []string, subcommands []Command) (selecte
 		return
 	}
 
-	// Сортируем команды по приоритету
 	sort.Slice(subcommands, func(i, j int) bool {
 		pathI := subcommands[i].GetPath()
 		pathJ := subcommands[j].GetPath()
@@ -73,29 +69,23 @@ func PromptSubcommandSelection(cmdPath []string, subcommands []Command) (selecte
 			return priorityI < priorityJ
 		}
 
-		// Если приоритеты одинаковые, сортируем по имени
 		return subcommandNameI < subcommandNameJ
 	})
 
-	// Формируем список опций для выбора
 	options := make([]string, 0, len(subcommands))
 	commandMap := make(map[string]Command)
 
 	for _, cmd := range subcommands {
 		path := cmd.GetPath()
 
-		// Показываем только последний элемент пути (имя подкоманды)
-		// и убираем алиасы (часть после ":")
 		subcommandName := ""
 		if len(path) > 0 {
 			lastElem := path[len(path)-1]
-			// Парсим элемент пути, извлекая только имя (без алиаса)
 			name, _ := parsePathElement(lastElem)
 			subcommandName = name
 		}
 
 		description := cmd.GetDescription()
-		// Добавляем иконку для команды
 		optionText := fmt.Sprintf("%s %s%s%s", iconCommand, subcommandName, optionSeparator, description)
 		options = append(options, optionText)
 		commandMap[optionText] = cmd
@@ -111,11 +101,9 @@ func PromptSubcommandSelection(cmdPath []string, subcommands []Command) (selecte
 		return
 	}
 
-	selected = commandMap[selectedOption]
-	return
+	return commandMap[selectedOption]
 }
 
-// PromptCommandSelection показывает единое меню выбора команд
 func PromptCommandSelection() (selectedCommand string) {
 
 	tree := GetCommandTree()
@@ -124,27 +112,22 @@ func PromptCommandSelection() (selectedCommand string) {
 		return
 	}
 
-	// Собираем все корневые узлы (первый уровень) через виртуальный корневой узел
 	rootNode := &CommandNode{
 		children: tree.root,
 	}
 	rootChildNodes := rootNode.GetChildNodes()
 
-	// Разделяем узлы на группы и команды
 	groups := make([]*CommandNode, 0)
 	commands := make([]*CommandNode, 0)
 
 	for _, node := range rootChildNodes {
 		if node.command != nil {
-			// Узел с командой
 			commands = append(commands, node)
 		} else if len(node.children) > 0 {
-			// Промежуточный узел с дочерними узлами (группа)
 			groups = append(groups, node)
 		}
 	}
 
-	// Сортируем группы и команды по имени
 	sort.Slice(groups, func(i, j int) bool {
 		return groups[i].name < groups[j].name
 	})
@@ -152,18 +135,15 @@ func PromptCommandSelection() (selectedCommand string) {
 		return commands[i].name < commands[j].name
 	})
 
-	// Формируем список опций: сначала группы, потом команды
 	options := make([]string, 0, len(groups)+len(commands))
 	nodeMap := make(map[string]*CommandNode)
 
-	// Добавляем группы
 	for _, node := range groups {
 		optionText := fmt.Sprintf("%s %s", iconGroup, node.name)
 		options = append(options, optionText)
 		nodeMap[optionText] = node
 	}
 
-	// Добавляем команды
 	for _, node := range commands {
 		description := node.command.GetDescription()
 		optionText := fmt.Sprintf("%s %s%s%s", iconCommand, node.name, optionSeparator, description)
@@ -188,7 +168,6 @@ func PromptCommandSelection() (selectedCommand string) {
 		return
 	}
 
-	// Если у узла есть команда - возвращаем путь команды
 	if selectedNode.command != nil {
 		path := selectedNode.command.GetPath()
 		normalizedPath := make([]string, 0, len(path))
@@ -200,8 +179,5 @@ func PromptCommandSelection() (selectedCommand string) {
 		return
 	}
 
-	// Если у узла нет команды, но есть дочерние узлы - это промежуточный узел
-	// Возвращаем имя узла, чтобы cobra мог обработать его как команду с подкомандами
-	selectedCommand = selectedNode.name
-	return
+	return selectedNode.name
 }

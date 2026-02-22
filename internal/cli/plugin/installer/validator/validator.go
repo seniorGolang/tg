@@ -9,19 +9,21 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/plugin"
 )
 
-// ValidatePlugin выполняет валидацию плагина.
 func ValidatePlugin(pluginTGP []byte, pluginSHA256 []byte, pluginInfo plugin.Info, expectedName string, expectedVersion string) (err error) {
 
 	if err = ValidateChecksum(pluginTGP, pluginSHA256); err != nil {
-		return fmt.Errorf(i18n.Msg("Checksum validation failed: %w"), err)
+		err = fmt.Errorf(i18n.Msg("Checksum validation failed: %w"), err)
+		return
 	}
 
 	if err = ValidateMetadata(pluginInfo, expectedName, expectedVersion); err != nil {
-		return fmt.Errorf(i18n.Msg("Metadata validation failed: %w"), err)
+		err = fmt.Errorf(i18n.Msg("Metadata validation failed: %w"), err)
+		return
 	}
 
 	if err = ValidateWASM(pluginTGP, pluginInfo); err != nil {
-		return fmt.Errorf(i18n.Msg("WASM structure validation failed: %w"), err)
+		err = fmt.Errorf(i18n.Msg("WASM structure validation failed: %w"), err)
+		return
 	}
 
 	return

@@ -28,8 +28,8 @@ func runRoot(cmd *cobra.Command, _ []string) {
 	}
 
 	commandPath := strings.Fields(commandPathStr)
-	var selectedCobraCmd *cobra.Command
 	var err error
+	var selectedCobraCmd *cobra.Command
 	if selectedCobraCmd, _, err = cmd.Root().Find(commandPath); err != nil {
 		slog.Error(i18n.Msg("Failed to find command"), "path", strings.Join(commandPath, " "), "error", err)
 		return

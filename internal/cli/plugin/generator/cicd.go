@@ -43,7 +43,6 @@ func (c *CICDCreator) Create(rootDir string, deployType string) (err error) {
 	return
 }
 
-// DetectDeployType определяет тип CI/CD на основе существующих файлов.
 func (c *CICDCreator) DetectDeployType(rootDir string) (deployType string) {
 
 	gitlabPath := GitLabCIFileName
@@ -60,6 +59,5 @@ func (c *CICDCreator) DetectDeployType(rootDir string) (deployType string) {
 		return
 	}
 
-	deployType = DeployTypeNone
-	return
+	return DeployTypeNone
 }
