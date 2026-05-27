@@ -38,7 +38,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	for _, field := range fields {
 		field.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
-		if fieldName, inline := jsonName(field); !inline {
+		if fieldName, inline := jsonName(field); !inline && !isPointerType(field.Type) {
 			required = append(required, fieldName)
 		}
 	}
