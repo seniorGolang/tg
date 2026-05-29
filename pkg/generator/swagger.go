@@ -158,9 +158,10 @@ services:
 			for argName, queryName := range method.argParamMap() {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
-						In:     "query",
-						Name:   queryName,
-						Schema: doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
+						In:       "query",
+						Name:     queryName,
+						Required: !isPointerType(arg.Type),
+						Schema:   doc.walkVariable(arg.Name, service.pkgPath, arg.Type, nil),
 					})
 				}
 			}
