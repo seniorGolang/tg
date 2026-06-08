@@ -106,8 +106,9 @@ func (p *{{.PluginNameTitleCase}}Plugin) Info() (info plugin.Info, err error) {
         },
         // Права доступа
         AllowedHosts:     []string{}, // Белый список хостов для сетевых подключений
+        AllowedListeners: []string{}, // Белый список bind-адресов "network/address", например "tcp/127.0.0.1:8080"
         AllowedShellCMDs: []string{}, // Белый список команд для выполнения через хост
-        AllowedEnvVars:   []string{}, // Белый список переменных окружения
+        AllowedEnvVars:   []string{}, // Белый список переменных окружения; не добавляйте secrets без необходимости
         AllowedPaths:     map[string]string{}, // Доступные пути файловой системы
         AllowedStdOut:    false,      // Разрешить плагину вывод в stdout
         AllowedStdErr:    false,      // Разрешить плагину вывод в stderr
@@ -474,6 +475,7 @@ https://github.com/{owner}/{repo}/releases/tag/v{version}
 - Использовать стандартные библиотеки Go (strings, json, encoding и т.д.)
 - Работать с файлами через `os.ReadFile()`, `os.WriteFile()`, `os.Open()` и т.д. (через WASI)
 - Делать сетевые подключения к хостам из `AllowedHosts` (через функции хоста)
+- Открывать входящие listeners только на адресах из `AllowedListeners` (`network/address`, например `tcp/127.0.0.1:8080`)
 - Использовать логирование через `slog` (настроен через хост)
 - Получать переменные окружения из `AllowedEnvVars`
 - Выполнять команды из `AllowedShellCMDs` (через функции хоста)
@@ -487,6 +489,7 @@ https://github.com/{owner}/{repo}/releases/tag/v{version}
 - Использовать `runtime.Gosched()` или другие примитивы синхронизации — WASM однопоточный
 - Использовать горутины для параллелизма — WASM однопоточный, горутины выполняются асинхронно
 - Делать сетевые подключения к хостам, не указанным в `AllowedHosts`
+- Открывать listeners на адресах, не указанных в `AllowedListeners`
 - Получать доступ к файлам вне разрешённых путей — файловая система изолирована через WASI
 - Получать переменные окружения, не указанные в `AllowedEnvVars`
 
@@ -498,6 +501,7 @@ https://github.com/{owner}/{repo}/releases/tag/v{version}
 
 3. **Безопасность**: Все внешние операции контролируются хостом:
    - Сетевые подключения валидируются по `AllowedHosts`
+   - Входящие listeners валидируются по `AllowedListeners`; `tcp/:port` открывает порт на всех интерфейсах, поэтому такие права должны быть явными
    - Команды выполняются только из `AllowedShellCMDs`
    - Переменные окружения доступны только из `AllowedEnvVars`
 

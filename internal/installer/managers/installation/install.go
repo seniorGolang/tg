@@ -653,6 +653,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			installation.Always = info.Always
 			installation.InitPkgs = info.InitPkgs
 			installation.AllowedHosts = info.AllowedHosts
+			installation.AllowedListeners = info.AllowedListeners
 			installation.AllowedPaths = info.AllowedPaths
 			installation.Dependencies = info.Dependencies
 			installation.AllowedEnvVars = info.AllowedEnvVars

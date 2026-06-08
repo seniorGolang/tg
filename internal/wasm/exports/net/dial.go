@@ -175,6 +175,10 @@ func connDialContext(ctx context.Context, h *host.Host, nm *netManager, deadline
 	network := string(networkBytes)
 	address := string(addressBytes)
 
+	if err = validateHost(h.Info.AllowedHosts, address); err != nil {
+		return writeError(ctx, h, err)
+	}
+
 	dialCtx := ctx
 	if deadline > 0 {
 		const maxInt64 = uint64(1<<63 - 1)

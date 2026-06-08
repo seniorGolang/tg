@@ -32,12 +32,18 @@ type Info struct {
 	// - Проверка резолва: если домен резолвится в разрешённый IP (точное совпадение или CIDR), подключение разрешается
 	// Пример: ["api.example.com", "*.example.com", "192.168.1.0/24", "10.0.0.1"]
 	AllowedHosts []string `json:"allowedHosts,omitempty"`
+	// AllowedListeners - белый список bind-адресов для входящих listeners (только для WASM плагинов).
+	// Если пусто, плагин не может открывать входящие порты.
+	// Формат: "network/address", например "tcp/127.0.0.1:8080"; glob используйте только для осознанных operator-owned правил.
+	// Важно: net.Listen("tcp", ":8080") слушает все интерфейсы, поэтому такие права не должны выдаваться по умолчанию.
+	// Документация Go: https://pkg.go.dev/net#Listen
+	AllowedListeners []string `json:"allowedListeners,omitempty"`
 	// AllowedShellCMDs - белый список команд, которые плагин может запускать через хост (только для WASM плагинов).
 	// Если пусто, плагин не может выполнять команды.
 	// Формат: имена команд (например: ["go", "git", "npm"])
 	AllowedShellCMDs []string `json:"allowedShellCMDs,omitempty"`
 	// AllowedEnvVars - белый список переменных окружения, которые плагин может получать от хоста (только для WASM плагинов).
-	// Если пусто, плагин не получает переменные окружения от хоста.
+	// Если пусто, плагин не получает переменные окружения от хоста; не добавляйте сюда secrets без явной необходимости.
 	// Формат: имена переменных окружения (например: ["PATH", "HOME", "USER", "GOROOT", "GOPATH"])
 	AllowedEnvVars []string `json:"allowedEnvVars,omitempty"`
 	// Dependencies - список зависимостей плагина.

@@ -17,11 +17,13 @@ import (
 
 // connState хранит состояние соединения.
 type connState struct {
-	conn     net.Conn
-	reader   *bufio.Reader // Для TLS соединений используем bufio.Reader для поддержки Peek
-	isTLS    bool
-	isClosed bool
-	streamID uint32 // ID потока для стриминга через кольцевой буфер
+	conn       net.Conn
+	reader     *bufio.Reader // Для TLS соединений используем bufio.Reader для поддержки Peek
+	isTLS      bool
+	isClosed   bool
+	streamID   uint32 // ID потока для стриминга через кольцевой буфер
+	streamCtx  context.Context
+	streamHost *host.Host
 }
 
 type netManager struct {
@@ -90,12 +92,14 @@ func (nm *netManager) StoreConnWithStream(ctx context.Context, h any, conn net.C
 	}
 
 	var streamID uint32
+	var streamHost *host.Host
 	if ctx != nil && h != nil {
 		var hostOK bool
 		var hst *host.Host
 		if hst, hostOK = h.(*host.Host); hostOK && hst != nil && hst.StreamRegistry != nil {
 			if sid, err := hst.StreamRegistry.NewStream(ctx, hst, conn, conn, 0); err == nil {
 				streamID = sid
+				streamHost = hst
 
 				var streamOK bool
 				var streamReg *stream.Registry
@@ -111,11 +115,13 @@ func (nm *netManager) StoreConnWithStream(ctx context.Context, h any, conn net.C
 	}
 
 	nm.connStateMap[connID] = &connState{
-		conn:     conn,
-		reader:   reader,
-		isTLS:    isTLS,
-		isClosed: false,
-		streamID: streamID,
+		conn:       conn,
+		reader:     reader,
+		isTLS:      isTLS,
+		isClosed:   false,
+		streamID:   streamID,
+		streamCtx:  ctx,
+		streamHost: streamHost,
 	}
 
 	return
@@ -124,17 +130,33 @@ func (nm *netManager) StoreConnWithStream(ctx context.Context, h any, conn net.C
 func (nm *netManager) DelConn(connID uint64) {
 
 	nm.connLock.Lock()
-	defer nm.connLock.Unlock()
-
-	var ok bool
-	var conn net.Conn
-	if conn, ok = nm.connMap[connID]; ok {
+	conn, ok := nm.connMap[connID]
+	state := nm.connStateMap[connID]
+	if ok {
 		delete(nm.connMap, connID)
 		delete(nm.connStateMap, connID)
-		go func() {
-			_ = conn.Close()
-		}()
 	}
+	nm.connLock.Unlock()
+
+	if !ok {
+		return
+	}
+
+	// Риск: часть error-cleanup путей вызывает DelConn напрямую, минуя connClose.
+	// Поэтому DelConn сам освобождает связанный stream, чтобы не держать ring buffers
+	// в WASM памяти. CloseStream идемпотентен для отсутствующего stream, поэтому
+	// повторный cleanup после обычного connClose не должен ломать caller.
+	if state != nil && state.streamID != 0 && state.streamHost != nil && state.streamHost.StreamRegistry != nil {
+		streamCtx := state.streamCtx
+		if streamCtx == nil {
+			streamCtx = context.Background()
+		}
+		state.streamHost.StreamRegistry.CloseStream(streamCtx, state.streamHost, state.streamID)
+	}
+
+	go func() {
+		_ = conn.Close()
+	}()
 }
 
 func (nm *netManager) GetConnState(connID uint64) (state *connState, err error) {

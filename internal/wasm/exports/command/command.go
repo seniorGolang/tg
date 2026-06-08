@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/plugin"
+	wasmenv "github.com/seniorGolang/tg/v3/internal/wasm/env"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
 	"github.com/seniorGolang/tg/v3/internal/wasm/stream"
@@ -27,6 +29,8 @@ var commandResponses = struct {
 }{
 	data: make(map[uint32]*CommandResponse),
 }
+
+const commandResponseRetention = 10 * time.Minute
 
 // Выполняет команду на стороне хоста с валидацией по AllowedShellCMDs.
 // commandPtr, commandLen - указатель и размер строки с командой (например, "go")
@@ -89,10 +93,25 @@ func readCommandInputs(h *host.Host, commandPtr uint32, commandLen uint32, argsP
 
 func executeCommand(ctx context.Context, h *host.Host, command string, args []string, rootDir string, workDir string) (response CommandResponse) {
 
-	fullWorkDir := filepath.Join(rootDir, workDir)
+	fullWorkDir, err := resolveCommandWorkDir(rootDir, workDir)
+	if err != nil {
+		return CommandResponse{
+			Error: err.Error(),
+		}
+	}
+
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Dir = fullWorkDir
-	cmd.Env = os.Environ()
+	// Риск: host-команда выполняется уже вне WASM sandbox, а os/exec по умолчанию
+	// наследует окружение процесса, если Env оставить nil. os.Environ() здесь явно
+	// отдал бы дочернему процессу все токены пользователя.
+	// https://pkg.go.dev/os/exec#Cmd
+	// Передаём только AllowedEnvVars, чтобы контракт capabilities совпадал с WASM env.
+	// WebAssembly sandbox не защищает от возможностей, которые host сам экспортировал:
+	// https://webassembly.org/docs/security/
+	// См. OWASP OS Command Injection Defense Cheat Sheet:
+	// https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+	cmd.Env = buildCommandEnv(h.Info.AllowedEnvVars)
 
 	cmdStdoutPipe, stdoutErr := cmd.StdoutPipe()
 	if stdoutErr != nil {
@@ -193,6 +212,8 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 			}
 		}
 		commandResponses.mu.Unlock()
+
+		scheduleCommandResponseCleanup(stdoutStreamID)
 	}()
 
 	stdoutStreamIDInt32 := int32(stdoutStreamID) //nolint:gosec // streamID всегда < MaxInt32
@@ -209,6 +230,61 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	commandResponses.mu.Unlock()
 
 	return
+}
+
+func resolveCommandWorkDir(rootDir string, workDir string) (fullWorkDir string, err error) {
+
+	if workDir == "" {
+		workDir = "."
+	}
+
+	rootAbs, err := filepath.Abs(rootDir)
+	if err != nil {
+		return "", fmt.Errorf(i18n.Msg("failed to resolve root directory: %w"), err)
+	}
+
+	targetAbs, err := filepath.Abs(filepath.Join(rootAbs, workDir))
+	if err != nil {
+		return "", fmt.Errorf(i18n.Msg("failed to resolve workDir: %w"), err)
+	}
+
+	rel, err := filepath.Rel(rootAbs, targetAbs)
+	if err != nil {
+		return "", fmt.Errorf(i18n.Msg("failed to validate workDir: %w"), err)
+	}
+
+	// Риск: workDir приходит из WASM и filepath.Join сам по себе не является
+	// containment-check: после Clean путь вроде ../../ может выйти за rootDir.
+	// Проверяем filepath.Rel и запрещаем path traversal, чтобы разрешённая
+	// shell-команда не обходила FS sandbox через рабочую директорию.
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf(i18n.Msg("workDir %s escapes plugin root"), workDir)
+	}
+
+	return targetAbs, nil
+}
+
+func buildCommandEnv(allowedEnvVars []string) (out []string) {
+
+	envVars := wasmenv.ResolveEnvVars(allowedEnvVars)
+	out = make([]string, 0, len(envVars)+1)
+	for key, value := range envVars {
+		out = append(out, key+"="+value)
+	}
+
+	out = append(out, "TG_LANG="+i18n.GetLanguage())
+	return out
+}
+
+func scheduleCommandResponseCleanup(streamID uint32) {
+
+	// Страховка от утечки памяти, если плагин завершил команду, но не вызвал
+	// host_get_command_response для чтения финального результата.
+	time.AfterFunc(commandResponseRetention, func() {
+		commandResponses.mu.Lock()
+		delete(commandResponses.data, streamID)
+		commandResponses.mu.Unlock()
+	})
 }
 
 func validateCommand(info plugin.Info, command string) (err error) {
@@ -256,13 +332,26 @@ func HostGetStreamReadBufferPtr(ctx context.Context, h *host.Host, streamID uint
 // Возвращает: 0 - успех, иначе код ошибки
 func HostGetCommandResponse(ctx context.Context, h *host.Host, streamID uint32, resultPtrPtr uint32, resultSizePtr uint32) (resultCode uint32) {
 
-	commandResponses.mu.RLock()
-	resp, exists := commandResponses.data[streamID]
-	commandResponses.mu.RUnlock()
+	resp, exists := getCommandResponse(streamID)
 
 	if !exists {
 		resp = &CommandResponse{ExitCode: -1}
 	}
 
 	return memory.WriteObjectToPtrSize(ctx, h, resp, resultPtrPtr, resultSizePtr)
+}
+
+func getCommandResponse(streamID uint32) (resp *CommandResponse, exists bool) {
+
+	commandResponses.mu.Lock()
+	defer commandResponses.mu.Unlock()
+
+	resp, exists = commandResponses.data[streamID]
+	if exists && resp != nil && resp.ExitCode != -2 {
+		// Риск: без удаления глобальная map растёт при каждом запуске команды.
+		// Удаляем только финальный результат; промежуточный ExitCode=-2 нужен
+		// polling-клиенту как сигнал "команда ещё выполняется".
+		delete(commandResponses.data, streamID)
+	}
+	return
 }

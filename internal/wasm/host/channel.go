@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 )
@@ -47,6 +48,10 @@ type CallChannel struct {
 
 	// cancel - функция отмены контекста
 	cancel context.CancelFunc
+
+	closeOnce sync.Once
+	mu        sync.RWMutex
+	closed    bool
 }
 
 // NewCallChannel запускает горутину-обработчик для последовательной обработки вызовов WASM.
@@ -73,7 +78,13 @@ func (cc *CallChannel) processor(h *Host) {
 		case <-cc.ctx.Done():
 			return
 
-		case req := <-cc.callChan:
+		case req, ok := <-cc.callChan:
+			if !ok {
+				return
+			}
+			if req == nil {
+				continue
+			}
 			result := cc.processCall(cc.ctx, h, req)
 			req.ResultChan <- result
 		}
@@ -142,6 +153,15 @@ func (cc *CallChannel) Call(functionName string, data []byte) (resultChan <-chan
 
 	ch := make(chan CallResult, 1)
 
+	cc.mu.RLock()
+	if cc.closed {
+		cc.mu.RUnlock()
+		ch <- CallResult{
+			Error: errors.New(i18n.Msg("call channel is closed")),
+		}
+		return ch
+	}
+
 	req := &CallRequest{
 		FunctionName: functionName,
 		Data:         data,
@@ -161,14 +181,24 @@ func (cc *CallChannel) Call(functionName string, data []byte) (resultChan <-chan
 			Error: errors.New(i18n.Msg("call channel is full: too many pending calls")),
 		}
 	}
+	cc.mu.RUnlock()
 
 	return ch
 }
 
 func (cc *CallChannel) Close() {
 
-	cc.cancel()
-	close(cc.callChan)
+	cc.closeOnce.Do(func() {
+		cc.mu.Lock()
+		cc.closed = true
+		cc.mu.Unlock()
+
+		// Риск: close(callChan) делает чтение всегда готовым и может дать nil-запрос,
+		// а конкурентный send получит panic. Для остановки processor достаточно cancel:
+		// context.CancelFunc потокобезопасен и последующие вызовы ничего не делают.
+		// https://pkg.go.dev/context#CancelFunc
+		cc.cancel()
+	})
 }
 
 // CallWithUint64 помещает вызов WASM функции с uint64 аргументом в канал.

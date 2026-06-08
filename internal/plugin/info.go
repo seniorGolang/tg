@@ -20,6 +20,7 @@ type Info struct {
 	AllowedStdOut    bool              `json:"allowed_std_out,omitempty"`
 	AllowedStdErr    bool              `json:"allowed_std_err,omitempty"`
 	AllowedHosts     []string          `json:"allowedHosts,omitempty"`
+	AllowedListeners []string          `json:"allowedListeners,omitempty"`
 	AllowedShellCMDs []string          `json:"allowedShellCMDs,omitempty"`
 	AllowedEnvVars   []string          `json:"allowedEnvVars,omitempty"`
 	Dependencies     []string          `json:"dependencies,omitempty"`
