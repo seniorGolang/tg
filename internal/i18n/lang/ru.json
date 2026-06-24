@@ -351,6 +351,7 @@
   "plugin %s not found: %w": "плагин %s не найден: %w",
   "Plugin directory (default: plugins/{name})": "Директория плагина (по умолчанию: plugins/{name})",
   "plugin %s failed: %w": "плагин %s: %w",
+  "plugin %s failed: %w\n%s": "плагин %s: %w\\n%s",
   "plugin has no .tgp file, skipping commands": "плагин не имеет файла .tgp, пропуск команд",
   "plugins directory not found: %s": "каталог плагинов не найден: %s",
   "Plugin license": "Лицензия плагина",

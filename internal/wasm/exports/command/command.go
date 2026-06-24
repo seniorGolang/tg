@@ -15,7 +15,7 @@ import (
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/plugin"
-	wasmenv "github.com/seniorGolang/tg/v3/internal/wasm/env"
+	"github.com/seniorGolang/tg/v3/internal/wasm/env"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
 	"github.com/seniorGolang/tg/v3/internal/wasm/stream"
@@ -266,7 +266,7 @@ func resolveCommandWorkDir(rootDir string, workDir string) (fullWorkDir string, 
 
 func buildCommandEnv(allowedEnvVars []string) (out []string) {
 
-	envVars := wasmenv.ResolveEnvVars(allowedEnvVars)
+	envVars := env.ResolveEnvVars(allowedEnvVars)
 	out = make([]string, 0, len(envVars)+1)
 	for key, value := range envVars {
 		out = append(out, key+"="+value)

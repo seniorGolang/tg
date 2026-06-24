@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
@@ -49,10 +50,10 @@ func compileAll(ctx context.Context, rootDir string, outDir string, version stri
 			cmd.Dir = pluginDir
 			cmd.Env = append(cmd.Environ(), "GOOS=wasip1", "GOARCH=wasm")
 
-			if runErr := cmd.Run(); runErr != nil {
+			if output, runErr := cmd.CombinedOutput(); runErr != nil {
 				mu.Lock()
 				if firstErr == nil {
-					firstErr = fmt.Errorf(i18n.Msg("plugin %s failed: %w"), d, runErr)
+					firstErr = fmt.Errorf(i18n.Msg("plugin %s failed: %w\n%s"), d, runErr, strings.TrimSpace(string(output)))
 				}
 				mu.Unlock()
 				return
