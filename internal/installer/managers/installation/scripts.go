@@ -13,7 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pterm/pterm"
+
 	"github.com/seniorGolang/tg/v3/internal/i18n"
+	"github.com/seniorGolang/tg/v3/internal/installer/contextkeys"
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
 )
 
@@ -26,6 +29,10 @@ const (
 )
 
 func (m *manager) executeScript(ctx context.Context, script *models.ScriptAction, workDir string, extractedDirs map[string]string) (err error) {
+
+	if err = confirmScriptExecution(ctx, script); err != nil {
+		return err
+	}
 
 	var cmd *exec.Cmd
 	var scriptPath string
@@ -83,6 +90,14 @@ func (m *manager) executeScript(ctx context.Context, script *models.ScriptAction
 
 func (m *manager) resolveScriptSource(ctx context.Context, source string, workDir string, extractedDirs map[string]string) (path string, err error) {
 
+	if strings.HasPrefix(source, protocolHTTP) && !isForce(ctx) {
+		// Риск: source=http://... загружает код, который затем исполняется на host.
+		// Cleartext допускает MITM-подмену; без --force разрешаем только
+		// HTTPS/file/package-local source. Это transport-level защита, не замена
+		// подписи манифеста.
+		return "", errors.New(i18n.Msg("HTTP script sources are not allowed without --force"))
+	}
+
 	if strings.HasPrefix(source, protocolHTTP) || strings.HasPrefix(source, protocolHTTPS) {
 		scriptPath := filepath.Join(workDir, downloadedScriptPrefix+filepath.Base(source))
 		if err = m.downloadScript(ctx, source, scriptPath); err != nil {
@@ -112,6 +127,49 @@ func (m *manager) resolveScriptSource(ctx context.Context, source string, workDi
 	}
 
 	return "", fmt.Errorf(i18n.Msg("Script not found: %s"), source)
+}
+
+func confirmScriptExecution(ctx context.Context, script *models.ScriptAction) (err error) {
+
+	if isForce(ctx) {
+		return nil
+	}
+
+	message := i18n.Msg("Installer manifest requests host script execution. Review it carefully before continuing.")
+	if script.Script != "" {
+		message += "\n" + script.Script
+	} else if script.Source != "" {
+		message += "\n" + i18n.Msg("Script source: ") + script.Source
+	}
+	if script.Exec != "" {
+		message += "\n" + i18n.Msg("Exec: ") + script.Exec
+	}
+
+	// Риск: pre_install/post_install запускаются на host с правами пользователя,
+	// то есть это уже не WASM sandbox. Prompt делает trust boundary явным и показывает
+	// inline/source/exec до запуска; --force остаётся осознанным bypass только для
+	// доверенных манифестов и CI.
+	var confirmed bool
+	if confirmed, err = pterm.DefaultInteractiveConfirm.
+		WithDefaultValue(false).
+		Show(message); err != nil {
+		return err
+	}
+	if !confirmed {
+		return errors.New(i18n.Msg("script execution rejected by user"))
+	}
+
+	return nil
+}
+
+func isForce(ctx context.Context) (force bool) {
+
+	if forceVal := ctx.Value(contextkeys.Force); forceVal != nil {
+		if f, ok := forceVal.(bool); ok {
+			return f
+		}
+	}
+	return false
 }
 
 func (m *manager) downloadScript(ctx context.Context, url string, destPath string) (err error) {

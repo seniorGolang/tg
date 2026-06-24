@@ -24,6 +24,7 @@ type Installation struct {
 	AllowedPaths     map[string]string `yaml:"allowed_paths,omitempty"`
 	AllowedEnvVars   []string          `yaml:"allowed_env_vars,omitempty"`
 	AllowedHosts     []string          `yaml:"allowed_hosts,omitempty"`
+	AllowedListeners []string          `yaml:"allowed_listeners,omitempty"`
 	AllowedShellCMDs []string          `yaml:"allowed_shell_cmds,omitempty"`
 	AllowedStdOut    bool              `yaml:"allowed_std_out,omitempty"`
 	AllowedStdErr    bool              `yaml:"allowed_std_err,omitempty"`

@@ -430,6 +430,10 @@ func hostListenAndServe(ctx context.Context, h *host.Host, hm *httpManager, addr
 
 	addr := string(addrBytes)
 
+	if err = validateListener(h.Info.AllowedListeners, "tcp", addr); err != nil {
+		return writeError(ctx, h, err)
+	}
+
 	server := &http.Server{
 		Addr:              addr,
 		ReadHeaderTimeout: 30 * time.Second,

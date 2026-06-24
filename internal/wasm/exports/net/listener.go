@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"path"
 
 	"github.com/tetratelabs/wazero/api"
 
@@ -16,6 +17,39 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
 )
+
+func validateListener(allowedListeners []string, network string, address string) (err error) {
+
+	if len(allowedListeners) == 0 {
+		return errors.New(i18n.Msg("listener is not allowed: plugin has no allowed listeners"))
+	}
+
+	requested := listenerPermissionKey(network, address)
+	for _, allowed := range allowedListeners {
+		if allowed == requested {
+			return nil
+		}
+
+		// Риск: bind/listen открывает входящую поверхность атаки: плагин может попросить
+		// tcp/:port и открыть сервис на всех интерфейсах. net.Listen документирует это
+		// поведение для пустого/unspecified host:
+		// https://pkg.go.dev/net#Listen
+		// Поэтому bind default-deny, а glob разрешаем только как явное operator-owned правило.
+		// Для сетевых capabilities используем тот же allowlist-принцип, который OWASP
+		// рекомендует для контроля серверно-инициируемых сетевых обращений:
+		// https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+		if matched, matchErr := path.Match(allowed, requested); matchErr == nil && matched {
+			return nil
+		}
+	}
+
+	return fmt.Errorf(i18n.Msg("listener %s is not allowed: not found in allowed listeners list"), requested)
+}
+
+func listenerPermissionKey(network string, address string) (key string) {
+
+	return network + "/" + address
+}
 
 func listenerListen(ctx context.Context, h *host.Host, nm *netManager, networkPtr uint32, networkLen uint32, addressPtr uint32, addressLen uint32, listenerIDPtr uint32) (result uint64) {
 
@@ -32,6 +66,10 @@ func listenerListen(ctx context.Context, h *host.Host, nm *netManager, networkPt
 
 	network := string(networkBytes)
 	address := string(addressBytes)
+
+	if err = validateListener(h.Info.AllowedListeners, network, address); err != nil {
+		return writeError(ctx, h, err)
+	}
 
 	var listener net.Listener
 	if listener, err = net.Listen(network, address); err != nil {
