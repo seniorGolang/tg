@@ -1,6 +1,6 @@
 module github.com/seniorGolang/tg/v2
 
-go 1.24
+go 1.26
 
 require (
 	github.com/dave/jennifer v1.7.1

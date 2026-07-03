@@ -92,7 +92,7 @@ func GetPackage(path string, options ...Option) (*types.File, error) {
 		return nil, fmt.Errorf("can not filepath.Abs: %v", err)
 	}
 	fset := token.NewFileSet()
-	pkgs, err := astParser.ParseDir(fset, p, nil, astParser.ParseComments)
+	pkgs, err := astParser.ParseDir(fset, p, nil, astParser.ParseComments) //nolint:staticcheck // legacy single-package directory parsing
 	if err != nil {
 		return nil, fmt.Errorf("can not parse dir: %v", err)
 	}
@@ -100,7 +100,7 @@ func GetPackage(path string, options ...Option) (*types.File, error) {
 		return nil, fmt.Errorf("unexpected number of packages: expect 1, found %d", len(pkgs))
 	}
 	for _, pkg := range pkgs {
-		f := ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments|ast.FilterFuncDuplicates|ast.FilterImportDuplicates)
+		f := ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments|ast.FilterFuncDuplicates|ast.FilterImportDuplicates) //nolint:staticcheck // legacy package merge for astra parser
 		return ParseAstFile(f, options...)
 	}
 	return nil, fmt.Errorf("unexpected number of packages: expect 1, found 0")

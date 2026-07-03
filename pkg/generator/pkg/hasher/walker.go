@@ -37,7 +37,7 @@ func (w *walker) visit(v reflect.Value, opts *visitOpts) (hash uint64, err error
 			v = v.Elem()
 			continue
 		}
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			if w.zeroNil {
 				t = v.Type().Elem()
 			}

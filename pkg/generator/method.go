@@ -226,23 +226,23 @@ func (m *method) urlParams(errStatement func(arg, header string) *Statement) (bl
 	)
 }
 
-func (m *method) httpArgHeaders(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) httpArgHeaders(ftx string, errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	return m.argFromString("header", m.varHeaderMap(),
 		func(srcName string) Code {
 			srcName = strings.TrimPrefix(srcName, "!")
-			return String().Call(Id(_ctx_).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Lit(srcName)))
+			return String().Call(Id(ftx).Dot("Request").Call().Dot("Header").Dot("Peek").Call(Lit(srcName)))
 		},
 		errStatement,
 	)
 }
 
-func (m *method) httpCookies(errStatement func(arg, header string) *Statement) (block *Statement) {
+func (m *method) httpCookies(ftx string, errStatement func(arg, header string) *Statement) (block *Statement) {
 
 	return m.argFromString("cookie", m.varCookieMap(),
 		func(srcName string) Code {
 			srcName = strings.TrimPrefix(srcName, "!")
-			return Id(_ctx_).Dot("Cookies").Call(Lit(srcName))
+			return Id(ftx).Dot("Cookies").Call(Lit(srcName))
 		},
 		errStatement,
 	)
@@ -299,7 +299,7 @@ func (m *method) argFromString(typeName string, varMap map[string]string, strCod
 	return
 }
 
-func (m *method) httpRetHeaders() (block *Statement) {
+func (m *method) httpRetHeaders(ftx string) (block *Statement) {
 
 	block = Line()
 	if len(m.varHeaderMap()) != 0 {
@@ -311,10 +311,35 @@ func (m *method) httpRetHeaders() (block *Statement) {
 				}
 				continue
 			}
-			block.Id(_ctx_).Dot("Set").Call(Lit(header), Qual(packageFmt, "Sprint").Call(Id("response").Dot(utils.ToCamel(ret))))
+			block.Id(ftx).Dot("Set").Call(Lit(header), Qual(packageFmt, "Sprint").Call(Id("response").Dot(utils.ToCamel(ret))))
 		}
 	}
 	return block
+}
+
+func (m *method) hasFiberRequest() (ok bool) {
+
+	for argName := range m.varCookieMap() {
+		if m.argByName(strings.TrimPrefix(argName, "!")) != nil {
+			return true
+		}
+	}
+	for argName := range m.varHeaderMap() {
+		if m.argByName(strings.TrimPrefix(argName, "!")) != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *method) hasFiberRetHeaders() (ok bool) {
+
+	for retName := range m.varHeaderMap() {
+		if m.resultByName(retName) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *method) argParamMap() (params map[string]string) {

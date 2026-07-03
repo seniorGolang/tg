@@ -19,6 +19,7 @@ func (tr *Transport) renderJsonRPC(outDir string) (err error) {
 
 	srcFile.ImportName(packageFiber, "fiber")
 	srcFile.ImportName(packageErrors, "errors")
+	srcFile.ImportName(packageContext, "context")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
 
@@ -27,14 +28,32 @@ func (tr *Transport) renderJsonRPC(outDir string) (err error) {
 	srcFile.Add(tr.baseJsonRPC(false)).Line()
 	srcFile.Add(tr.errorJsonRPC()).Line()
 	srcFile.Add(tr.jsonrpcResponsesTypeFunc())
+	srcFile.Add(batchJobType())
 
-	srcFile.Add(tr.serveBatchFunc())
-	srcFile.Add(tr.batchFunc())
-	srcFile.Add(tr.singleBatchFunc())
-
-	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
+	srcFile.Line().Type().Id("methodJsonRPC").Func().Params(Id("userCtx").Qual(packageContext, "Context"), Id("ftx").Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).Params(Id("responseBase").Op("*").Id("baseJsonRPC"))
 	srcFile.Line().Add(tr.makeErrorResponseJsonRPCFunc())
-	return srcFile.Save(path.Join(outDir, "jsonrpc.go"))
+	if err = srcFile.Save(path.Join(outDir, "jsonrpc.go")); err != nil {
+		return
+	}
+	return tr.renderBatch(outDir)
+}
+
+func (tr *Transport) renderBatch(outDir string) (err error) {
+
+	srcFile := newSrc(filepath.Base(outDir))
+	srcFile.PackageComment(doNotEdit)
+
+	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageSync, "sync")
+	srcFile.ImportName(packageContext, "context")
+	srcFile.ImportName(packageStrings, "strings")
+	srcFile.ImportName(tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+
+	srcFile.Add(batchDoFunc(batchTarget{receiver: "srv", receiverType: "Server"}))
+	srcFile.Add(tr.singleBatchFunc())
+	srcFile.Add(tr.serveBatchFunc())
+
+	return srcFile.Save(path.Join(outDir, "batch.go"))
 }
 
 func (tr *Transport) makeErrorResponseJsonRPCFunc() Code {
@@ -139,7 +158,7 @@ func (tr *Transport) jsonrpcConstants(exportErrors bool) Code {
 func (tr *Transport) singleBatchFunc() Code {
 
 	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doSingleBatch").
-		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
+		Params(Id("userCtx").Qual(packageContext, "Context"), Id("ftx").Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
@@ -153,7 +172,7 @@ func (tr *Transport) singleBatchFunc() Code {
 								continue
 							}
 							sg.Case(Lit(svc.lcName() + "." + method.lcName())).Block(
-								Return(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request"))),
+								Return(Id("srv").Dot("http"+serviceName).Dot(utils.ToLowerCamel(method.Name)).Call(Id("userCtx"), Id("ftx"), Id("request"))),
 							)
 						}
 					}
@@ -161,53 +180,6 @@ func (tr *Transport) singleBatchFunc() Code {
 						dg.Return(Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method '").Op("+").Id("methodNameOrigin").Op("+").Lit("'"), Nil()))
 					})
 				})
-		})
-}
-
-func (tr *Transport) batchFunc() Code {
-
-	return Func().Params(Id("srv").Op("*").Id("Server")).Id("doBatch").
-		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
-		func(bg *Group) {
-			bg.Line()
-			bg.If(Len(Id("requests")).Op(">").Id("srv").Dot("maxBatchSize")).Block(
-				Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Nil(), Id("invalidRequestError"), Lit("batch size exceeded"), Nil())),
-				Return(),
-			)
-			bg.If(Qual(packageStrings, "EqualFold").Call(Id(_ctx_).Dot("Get").Call(Lit(syncHeader)), Lit("true"))).Block(
-				For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
-					Id("response").Op(":=").Id("srv").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
-					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-						Id("responses").Dot("append").Call(Id("response")),
-					),
-				),
-				Return(),
-			)
-			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
-			bg.Id("batchSize").Op(":=").Id("srv").Dot("maxParallelBatch")
-			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(
-				Id("batchSize").Op("=").Len(Id("requests")),
-			)
-			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
-			bg.Id("responses").Op("=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
-			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
-				Id("wg").Dot("Add").Call(Lit(1)),
-				Go().Func().Params().Block(
-					Defer().Id("wg").Dot("Done").Call(),
-					For(Id("request").Op(":=").Range().Id("callCh").Block(
-						Id("response").Op(":=").Id("srv").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
-						If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-							Id("responses").Dot("append").Call(Id("response")),
-						),
-					)),
-				).Call(),
-			)
-			bg.For(Id("idx").Op(":=").Range().Id("requests").Block(
-				Id("callCh").Op("<-").Id("requests").Op("[").Id("idx").Op("]"),
-			))
-			bg.Close(Id("callCh"))
-			bg.Id("wg").Dot("Wait").Call()
-			bg.Return()
 		})
 }
 
@@ -237,7 +209,7 @@ func (tr *Transport) serveBatchFunc() Code {
 			})
 			bg.If(Id("single")).Block(
 				Return(Id("sendResponse").Call(Id(_ctx_), Id("srv").Dot("doSingleBatch").
-					Call(Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
+					Call(Id(_ctx_).Dot("UserContext").Call(), Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
 				)),
 			)
 			bg.Return(Id("sendResponse").Call(Id(_ctx_), Id("srv").Dot("doBatch").

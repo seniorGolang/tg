@@ -276,7 +276,7 @@ func (doc *swagger) getModName() (module string) {
 	if err != nil {
 		return
 	}
-	defer modFile.Close()
+	defer func() { _ = modFile.Close() }()
 	rd := bufio.NewReader(modFile)
 	if module, err = rd.ReadString('\n'); err != nil {
 		return ""

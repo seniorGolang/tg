@@ -57,7 +57,7 @@ func (f *formatState) constructOrigFormat(verb rune) (format string) {
 
 func (f *formatState) unpackValue(v reflect.Value) reflect.Value {
 
-	if v.Kind() == reflect.Interface || v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Interface || v.Kind() == reflect.Pointer {
 		f.ignoreNextType = false
 		if !v.IsNil() {
 			v = v.Elem()
@@ -83,7 +83,7 @@ func (f *formatState) formatPtr(v reflect.Value) {
 	nilFound := false
 	cycleFound := false
 
-	for ve.Kind() == reflect.Ptr {
+	for ve.Kind() == reflect.Pointer {
 		if ve.IsNil() {
 			nilFound = true
 			break
@@ -127,7 +127,7 @@ func (f *formatState) formatPtr(v reflect.Value) {
 func (f *formatState) format(v reflect.Value, opts ...option) {
 
 	if toString := v.MethodByName("String"); toString.IsValid() {
-		if v.Kind() == reflect.Ptr && v.IsNil() {
+		if v.Kind() == reflect.Pointer && v.IsNil() {
 			_, _ = f.fs.Write(applyOptions([]byte("nil")))
 			return
 		}
@@ -143,7 +143,7 @@ func (f *formatState) format(v reflect.Value, opts ...option) {
 		return
 	}
 
-	if kind == reflect.Ptr {
+	if kind == reflect.Pointer {
 		f.formatPtr(v)
 		return
 	}
@@ -238,7 +238,7 @@ func (f *formatState) format(v reflect.Value, opts ...option) {
 			_, _ = f.fs.Write(nilAngleBytes)
 		}
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		f.format(v.Elem(), opts...)
 	case reflect.Map:
 

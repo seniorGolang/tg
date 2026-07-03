@@ -67,7 +67,7 @@ func (client *ClientRPC) doCall(ctx context.Context, request *RequestRPC) (rpcRe
 		err = fmt.Errorf("rpc call %v() on %v: %v", request.Method, httpRequest.URL.String(), err.Error())
 		return
 	}
-	defer httpResponse.Body.Close()
+	defer func() { _ = httpResponse.Body.Close() }()
 	if client.options.after != nil {
 		if err = client.options.after(ctx, httpResponse); err != nil {
 			return
@@ -156,7 +156,7 @@ func (client *ClientRPC) doBatchCall(ctx context.Context, rpcRequests []*Request
 		err = fmt.Errorf("rpc batch call on %v: %v", httpRequest.URL.String(), err.Error())
 		return
 	}
-	defer httpResponse.Body.Close()
+	defer func() { _ = httpResponse.Body.Close() }()
 	if client.options.after != nil {
 		if err = client.options.after(ctx, httpResponse); err != nil {
 			return

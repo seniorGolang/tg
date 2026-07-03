@@ -17,19 +17,16 @@ import (
 
 func (svc *service) renderJsonRPC(outDir string) (err error) {
 
-	if err = pkgCopyTo("context", outDir); err != nil {
-		return
-	}
 	srcFile := newSrc(filepath.Base(outDir))
 	srcFile.PackageComment(doNotEdit)
 
 	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageContext, "context")
 	srcFile.ImportName(packageErrors, "errors")
 	srcFile.ImportName(packageZeroLogLog, "log")
 	srcFile.ImportName(packageZeroLog, "zerolog")
 	srcFile.ImportName(svc.pkgPath, filepath.Base(svc.pkgPath))
 	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
-	srcFile.ImportName(fmt.Sprintf("%s/context", svc.tr.pkgPath(outDir)), "context")
 
 	for _, method := range svc.methods {
 		if !method.isJsonRPC() {
@@ -41,42 +38,47 @@ func (svc *service) renderJsonRPC(outDir string) (err error) {
 		srcFile.Add(svc.rpcMethodFunc(method, outDir))
 	}
 	srcFile.Add(svc.serveMethodFunc())
-	srcFile.Add(svc.batchFunc())
-	srcFile.Add(svc.serveBatchFunc())
+	if err = srcFile.Save(path.Join(outDir, svc.lcName()+"-jsonrpc.go")); err != nil {
+		return
+	}
+	return svc.renderBatch(outDir)
+}
+
+func (svc *service) renderBatch(outDir string) (err error) {
+
+	srcFile := newSrc(filepath.Base(outDir))
+	srcFile.PackageComment(doNotEdit)
+
+	srcFile.ImportName(packageFiber, "fiber")
+	srcFile.ImportName(packageContext, "context")
+	srcFile.ImportName(packageSync, "sync")
+	srcFile.ImportName(packageStrings, "strings")
+	srcFile.ImportName(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "json")
+
+	srcFile.Add(batchDoFunc(batchTarget{receiver: "http", receiverType: "http" + svc.Name}))
 	srcFile.Add(svc.singleBatchFunc())
-	return srcFile.Save(path.Join(outDir, svc.lcName()+"-jsonrpc.go"))
+	srcFile.Add(svc.serveBatchFunc())
+
+	return srcFile.Save(path.Join(outDir, svc.lcName()+"-batch.go"))
 }
 
 func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id(method.lccName()).
-		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).
+		Params(Id("userCtx").Qual(packageContext, "Context"), Id("ftx").Op("*").Qual(packageFiber, "Ctx"), Id("requestBase").Id("baseJsonRPC")).
 		Params(Id("responseBase").Op("*").Id("baseJsonRPC")).BlockFunc(func(bg *Group) {
 		bg.Line()
 		bg.Var().Err().Error()
 		bg.Var().Id("request").Id(method.requestStructName())
 		bg.Var().Id("response").Id(method.responseStructName())
 		bg.Line()
-		bg.Id("methodCtx").Op(":=").Id(_ctx_).Dot("UserContext").Call()
-		bg.Id("methodCtx").Op("=").
-			Qual(packageZeroLogLog, "Ctx").Call(Id("methodCtx")).
+		bg.Id("methodCtx").Op(":=").
+			Qual(packageZeroLogLog, "Ctx").Call(Id("userCtx")).
 			Dot("With").Call().
 			Dot("Str").Call(Lit("method"), Lit(method.fullName())).
 			Dot("Logger").Call().
-			Dot("WithContext").Call(Id("methodCtx"))
+			Dot("WithContext").Call(Id("userCtx"))
 		bg.Line()
-		bg.Defer().Func().Params().Block(
-			Id(_ctx_).Dot("SetUserContext").Call(Qual(fmt.Sprintf("%s/context", svc.tr.pkgPath(outDir)), "WithCtx").Call(
-				Id("methodCtx"),
-				Id("MethodCallMeta").Block(Dict{
-					Id("Err"):      Err(),
-					Id("Request"):  Op("&").Id("request"),
-					Id("Response"): Op("&").Id("response"),
-					Id("Service"):  Lit(svc.lcName()),
-					Id("Method"):   Lit(method.lcName()),
-				}),
-			)),
-		).Call()
 		bg.If(Id("requestBase").Dot("Params").Op("!=").Nil()).Block(
 			If(Err().Op("=").Qual(svc.tr.tags.Value(tagPackageJSON, packageStdJSON), "Unmarshal").Call(Id("requestBase").Dot("Params"), Op("&").Id("request")).Op(";").Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("request body could not be decoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
@@ -85,16 +87,20 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 		bg.If(Id("requestBase").Dot("Version").Op("!=").Id("Version")).BlockFunc(func(ig *Group) {
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("incorrect protocol version: ").Op("+").Id("requestBase").Dot("Version"), Nil()))
 		})
-		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
-				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+		if method.hasFiberRequest() {
+			bg.If(Id("ftx").Op("!=").Nil()).Block(
+				Add(method.httpArgHeaders("ftx", func(arg, header string) *Statement {
+					return Line().If(Err().Op("!=").Nil()).Block(
+						Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+					)
+				})),
+				Add(method.httpCookies("ftx", func(arg, header string) *Statement {
+					return Line().If(Err().Op("!=").Nil()).Block(
+						Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
+					)
+				})),
 			)
-		}))
-		bg.Add(method.httpCookies(func(arg, header string) *Statement {
-			return Line().If(Err().Op("!=").Nil()).Block(
-				Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit(fmt.Sprintf("http header '%s' could not be decoded: ", header)).Op("+").Err().Dot("Error").Call(), Nil())),
-			)
-		}))
+		}
 		bg.ListFunc(func(lg *Group) {
 			for _, ret := range method.resultsWithoutError() {
 				lg.Id("response").Dot(utils.ToCamel(ret.Name))
@@ -133,17 +139,23 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 			ig.Return(Id("makeErrorResponseJsonRPC").Call(Id("requestBase").Dot("ID"), Id("parseError"), Lit("response body could not be encoded: ").Op("+").Err().Dot("Error").Call(), Nil()))
 		})
 		if len(method.retCookieMap()) > 0 {
-			for retName := range method.retCookieMap() {
-				if ret := method.resultByName(retName); ret != nil {
-					bg.If(List(Id("rCookie"), Id("ok")).Op(":=").
-						Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
-						Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
-						Id(_ctx_).Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
-					)
+			bg.If(Id("ftx").Op("!=").Nil()).BlockFunc(func(cg *Group) {
+				for retName := range method.retCookieMap() {
+					if ret := method.resultByName(retName); ret != nil {
+						cg.If(List(Id("rCookie"), Id("ok")).Op(":=").
+							Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().
+							Op(".").Call(Id("cookieType"))).Op(";").Id("ok").Op("&&").Id("response").Dot(utils.ToCamel(retName)).Op("!=").Nil().Block(
+							Id("ftx").Dot("Cookie").Call(Id("rCookie").Dot("Cookie").Call()),
+						)
+					}
 				}
-			}
+			})
 		}
-		bg.Add(method.httpRetHeaders())
+		if method.hasFiberRetHeaders() {
+			bg.If(Id("ftx").Op("!=").Nil()).Block(
+				Add(method.httpRetHeaders("ftx")),
+			)
+		}
 		bg.Return()
 	})
 }
@@ -177,7 +189,7 @@ func (svc *service) serveMethodFunc() Code {
 			bg.If(Id("method").Op("!=").Lit("").Op("&&").Id("method").Op("!=").Id("methodName")).BlockFunc(func(ig *Group) {
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Id("makeErrorResponseJsonRPC").Call(Id("request").Dot("ID"), Id("methodNotFoundError"), Lit("invalid method ").Op("+").Id("methodNameOrigin"), Nil()))
 			})
-			bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_), Id("request"))
+			bg.Id("response").Op("=").Id("methodHandler").Call(Id(_ctx_).Dot("UserContext").Call(), Id(_ctx_), Id("request"))
 			bg.If(Id("response").Op("!=").Nil()).Block(
 				Return().Id("sendResponse").Call(Id(_ctx_), Id("response")),
 			)
@@ -185,57 +197,10 @@ func (svc *service) serveMethodFunc() Code {
 		})
 }
 
-func (svc *service) batchFunc() Code {
-
-	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id("doBatch").
-		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("requests").Op("[]").Id("baseJsonRPC")).Params(Id("responses").Id("jsonrpcResponses")).BlockFunc(
-		func(bg *Group) {
-			bg.Line()
-			bg.If(Len(Id("requests")).Op(">").Id("http").Dot("maxBatchSize")).Block(
-				Id("responses").Dot("append").Call(Id("makeErrorResponseJsonRPC").Call(Nil(), Id("invalidRequestError"), Lit("batch size exceeded"), Nil())),
-				Return(),
-			)
-			bg.If(Qual(packageStrings, "EqualFold").Call(Id(_ctx_).Dot("Get").Call(Lit(syncHeader)), Lit("true"))).Block(
-				For(List(Id("_"), Id("request")).Op(":=").Range().Id("requests")).Block(
-					Id("response").Op(":=").Id("http").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
-					If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-						Id("responses").Dot("append").Call(Id("response")),
-					),
-				),
-				Return(),
-			)
-			bg.Var().Id("wg").Qual(packageSync, "WaitGroup")
-			bg.Id("batchSize").Op(":=").Id("http").Dot("maxParallelBatch")
-			bg.If(Len(Id("requests")).Op("<").Id("batchSize")).Block(
-				Id("batchSize").Op("=").Len(Id("requests")),
-			)
-			bg.Id("callCh").Op(":=").Make(Chan().Id("baseJsonRPC"), Id("batchSize"))
-			bg.Id("responses").Op("=").Make(Id("jsonrpcResponses"), Lit(0), Len(Id("requests")))
-			bg.For(Id("i").Op(":=").Lit(0).Op(";").Id("i").Op("<").Id("batchSize").Op(";").Id("i").Op("++")).Block(
-				Id("wg").Dot("Add").Call(Lit(1)),
-				Go().Func().Params().Block(
-					Defer().Id("wg").Dot("Done").Call(),
-					For(Id("request").Op(":=").Range().Id("callCh").Block(
-						Id("response").Op(":=").Id("http").Dot("doSingleBatch").Call(Id(_ctx_), Id("request")),
-						If(Id("request").Dot("ID").Op("!=").Nil()).Block(
-							Id("responses").Dot("append").Call(Id("response")),
-						),
-					)),
-				).Call(),
-			)
-			bg.For(Id("idx").Op(":=").Range().Id("requests").Block(
-				Id("callCh").Op("<-").Id("requests").Op("[").Id("idx").Op("]"),
-			))
-			bg.Close(Id("callCh"))
-			bg.Id("wg").Dot("Wait").Call()
-			bg.Return()
-		})
-}
-
 func (svc *service) singleBatchFunc() Code {
 
 	return Func().Params(Id("http").Op("*").Id("http"+svc.Name)).Id("doSingleBatch").
-		Params(Id(_ctx_).Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
+		Params(Id("userCtx").Qual(packageContext, "Context"), Id("ftx").Op("*").Qual(packageFiber, "Ctx"), Id("request").Id("baseJsonRPC")).Params(Id("response").Op("*").Id("baseJsonRPC")).BlockFunc(
 		func(bg *Group) {
 			bg.Line()
 			bg.Id("methodNameOrigin").Op(":=").Id("request").Dot("Method")
@@ -247,7 +212,7 @@ func (svc *service) singleBatchFunc() Code {
 							continue
 						}
 						sg.Case(Lit(method.lcName())).Block(
-							Return(Id("http").Dot(utils.ToLowerCamel(method.Name)).Call(Id(_ctx_), Id("request"))),
+							Return(Id("http").Dot(utils.ToLowerCamel(method.Name)).Call(Id("userCtx"), Id("ftx"), Id("request"))),
 						)
 					}
 					sg.Default().BlockFunc(func(dg *Group) {
@@ -283,7 +248,7 @@ func (svc *service) serveBatchFunc() Code {
 			})
 			bg.If(Id("single")).Block(
 				Return(Id("sendResponse").Call(Id(_ctx_), Id("http").Dot("doSingleBatch").
-					Call(Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
+					Call(Id(_ctx_).Dot("UserContext").Call(), Id(_ctx_), Id("requests").Op("[").Lit(0).Op("]")),
 				)),
 			)
 			bg.Return(Id("sendResponse").Call(Id(_ctx_), Id("http").Dot("doBatch").

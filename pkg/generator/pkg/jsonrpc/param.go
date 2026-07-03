@@ -13,7 +13,7 @@ func Params(params ...interface{}) interface{} {
 		case 1:
 			if params[0] != nil {
 				var typeOf reflect.Type
-				for typeOf = reflect.TypeOf(params[0]); typeOf != nil && typeOf.Kind() == reflect.Ptr; typeOf = typeOf.Elem() {
+				for typeOf = reflect.TypeOf(params[0]); typeOf != nil && typeOf.Kind() == reflect.Pointer; typeOf = typeOf.Elem() {
 				}
 				if typeOf != nil {
 					switch typeOf.Kind() {

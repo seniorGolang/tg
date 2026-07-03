@@ -95,13 +95,13 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("url arguments could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
-		bg.Add(method.httpArgHeaders(func(arg, header string) *Statement {
+		bg.Add(method.httpArgHeaders(_ctx_, func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
 			})
 		}))
-		bg.Add(method.httpCookies(func(arg, header string) *Statement {
+		bg.Add(method.httpCookies(_ctx_, func(arg, header string) *Statement {
 			return Line().If(Err().Op("!=").Nil()).BlockFunc(func(ig *Group) {
 				ig.Id(_ctx_).Dot("Status").Call(Qual(packageFiber, "StatusBadRequest"))
 				ig.Return().Id("sendResponse").Call(Id(_ctx_), Lit("http header could not be decoded: ").Op("+").Err().Dot("Error").Call())
@@ -124,7 +124,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 						}
 					}
 				}
-				ex.Add(method.httpRetHeaders())
+				ex.Add(method.httpRetHeaders(_ctx_))
 				bf.Var().Id("iResponse").Interface().Op("=").Id("response")
 				bf.If(List(Id("redirect"), Id("ok")).Op(":=").Id("iResponse").Op(".").Call(Id("withRedirect")).Op(";").Id("ok")).Block(
 					Return().Id(_ctx_).Dot("Redirect").Call(Id("redirect").Dot("RedirectTo").Call()),

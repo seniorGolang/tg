@@ -159,7 +159,7 @@ func constructAliasNameString(str string) string {
 
 func findPackageName(src, path string) string {
 	for _, gopath := range strings.Split(src, ":") {
-		pkgs, err := parser.ParseDir(token.NewFileSet(), filepath.Join(gopath, path), nil, parser.PackageClauseOnly)
+		pkgs, err := parser.ParseDir(token.NewFileSet(), filepath.Join(gopath, path), nil, parser.PackageClauseOnly) //nolint:staticcheck // legacy GOPATH package name lookup
 		if err != nil {
 			continue
 		}
