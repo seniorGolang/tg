@@ -46,7 +46,7 @@ func (m *manager) Download(ctx context.Context, url string, destination string) 
 	if resp, err = m.httpClient.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
@@ -60,7 +60,7 @@ func (m *manager) Download(ctx context.Context, url string, destination string) 
 	if file, err = os.Create(destination); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if _, err = io.Copy(file, resp.Body); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to write file: %w"), err)
@@ -86,7 +86,7 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 	if resp, err = m.httpClient.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
@@ -100,7 +100,7 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 	if file, err = os.Create(destination); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	totalSize := resp.ContentLength
 	downloaded := int64(0)
@@ -161,12 +161,12 @@ func (m *manager) copyFile(src string, dst string) (err error) {
 	if sourceFile, err = os.Open(src); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to open source file: %w"), err)
 	}
-	defer sourceFile.Close()
+	defer func() { _ = sourceFile.Close() }()
 
 	if destFile, err = os.Create(dst); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "destination file", err)
 	}
-	defer destFile.Close()
+	defer func() { _ = destFile.Close() }()
 
 	if _, err = io.Copy(destFile, sourceFile); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)

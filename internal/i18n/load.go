@@ -4,9 +4,8 @@ package i18n
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
-
-	"github.com/goccy/go-json"
 )
 
 //go:embed lang/*.json

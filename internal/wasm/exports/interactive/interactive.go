@@ -4,14 +4,13 @@ package interactive
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/seniorGolang/tg/v3/internal/cli/utils"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
-
-	"github.com/goccy/go-json"
 
 	"github.com/pterm/pterm"
 )

@@ -165,7 +165,7 @@ func (pb *ProgressBar) Stop() (result string) {
 func (pb *ProgressBar) Print() {
 
 	line := carriageRet + pb.View()
-	os.Stdout.WriteString(line)
+	_, _ = os.Stdout.WriteString(line)
 }
 
 func (pb *ProgressBar) Println() {

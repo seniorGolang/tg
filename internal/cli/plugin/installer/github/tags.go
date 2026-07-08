@@ -41,7 +41,7 @@ func (c *Client) listTags(ctx context.Context) (tags []string, err error) {
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf(i18n.Msg("Failed to execute request: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		var body []byte

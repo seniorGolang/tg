@@ -82,7 +82,7 @@ func (d *Dist) GetVersions(ctx context.Context, source string) (versions []strin
 	if resp, err = client.Do(req); err != nil {
 		return nil, fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)

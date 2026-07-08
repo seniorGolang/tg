@@ -4,9 +4,8 @@ package log
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
-
-	"github.com/goccy/go-json"
 
 	"github.com/seniorGolang/tg/v3/internal/plugin"
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"

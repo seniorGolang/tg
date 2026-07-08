@@ -4,11 +4,10 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
-
-	"github.com/goccy/go-json"
 )
 
 const (

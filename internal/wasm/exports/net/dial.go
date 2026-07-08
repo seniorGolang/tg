@@ -275,7 +275,7 @@ func connDialTLS(ctx context.Context, h *host.Host, nm *netManager, networkPtr u
 
 	tlsConn := tls.Client(tcpConn, tlsCfg)
 	if err = tlsConn.HandshakeContext(ctx); err != nil {
-		tcpConn.Close()
+		_ = tcpConn.Close()
 		return writeError(ctx, h, err)
 	}
 
@@ -362,7 +362,7 @@ func connDialTLSContext(ctx context.Context, h *host.Host, nm *netManager, deadl
 	tlsConn := tls.Client(tcpConn, tlsCfg)
 	if err = tlsConn.HandshakeContext(dialCtx); err != nil {
 		slog.Error(i18n.Msg("ConnDialTLSContext: TLS handshake failed"), "error", err)
-		tcpConn.Close()
+		_ = tcpConn.Close()
 		return writeError(ctx, h, err)
 	}
 

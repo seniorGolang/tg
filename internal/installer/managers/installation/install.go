@@ -373,7 +373,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 
 	installID := m.generateInstallationID(pkg.Name, v.Original)
 	tempDir := filepath.Join(os.TempDir(), tempDirPrefix, installID)
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	if err = os.MkdirAll(tempDir, defaultDirMode); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "temporary directory", err)
@@ -630,7 +630,7 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 			if hostErr != nil {
 				return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "WASM host", hostErr)
 			}
-			defer wasm.Close(ctx, tempHost)
+			defer func() { _ = wasm.Close(ctx, tempHost) }()
 
 			var info plugin.Info
 			var infoErr error

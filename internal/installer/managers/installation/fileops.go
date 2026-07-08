@@ -41,7 +41,7 @@ func (m *manager) copyFileWithProgress(sourcePath string, destination string, so
 	if sourceFileHandle, err = os.Open(actualSourcePath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to read source file: %w"), err)
 	}
-	defer sourceFileHandle.Close()
+	defer func() { _ = sourceFileHandle.Close() }()
 
 	var sourceInfo os.FileInfo
 	if sourceInfo, err = sourceFileHandle.Stat(); err != nil {
@@ -53,7 +53,7 @@ func (m *manager) copyFileWithProgress(sourcePath string, destination string, so
 	if destFileHandle, err = os.Create(destination); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to write file: %w"), err)
 	}
-	defer destFileHandle.Close()
+	defer func() { _ = destFileHandle.Close() }()
 
 	var reader io.Reader = sourceFileHandle
 	if progressBar != nil && totalSize > 0 {

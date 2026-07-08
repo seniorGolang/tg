@@ -4,6 +4,7 @@ package installer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,8 +14,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/cli/plugin/installer/validator"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/plugin"
-
-	"github.com/goccy/go-json"
 )
 
 // PluginInstaller представляет установщик плагинов.

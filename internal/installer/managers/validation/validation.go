@@ -34,7 +34,7 @@ func (e *engine) ValidateChecksum(ctx context.Context, filePath string, algorith
 	if file, err = os.Open(filePath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to open file: %w"), err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var hasher hash.Hash
 	algorithm = strings.ToLower(algorithm)

@@ -185,7 +185,7 @@ func (m *manager) downloadScript(ctx context.Context, url string, destPath strin
 	if resp, err = client.Do(req); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to download script: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf(i18n.Msg("Unexpected status code: %d"), resp.StatusCode)
@@ -195,7 +195,7 @@ func (m *manager) downloadScript(ctx context.Context, url string, destPath strin
 	if file, err = os.Create(destPath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if _, err = io.Copy(file, resp.Body); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to write file: %w"), err)

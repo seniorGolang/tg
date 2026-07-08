@@ -5,9 +5,8 @@ package memory
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
-
-	"github.com/goccy/go-json"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 )

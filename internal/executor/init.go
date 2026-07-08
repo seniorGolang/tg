@@ -37,7 +37,7 @@ func ExecuteInitGenerator(ctx context.Context, pluginLoader pluginLoader, plugin
 	if wasmHost, err = dbLoader.LoadHost(pluginName, rootDir, true); err != nil {
 		return fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
 	}
-	defer wasm.Close(ctx, wasmHost)
+	defer func() { _ = wasm.Close(ctx, wasmHost) }()
 
 	return imports.Generate(ctx, wasmHost, wasmRootDir, moduleName)
 }
@@ -63,7 +63,7 @@ func ExecuteInitCleanup(ctx context.Context, pluginLoader pluginLoader, pluginNa
 	if wasmHost, err = dbLoader.LoadHost(pluginName, rootDir, true); err != nil {
 		return fmt.Errorf(i18n.Msg("failed to load plugin host: %w"), err)
 	}
-	defer wasm.Close(ctx, wasmHost)
+	defer func() { _ = wasm.Close(ctx, wasmHost) }()
 
 	return imports.Generate(ctx, wasmHost, wasmRootDir, "")
 }

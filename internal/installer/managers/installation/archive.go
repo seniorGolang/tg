@@ -100,7 +100,7 @@ func (m *manager) extractZip(ctx context.Context, archivePath string, extractDir
 	if r, err = zip.OpenReader(archivePath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to open ZIP archive: %w"), err)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	for _, f := range r.File {
 		select {
@@ -132,20 +132,20 @@ func (m *manager) extractZip(ctx context.Context, archivePath string, extractDir
 
 		var outFile *os.File
 		if outFile, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.FileInfo().Mode()); err != nil {
-			rc.Close()
+			_ = rc.Close()
 			return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 		}
 
 		//nolint:gosec // Ограничиваем размер файла для защиты от decompression bomb
 		limitedReader := io.LimitReader(rc, maxFileSize)
 		if _, err = io.Copy(outFile, limitedReader); err != nil {
-			rc.Close()
-			outFile.Close()
+			_ = rc.Close()
+			_ = outFile.Close()
 			return fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
 		}
 
-		rc.Close()
-		outFile.Close()
+		_ = rc.Close()
+		_ = outFile.Close()
 	}
 
 	return
@@ -157,13 +157,13 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 	if file, err = os.Open(archivePath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to open archive: %w"), err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var gzr *gzip.Reader
 	if gzr, err = gzip.NewReader(file); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "gzip reader", err)
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	trArch := tar.NewReader(gzr)
 	for {
@@ -207,11 +207,11 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 			//nolint:gosec // Ограничиваем размер файла для защиты от decompression bomb
 			limitedReader := io.LimitReader(trArch, maxFileSize)
 			if _, err = io.Copy(outFile, limitedReader); err != nil {
-				outFile.Close()
+				_ = outFile.Close()
 				return fmt.Errorf(i18n.Msg("Failed to copy file: %w"), err)
 			}
 
-			outFile.Close()
+			_ = outFile.Close()
 		}
 	}
 
@@ -224,7 +224,7 @@ func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir
 	if file, err = os.Open(archivePath); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to open archive: %w"), err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	trArch := tar.NewReader(file)
 	for {

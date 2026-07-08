@@ -63,13 +63,13 @@ func gzipFileInPlace(path string) (err error) {
 	if f, err = os.Open(path); err != nil {
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var data []byte
 	if data, err = io.ReadAll(f); err != nil {
 		return
 	}
-	f.Close()
+	_ = f.Close()
 
 	tmpPath := path + ".tmp"
 	var out *os.File

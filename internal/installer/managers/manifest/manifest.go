@@ -498,7 +498,7 @@ func (m *manager) downloadManifest(ctx context.Context, url string) (content []b
 		err = fmt.Errorf(i18n.Msg("Failed to load manifest: %w"), err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	//nolint:gosec // G706: url и статус из ответа для отладки, не пользовательский ввод
 	slog.Debug(i18n.Msg("Received response for manifest"), slog.String("url", url), slog.Int("statusCode", resp.StatusCode), slog.String("status", resp.Status))

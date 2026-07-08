@@ -5,6 +5,7 @@ package command
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,8 +20,6 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/wasm/host"
 	"github.com/seniorGolang/tg/v3/internal/wasm/memory"
 	"github.com/seniorGolang/tg/v3/internal/wasm/stream"
-
-	"github.com/goccy/go-json"
 )
 
 var commandResponses = struct {
@@ -122,7 +121,7 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 
 	cmdStderrPipe, stderrErr := cmd.StderrPipe()
 	if stderrErr != nil {
-		cmdStdoutPipe.Close()
+		_ = cmdStdoutPipe.Close()
 		return CommandResponse{
 			Error: fmt.Sprintf(i18n.Msg("Failed to create %s: %v"), "stderr pipe", stderrErr),
 		}
@@ -132,16 +131,16 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	// Подключаем cmdStdoutPipe напрямую к StreamState.Reader
 	// Это гарантирует, что потоки доступны плагину до того, как команда начнет выводить данные
 	if h.StreamRegistry == nil {
-		cmdStdoutPipe.Close()
-		cmdStderrPipe.Close()
+		_ = cmdStdoutPipe.Close()
+		_ = cmdStderrPipe.Close()
 		return CommandResponse{
 			Error: i18n.Msg("stream registry not available"),
 		}
 	}
 	stdoutStreamID, stdoutErr := h.StreamRegistry.NewStream(ctx, h, cmdStdoutPipe, nil, stream.DefaultRingBufferSize)
 	if stdoutErr != nil {
-		cmdStdoutPipe.Close()
-		cmdStderrPipe.Close()
+		_ = cmdStdoutPipe.Close()
+		_ = cmdStderrPipe.Close()
 		return CommandResponse{
 			Error: fmt.Sprintf(i18n.Msg("Failed to create %s: %v"), "stdout stream", stdoutErr),
 		}
@@ -149,8 +148,8 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 
 	stderrStreamID, stderrErr := h.StreamRegistry.NewStream(ctx, h, cmdStderrPipe, nil, stream.DefaultRingBufferSize)
 	if stderrErr != nil {
-		cmdStdoutPipe.Close()
-		cmdStderrPipe.Close()
+		_ = cmdStdoutPipe.Close()
+		_ = cmdStderrPipe.Close()
 		h.StreamRegistry.CloseStream(ctx, h, stdoutStreamID)
 		return CommandResponse{
 			Error: fmt.Sprintf(i18n.Msg("Failed to create %s: %v"), "stderr stream", stderrErr),
@@ -158,8 +157,8 @@ func executeCommand(ctx context.Context, h *host.Host, command string, args []st
 	}
 
 	if err := cmd.Start(); err != nil {
-		cmdStdoutPipe.Close()
-		cmdStderrPipe.Close()
+		_ = cmdStdoutPipe.Close()
+		_ = cmdStderrPipe.Close()
 		h.StreamRegistry.CloseStream(ctx, h, stdoutStreamID)
 		h.StreamRegistry.CloseStream(ctx, h, stderrStreamID)
 		return CommandResponse{

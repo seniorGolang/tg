@@ -12,7 +12,7 @@
 # What is markdown package
 The Package markdown is a simple markdown builder in golang. The markdown package assembles Markdown using method chaining, not uses a template engine like [html/template](https://pkg.go.dev/html/template). The syntax of Markdown follows **GitHub Markdown**.
   
-The markdown package was initially developed to save test results in [nao1215/spectest](https://github.com/nao1215/spectest). Therefore, the markdown package implements the features required by spectest. For example, the markdown package supports **mermaid diagrams (entity relationship diagram, sequence diagram, flowchart, pie chart, quadrant chart, state diagram, Gantt chart, architecture diagram)**, which was a necessary feature in spectest.
+The markdown package was initially developed to save test results in [nao1215/spectest](https://github.com/nao1215/spectest). Therefore, the markdown package implements the features required by spectest. For example, the markdown package supports **mermaid diagrams (entity relationship diagram, sequence diagram, user journey diagram, git graph diagram, mindmap diagram, requirement diagram, xy chart, packet diagram, block diagram, kanban diagram, flowchart, pie chart, quadrant chart, state diagram, class diagram, Gantt chart, architecture diagram)**, which was a necessary feature in spectest.
   
 Additionally, complex code that increases the complexity of the library, such as generating nested lists, will not be added. I want to keep this library as simple as possible.
   
@@ -31,16 +31,28 @@ Additionally, complex code that increases the complexity of the library, such as
 - [x] Table
 - [x] Text formatting; bold, italic, code, strikethrough, bold italic
 - [x] Text with link
+- [x] Reference link
 - [x] Text with image
 - [x] Plain text
 - [x] Details 
+- [x] Footnotes
+- [x] Mathematical expressions
 - [x] Alerts; NOTE, TIP, IMPORTANT, CAUTION, WARNING
 - [x] mermaid sequence diagram
+- [x] mermaid user journey diagram
+- [x] mermaid git graph diagram
+- [x] mermaid mindmap diagram
+- [x] mermaid requirement diagram
+- [x] mermaid xy chart
+- [x] mermaid packet diagram
+- [x] mermaid block diagram
+- [x] mermaid kanban diagram
 - [x] mermaid entity relationship diagram
 - [x] mermaid flowchart 
 - [x] mermaid pie chart
 - [x] mermaid quadrant chart
 - [x] mermaid state diagram
+- [x] mermaid class diagram
 - [x] mermaid Gantt chart
 - [x] mermaid architecture diagram (beta feature) 
 
@@ -276,10 +288,11 @@ Your badge will look like this;
 package main
 
 import (
+	"io"
 	"os"
 
 	"github.com/nao1215/markdown"
-	"github.com/nao1215/mermaid/sequence"
+	"github.com/nao1215/markdown/mermaid/sequence"
 )
 
 //go:generate go run main.go
@@ -357,6 +370,606 @@ sequenceDiagram
     end
 
     David-->>Sophia: wake up, wake up
+```
+
+### Mermaid user journey diagram syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/userjourney"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := userjourney.NewDiagram(
+		io.Discard,
+		userjourney.WithTitle("Checkout Journey"),
+	).
+		Section("Discover").
+		Task("Browse products", userjourney.ScoreVerySatisfied, "Customer").
+		Task("Add item to cart", userjourney.ScoreSatisfied, "Customer").
+		LF().
+		Section("Checkout").
+		Task("Enter shipping details", userjourney.ScoreNeutral, "Customer").
+		Task("Complete payment", userjourney.ScoreSatisfied, "Customer", "Payment Service").
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("User Journey Diagram").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/userjourney/generated.md)
+````text
+## User Journey Diagram
+```mermaid
+journey
+    title Checkout Journey
+    section Discover
+        Browse products: 5: Customer
+        Add item to cart: 4: Customer
+
+    section Checkout
+        Enter shipping details: 3: Customer
+        Complete payment: 4: Customer, Payment Service
+```
+````
+
+Mermaid output:
+```mermaid
+journey
+    title Checkout Journey
+    section Discover
+        Browse products: 5: Customer
+        Add item to cart: 4: Customer
+
+    section Checkout
+        Enter shipping details: 3: Customer
+        Complete payment: 4: Customer, Payment Service
+```
+
+### Mermaid git graph syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/gitgraph"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := gitgraph.NewDiagram(
+		io.Discard,
+		gitgraph.WithTitle("Release Flow"),
+	).
+		Commit(gitgraph.WithCommitID("init"), gitgraph.WithCommitTag("v0.1.0")).
+		Branch("develop", gitgraph.WithBranchOrder(2)).
+		Checkout("develop").
+		Commit(gitgraph.WithCommitType(gitgraph.CommitTypeHighlight)).
+		Checkout("main").
+		Merge("develop", gitgraph.WithCommitTag("v1.0.0")).
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Git Graph").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/gitgraph/generated.md)
+````text
+## Git Graph
+```mermaid
+---
+title: Release Flow
+---
+gitGraph
+    commit id: "init" tag: "v0.1.0"
+    branch develop order: 2
+    checkout develop
+    commit type: HIGHLIGHT
+    checkout main
+    merge develop tag: "v1.0.0"
+```
+````
+
+Mermaid output:
+```mermaid
+---
+title: Release Flow
+---
+gitGraph
+    commit id: "init" tag: "v0.1.0"
+    branch develop order: 2
+    checkout develop
+    commit type: HIGHLIGHT
+    checkout main
+    merge develop tag: "v1.0.0"
+```
+
+### Mermaid mindmap syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/mindmap"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := mindmap.NewDiagram(
+		io.Discard,
+		mindmap.WithTitle("Product Strategy Mindmap"),
+	).
+		Root("Product Strategy").
+		Child("Market").
+		Child("SMB").
+		Sibling("Enterprise").
+		Parent().
+		Sibling("Execution").
+		Child("Q1").
+		Sibling("Q2").
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Mindmap").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/mindmap/generated.md)
+````text
+## Mindmap
+```mermaid
+---
+title: Product Strategy Mindmap
+---
+mindmap
+    Product Strategy
+        Market
+            SMB
+            Enterprise
+        Execution
+            Q1
+            Q2
+```
+````
+
+Mermaid output:
+```mermaid
+---
+title: Product Strategy Mindmap
+---
+mindmap
+    Product Strategy
+        Market
+            SMB
+            Enterprise
+        Execution
+            Q1
+            Q2
+```
+
+### Mermaid requirement diagram syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/requirement"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := requirement.NewDiagram(
+		io.Discard,
+		requirement.WithTitle("Checkout Requirements"),
+	).
+		SetDirection(requirement.DirectionTB).
+		Requirement(
+			"Login",
+			requirement.WithID("REQ-1"),
+			requirement.WithText("The system shall support login."),
+			requirement.WithRisk(requirement.RiskHigh),
+			requirement.WithVerifyMethod(requirement.VerifyMethodTest),
+			requirement.WithRequirementClasses("critical"),
+		).
+		FunctionalRequirement(
+			"RememberSession",
+			requirement.WithID("REQ-2"),
+			requirement.WithText("The system shall remember the user."),
+			requirement.WithRisk(requirement.RiskMedium),
+			requirement.WithVerifyMethod(requirement.VerifyMethodInspection),
+		).
+		Element(
+			"AuthService",
+			requirement.WithElementType("system"),
+			requirement.WithDocRef("docs/auth.md"),
+			requirement.WithElementClasses("service"),
+		).
+		From("AuthService").
+		Satisfies("Login").
+		From("RememberSession").
+		Verifies("Login").
+		ClassDefs(
+			requirement.Def("critical", "fill:#f96,stroke:#333,stroke-width:2px"),
+			requirement.Def("service", "fill:#9cf,stroke:#333,stroke-width:1px"),
+		).
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Requirement Diagram").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/requirement/generated.md)
+````text
+## Requirement Diagram
+```mermaid
+---
+title: Checkout Requirements
+---
+requirementDiagram
+    direction TB
+    requirement Login:::critical {
+        id: "REQ-1"
+        text: "The system shall support login."
+        risk: High
+        verifymethod: Test
+    }
+    functionalRequirement RememberSession {
+        id: "REQ-2"
+        text: "The system shall remember the user."
+        risk: Medium
+        verifymethod: Inspection
+    }
+    element AuthService:::service {
+        type: "system"
+        docRef: "docs/auth.md"
+    }
+    AuthService - satisfies -> Login
+    RememberSession - verifies -> Login
+    classDef critical fill:#f96,stroke:#333,stroke-width:2px
+    classDef service fill:#9cf,stroke:#333,stroke-width:1px
+```
+````
+
+Mermaid output:
+```mermaid
+---
+title: Checkout Requirements
+---
+requirementDiagram
+    direction TB
+    requirement Login:::critical {
+        id: "REQ-1"
+        text: "The system shall support login."
+        risk: High
+        verifymethod: Test
+    }
+    functionalRequirement RememberSession {
+        id: "REQ-2"
+        text: "The system shall remember the user."
+        risk: Medium
+        verifymethod: Inspection
+    }
+    element AuthService:::service {
+        type: "system"
+        docRef: "docs/auth.md"
+    }
+    AuthService - satisfies -> Login
+    RememberSession - verifies -> Login
+    classDef critical fill:#f96,stroke:#333,stroke-width:2px
+    classDef service fill:#9cf,stroke:#333,stroke-width:1px
+```
+
+### Mermaid XY chart syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/xychart"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := xychart.NewDiagram(
+		io.Discard,
+		xychart.WithTitle("Sales Revenue"),
+	).
+		XAxisLabels("Jan", "Feb", "Mar", "Apr", "May", "Jun").
+		YAxisRangeWithTitle("Revenue (k$)", 0, 100).
+		Bar(25, 40, 60, 80, 70, 90).
+		Line(30, 50, 70, 85, 75, 95).
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("XY Chart").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/xychart/generated.md)
+````text
+## XY Chart
+```mermaid
+xychart
+    title "Sales Revenue"
+    x-axis [Jan, Feb, Mar, Apr, May, Jun]
+    y-axis "Revenue (k$)" 0 --> 100
+    bar [25, 40, 60, 80, 70, 90]
+    line [30, 50, 70, 85, 75, 95]
+```
+````
+
+Mermaid output:
+```mermaid
+xychart
+    title "Sales Revenue"
+    x-axis [Jan, Feb, Mar, Apr, May, Jun]
+    y-axis "Revenue (k$)" 0 --> 100
+    bar [25, 40, 60, 80, 70, 90]
+    line [30, 50, 70, 85, 75, 95]
+```
+
+### Mermaid packet syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/packet"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := packet.NewDiagram(
+		io.Discard,
+		packet.WithTitle("UDP Packet"),
+	).
+		Next(16, "Source Port").
+		Next(16, "Destination Port").
+		Field(32, 47, "Length").
+		Field(48, 63, "Checksum").
+		Field(64, 95, "Data (variable length)").
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Packet").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/packet/generated.md)
+````text
+## Packet
+```mermaid
+packet
+    title UDP Packet
+    +16: "Source Port"
+    +16: "Destination Port"
+    32-47: "Length"
+    48-63: "Checksum"
+    64-95: "Data (variable length)"
+```
+````
+
+Mermaid output:
+```mermaid
+packet
+    title UDP Packet
+    +16: "Source Port"
+    +16: "Destination Port"
+    32-47: "Length"
+    48-63: "Checksum"
+    64-95: "Data (variable length)"
+```
+
+### Mermaid block syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/block"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := block.NewDiagram(
+		io.Discard,
+		block.WithTitle("Checkout Architecture"),
+	).
+		Columns(3).
+		Row(
+			block.Node("Frontend"),
+			block.ArrowRight("toBackend", block.WithArrowLabel("calls")),
+			block.Node("Backend"),
+		).
+		Row(
+			block.Space(2),
+			block.ArrowDown("toDB"),
+		).
+		Row(
+			block.Node("Database", block.WithNodeLabel("Primary DB"), block.WithNodeShape(block.ShapeCylinder)),
+			block.Space(),
+			block.Node("Cache", block.WithNodeLabel("Cache"), block.WithNodeShape(block.ShapeRound)),
+		).
+		Link("Backend", "Database").
+		LinkWithLabel("Backend", "reads from", "Cache").
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Block Diagram").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/block/generated.md)
+````text
+## Block Diagram
+```mermaid
+block
+    title Checkout Architecture
+    columns 3
+    Frontend toBackend<["calls"]>(right) Backend
+    space:2 toDB<["&nbsp;"]>(down)
+    Database[("Primary DB")] space Cache("Cache")
+    Backend --> Database
+    Backend -- "reads from" --> Cache
+```
+````
+
+Mermaid output:
+```mermaid
+block
+    title Checkout Architecture
+    columns 3
+    Frontend toBackend<["calls"]>(right) Backend
+    space:2 toDB<["&nbsp;"]>(down)
+    Database[("Primary DB")] space Cache("Cache")
+    Backend --> Database
+    Backend -- "reads from" --> Cache
+```
+
+### Mermaid kanban syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/kanban"
+)
+
+//go:generate go run main.go
+
+func main() {
+	diagram := kanban.NewDiagram(
+		io.Discard,
+		kanban.WithTitle("Sprint Board"),
+		kanban.WithTicketBaseURL("https://example.com/tickets/"),
+	).
+		Column("Todo").
+		Task("Define scope").
+		Task(
+			"Create login page",
+			kanban.WithTaskTicket("MB-101"),
+			kanban.WithTaskAssigned("Alice"),
+			kanban.WithTaskPriority(kanban.PriorityHigh),
+		).
+		Column("In Progress").
+		Task("Review API", kanban.WithTaskPriority(kanban.PriorityVeryHigh)).
+		String()
+
+	if err := markdown.NewMarkdown(os.Stdout).
+		H2("Kanban Diagram").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagram).
+		Build(); err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/kanban/generated.md)
+````text
+## Kanban Diagram
+```mermaid
+---
+title: Sprint Board
+config:
+  kanban:
+    ticketBaseUrl: 'https://example.com/tickets/'
+---
+kanban
+    [Todo]
+        [Define scope]
+        [Create login page]@{ ticket: 'MB-101', assigned: 'Alice', priority: 'High' }
+    [In Progress]
+        [Review API]@{ priority: 'Very High' }
+```
+````
+
+Mermaid output:
+```mermaid
+---
+title: Sprint Board
+config:
+  kanban:
+    ticketBaseUrl: 'https://example.com/tickets/'
+---
+kanban
+    [Todo]
+        [Define scope]
+        [Create login page]@{ ticket: 'MB-101', assigned: 'Alice', priority: 'High' }
+    [In Progress]
+        [Review API]@{ priority: 'Very High' }
 ```
 
 ### Entity Relationship Diagram syntax
@@ -911,6 +1524,117 @@ stateDiagram-v2
     note right of Processing : Preparing items
 
     Delivered --> [*]
+```
+
+### Class Diagram syntax
+
+```go
+package main
+
+import (
+	"io"
+	"os"
+
+	"github.com/nao1215/markdown"
+	"github.com/nao1215/markdown/mermaid/class"
+)
+
+//go:generate go run main.go
+
+func main() {
+	f, err := os.Create("generated.md")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	diagram := class.NewDiagram(
+		io.Discard,
+		class.WithTitle("Checkout Domain"),
+	).
+		SetDirection(class.DirectionLR).
+		Class(
+			"Order",
+			class.WithPublicField("string", "id"),
+			class.WithPublicMethod("Create", "error", "items []LineItem"),
+			class.WithPublicMethod("Pay", "error"),
+		).
+		Class(
+			"LineItem",
+			class.WithPublicField("string", "sku"),
+			class.WithPublicField("int", "quantity"),
+			class.WithPublicMethod("Subtotal", "int"),
+		).
+		Interface("PaymentGateway")
+
+	diagram.From("Order").
+		Composition("LineItem", class.WithOneToMany(), class.WithRelationLabel("contains")).
+		Association("PaymentGateway", class.WithRelationLabel("uses"))
+
+	diagramString := diagram.
+		NoteFor("Order", "Aggregate Root").
+		String()
+
+	err = markdown.NewMarkdown(f).
+		H2("Class Diagram").
+		CodeBlocks(markdown.SyntaxHighlightMermaid, diagramString).
+		Build()
+
+	if err != nil {
+		panic(err)
+	}
+}
+```
+
+Plain text output: [markdown is here](./doc/class/generated.md)
+````text
+## Class Diagram
+```mermaid
+---
+title: Checkout Domain
+---
+classDiagram
+    direction LR
+    class Order {
+        +string id
+        +Create(items []LineItem) error
+        +Pay() error
+    }
+    class LineItem {
+        +string sku
+        +int quantity
+        +Subtotal() int
+    }
+    class PaymentGateway
+    <<Interface>> PaymentGateway
+    Order "1" *-- "many" LineItem : contains
+    Order --> PaymentGateway : uses
+    note for Order "Aggregate Root"
+```
+````
+
+Mermaid output:
+```mermaid
+---
+title: Checkout Domain
+---
+classDiagram
+    direction LR
+    class Order {
+        +string id
+        +Create(items []LineItem) error
+        +Pay() error
+    }
+    class LineItem {
+        +string sku
+        +int quantity
+        +Subtotal() int
+    }
+    class PaymentGateway
+    <<Interface>> PaymentGateway
+    Order "1" *-- "many" LineItem : contains
+    Order --> PaymentGateway : uses
+    note for Order "Aggregate Root"
 ```
 
 ### Quadrant Chart syntax

@@ -3,10 +3,9 @@
 package env
 
 import (
+	"encoding/json"
 	"os/exec"
 	"sync"
-
-	"github.com/goccy/go-json"
 )
 
 var (

@@ -4,11 +4,10 @@ package imports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/goccy/go-json"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/plugin"

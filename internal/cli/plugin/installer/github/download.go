@@ -41,10 +41,10 @@ func (c *Client) downloadFile(ctx context.Context, url string, filePath string, 
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return 0, fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusTemporaryRedirect || resp.StatusCode == http.StatusPermanentRedirect {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		location := resp.Header.Get("Location")
 		if location == "" {
 			return 0, fmt.Errorf(i18n.Msg("Redirect without Location header: %s"), url)
@@ -79,7 +79,7 @@ func (c *Client) downloadFile(ctx context.Context, url string, filePath string, 
 	if file, err = os.Create(filePath); err != nil {
 		return 0, fmt.Errorf(i18n.Msg("Failed to create file %s: %w"), filePath, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	fileName := filepath.Base(filePath)
 	totalSize := resp.ContentLength
@@ -214,7 +214,7 @@ func (c *Client) DownloadManifestContent(ctx context.Context, url string) (conte
 	if resp, err = c.httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf(i18n.Msg("Failed to download file: %w"), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusMovedPermanently || resp.StatusCode == http.StatusTemporaryRedirect || resp.StatusCode == http.StatusPermanentRedirect {
 		location := resp.Header.Get("Location")

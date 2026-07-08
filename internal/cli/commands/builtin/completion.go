@@ -185,7 +185,7 @@ func HandleCompletionInstall(ctx types.CommandContext) (err error) {
 					ctx.Logger.Warn(i18n.Msg("Failed to open config file for writing"), "file", configFile, "error", err)
 					ctx.Logger.Info(i18n.Msg("Add the following line to your shell config file:"), "line", sourceLine)
 				} else {
-					defer file.Close()
+					defer func() { _ = file.Close() }()
 					if _, err = file.WriteString(sourceLine); err != nil {
 						ctx.Logger.Warn(i18n.Msg("Failed to write to config file"), "file", configFile, "error", err)
 						ctx.Logger.Info(i18n.Msg("Add the following line to your shell config file:"), "line", sourceLine)

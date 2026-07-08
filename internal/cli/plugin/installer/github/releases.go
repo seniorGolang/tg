@@ -4,6 +4,7 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -11,8 +12,6 @@ import (
 	"strings"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
-
-	"github.com/goccy/go-json"
 )
 
 const (

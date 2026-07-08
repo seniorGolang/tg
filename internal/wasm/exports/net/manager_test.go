@@ -44,7 +44,7 @@ func (f *fakeStreamRegistry) WaitReaderDone(uint32) {}
 
 func TestDelConnClosesAssociatedStream(t *testing.T) {
 	server, client := stdnet.Pipe()
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	registry := &fakeStreamRegistry{}
 	hst := &host.Host{StreamRegistry: registry}
