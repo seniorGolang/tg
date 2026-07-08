@@ -114,8 +114,8 @@ services:
 			}
 			successCode := method.tags.ValueInt(tagHttpSuccess, fasthttp.StatusOK)
 
-			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.arguments())
-			doc.registerStruct(method.responseStructName(), service.pkgPath, method.tags, method.results())
+			doc.registerStruct(method.requestStructName(), service.pkgPath, method.tags, method.arguments(), isRequiredGeneratedRequestField)
+			doc.registerStruct(method.responseStructName(), service.pkgPath, method.tags, method.results(), isRequiredGeneratedResponseField)
 
 			var parameters []swParameter
 			var retHeaders map[string]swHeader

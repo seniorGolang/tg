@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -22,7 +23,7 @@ import (
 	"github.com/seniorGolang/tg/v2/pkg/utils"
 )
 
-func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField) (structType types.Struct) {
+func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fields []types.StructField, isRequiredField func(types.StructField) bool) (structType types.Struct) {
 
 	if len(fields) == 0 {
 		doc.schemas[name] = swSchema{Type: "object"}
@@ -38,7 +39,7 @@ func (doc *swagger) registerStruct(name, pkgPath string, mTags tags.DocTags, fie
 	for _, field := range fields {
 		field.Docs = mTags.Sub(utils.ToLowerCamel(field.Name)).ToDocs()
 		structType.Fields = append(structType.Fields, field)
-		if fieldName, inline := jsonName(field); !inline && !isPointerType(field.Type) {
+		if fieldName, inline := jsonName(field); fieldName != "-" && !inline && isRequiredField(field) {
 			required = append(required, fieldName)
 		}
 	}
@@ -60,26 +61,22 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 
 	var found bool
 	typeName = doc.normalizeTypeName(typeName, pkgPath)
+	if vType, ok := varType.(types.TPointer); ok {
+		if applyVariableTags(&schema, varTags) {
+			return
+		}
+		if _, found = doc.schemas[typeName]; found {
+			schema.OneOf = append(schema.OneOf, doc.toSchema(typeName), swSchema{Nullable: true})
+			return
+		}
+		schema.OneOf = append(schema.OneOf, doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags), swSchema{Nullable: true})
+		return
+	}
 	if _, found = doc.schemas[typeName]; found {
 		return doc.toSchema(typeName)
 	}
-	if len(varTags) > 0 {
-		schema.Description = varTags.Value(tagDesc)
-		if example := varTags.Value(tagExample); example != "" {
-			var value interface{} = example
-			_ = json.Unmarshal([]byte(example), &value)
-			schema.Example = value
-		}
-		if format := varTags.Value(tagFormat); format != "" {
-			schema.Format = format
-		}
-		if enums := varTags.Value(tagEnums); enums != "" {
-			schema.Enum = strings.Split(enums, ",")
-		}
-		if newType := varTags.Value(tagType); newType != "" {
-			schema.Type = newType
-			return
-		}
+	if applyVariableTags(&schema, varTags) {
+		return
 	}
 	if newType, format := castType(varType.String()); newType != varType.String() {
 		schema.Type = newType
@@ -106,7 +103,7 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 				embed := doc.walkVariable(field.Type.String(), pkgPath, field.Type, tags.ParseTags(field.Docs))
 				if !inline {
 					schema.Properties[fieldName] = embed
-					if tags.ParseTags(field.Docs).IsSet(tagRequired) {
+					if isRequiredJSONField(field) {
 						schema.Required = append(schema.Required, fieldName)
 					}
 					continue
@@ -163,12 +160,6 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		schema.Type = "array"
 		itemSchema := doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags)
 		schema.Items = &itemSchema
-	case types.TPointer:
-		if _, found = doc.schemas[typeName]; found {
-			schema.OneOf = append(schema.OneOf, doc.schemas[typeName], swSchema{Nullable: true})
-			return
-		}
-		schema.OneOf = append(schema.OneOf, doc.walkVariable(vType.Next.String(), pkgPath, vType.Next, varTags), swSchema{Nullable: true})
 	case types.TInterface:
 		schema.Type = "object"
 		schema.Nullable = true
@@ -176,6 +167,30 @@ func (doc *swagger) walkVariable(typeName, pkgPath string, varType types.Type, v
 		doc.log.WithField("type", vType).Error("unknown type")
 	}
 	return
+}
+
+func applyVariableTags(schema *swSchema, varTags tags.DocTags) bool {
+
+	if len(varTags) == 0 {
+		return false
+	}
+	schema.Description = varTags.Value(tagDesc)
+	if example := varTags.Value(tagExample); example != "" {
+		var value any = example
+		_ = json.Unmarshal([]byte(example), &value)
+		schema.Example = value
+	}
+	if format := varTags.Value(tagFormat); format != "" {
+		schema.Format = format
+	}
+	if enums := varTags.Value(tagEnums); enums != "" {
+		schema.Enum = strings.Split(enums, ",")
+	}
+	if newType := varTags.Value(tagType); newType != "" {
+		schema.Type = newType
+		return true
+	}
+	return false
 }
 
 func (doc *swagger) normalizeTypeName(typeName string, pkgPath string) string {
@@ -343,15 +358,48 @@ func jsonName(fieldInfo types.StructField) (value string, inline bool) {
 	}
 	value = fieldInfo.Name
 	if tagValues, _ := fieldInfo.Tags["json"]; len(tagValues) > 0 { // nolint
-		value = tagValues[0]
-		if len(tagValues) == 2 {
-			inline = tagValues[1] == "inline"
+		if tagValues[0] != "" {
+			value = tagValues[0]
 		}
+		inline = hasJSONTagOption(fieldInfo, "inline")
 	}
 	if isLowerStart(fieldInfo.Name) && !inline {
 		value = "-"
 	}
 	return
+}
+
+func isRequiredGeneratedRequestField(fieldInfo types.StructField) bool {
+
+	if tags.ParseTags(fieldInfo.Docs).IsSet(tagRequired) {
+		return true
+	}
+	return !isPointerType(fieldInfo.Type) && !hasJSONTagOption(fieldInfo, "omitempty")
+}
+
+func isRequiredGeneratedResponseField(fieldInfo types.StructField) bool {
+
+	if tags.ParseTags(fieldInfo.Docs).IsSet(tagRequired) {
+		return true
+	}
+	return !hasJSONTagOption(fieldInfo, "omitempty")
+}
+
+func isRequiredJSONField(fieldInfo types.StructField) bool {
+
+	if tags.ParseTags(fieldInfo.Docs).IsSet(tagRequired) {
+		return true
+	}
+	return !hasJSONTagOption(fieldInfo, "omitempty")
+}
+
+func hasJSONTagOption(fieldInfo types.StructField, option string) bool {
+
+	tagValues := fieldInfo.Tags["json"]
+	if len(tagValues) < 2 {
+		return false
+	}
+	return slices.Contains(tagValues[1:], option)
 }
 
 func isLowerStart(s string) bool {
