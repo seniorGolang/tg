@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/seniorGolang/tg/v3/internal/cli/plugin/build"
 	"github.com/seniorGolang/tg/v3/internal/executor"
 	"github.com/seniorGolang/tg/v3/internal/i18n"
 	"github.com/seniorGolang/tg/v3/internal/installer/models"
@@ -187,9 +188,13 @@ func createSubcommandSelector(node *CommandNode, rootDir string) (selector func(
 				var pluginErr *imports.PluginError
 				if errors.As(err, &pluginErr) {
 					slog.Error(pluginErr.Message)
-				} else {
-					slog.Error(i18n.Msg("Command execution error"), "error", err)
+					return
 				}
+				var buildFailure *build.BuildFailure
+				if errors.As(err, &buildFailure) {
+					return
+				}
+				slog.Error(i18n.Msg("Command execution error"), "error", err)
 			}
 		}
 	}

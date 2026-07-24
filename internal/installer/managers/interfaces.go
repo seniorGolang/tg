@@ -72,6 +72,7 @@ type ValidationEngine interface {
 type InstallationManager interface {
 	Install(ctx context.Context, pkg *models.Package, v models.Version) (err error)
 	Uninstall(ctx context.Context, packageID string, keepFiles bool) (err error)
+	InstallSkills(ctx context.Context, packageNames []string) (err error)
 }
 
 type ScopeManager interface {

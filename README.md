@@ -48,6 +48,14 @@ brew install tg
 go install github.com/seniorGolang/tg/v3/cmd/tg@latest
 ```
 
+После установки хоста можно активировать встроенные agent skills:
+
+```bash
+tg skills install
+# или с созданием каталога, если ещё нет ~/.agents:
+tg skills install --skills-mkdir
+```
+
 ## Ключевые возможности
 
 - **Встроенный планировщик исполнения и композитные команды:**

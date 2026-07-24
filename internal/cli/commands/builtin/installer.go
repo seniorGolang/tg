@@ -7,6 +7,7 @@ import (
 
 	"github.com/seniorGolang/tg/v3/internal/cli/types"
 	"github.com/seniorGolang/tg/v3/internal/installer/cli"
+	"github.com/seniorGolang/tg/v3/internal/installer/skills"
 )
 
 var installer *cli.Installer
@@ -51,6 +52,7 @@ func HandlePluginInstall(ctx types.CommandContext) (err error) {
 	force := getBoolOption(ctx, optionKeyForce)
 	dryRun := getBoolOption(ctx, optionKeyDryRun)
 	verbose := getBoolOption(ctx, optionKeyVerbose)
+	cmdCtx = skills.WithContext(cmdCtx, skillsOptionsFromCommand(ctx))
 
 	return installer.HandleInstall(cmdCtx, ctx.Args, version, force, dryRun, verbose)
 }
@@ -130,4 +132,48 @@ func HandlePluginUpgradePackages(ctx types.CommandContext) (err error) {
 	}
 
 	return installer.HandleUpgrade(cmdCtx, ctx.Args)
+}
+
+func HandlePkgSkillsInstall(ctx types.CommandContext) (err error) {
+
+	var cmdCtx context.Context
+	if cmdCtx, err = prepareInstallerContext(ctx); err != nil {
+		return
+	}
+	cmdCtx = skills.WithContext(cmdCtx, skillsInstallOptionsFromCommand(ctx))
+
+	return installer.HandlePkgSkillsInstall(cmdCtx, ctx.Args)
+}
+
+func HandleHostSkillsInstall(ctx types.CommandContext) (err error) {
+
+	var cmdCtx context.Context
+	if cmdCtx, err = prepareInstallerContext(ctx); err != nil {
+		return
+	}
+	cmdCtx = skills.WithContext(cmdCtx, skillsInstallOptionsFromCommand(ctx))
+
+	return installer.HandleHostSkillsInstall(cmdCtx)
+}
+
+func skillsOptionsFromCommand(ctx types.CommandContext) (opts skills.Options) {
+
+	opts = skills.Default()
+	opts.Enabled = !getBoolOption(ctx, optionKeyNoSkills)
+	opts.Mkdir = getBoolOption(ctx, optionKeySkillsMkdir)
+	if raw := getStringOption(ctx, optionKeySkillsTargets); raw != "" {
+		opts.Targets = skills.ParseTargets(raw)
+	}
+	return
+}
+
+func skillsInstallOptionsFromCommand(ctx types.CommandContext) (opts skills.Options) {
+
+	opts = skills.Default()
+	opts.Enabled = true
+	opts.Mkdir = getBoolOption(ctx, optionKeySkillsMkdir)
+	if raw := getStringOption(ctx, optionKeySkillsTargets); raw != "" {
+		opts.Targets = skills.ParseTargets(raw)
+	}
+	return
 }

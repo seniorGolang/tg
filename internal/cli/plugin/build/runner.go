@@ -91,6 +91,12 @@ func Run(ctx context.Context, p Params) (err error) {
 	}
 	slog.Debug("extract metadata done", "built", len(built))
 
+	for i := range built {
+		if err = packagePluginSkills(p.RootDir, p.OutDir, &built[i]); err != nil {
+			return
+		}
+	}
+
 	var genPath string
 	if genPath, err = generateManifest(p.OutDir, version, built); err != nil {
 		return

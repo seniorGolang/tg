@@ -19,8 +19,15 @@ type Package struct {
 	Alias        string             `yaml:"alias,omitempty"`
 	Downloads    []PlatformDownload `yaml:"downloads"`
 	Files        []FileInstallation `yaml:"files"`
+	Skills       []SkillSpec        `yaml:"skills,omitempty"`
 	Scripts      *Scripts           `yaml:"scripts,omitempty"`
 	Dependencies []string           `yaml:"dependencies,omitempty"`
+}
+
+// SkillSpec описывает skill в манифесте пакета (root относительно InstallPrefix).
+type SkillSpec struct {
+	Name string `yaml:"name"`
+	Root string `yaml:"root"`
 }
 
 type PlatformDownload struct {

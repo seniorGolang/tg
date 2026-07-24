@@ -185,10 +185,46 @@ deploy_all:
         fi
         echo "    downloads:" >> release/manifest.generated.yml
         echo "      - url: '$_URL'" >> release/manifest.generated.yml
+
+        SKILLS_SRC="plugins/$PLUGIN_DIR/skills"
+        SKILLS_ARCHIVE=""
+        if [ -d "$SKILLS_SRC" ]; then
+          SKILL_COUNT=$(find "$SKILLS_SRC" -mindepth 2 -maxdepth 2 -name 'SKILL.md' | wc -l | tr -d ' ')
+          if [ "$SKILL_COUNT" -gt 0 ]; then
+          SKILLS_ARCHIVE="${PLUGIN_NAME}-skills.tar.gz"
+          SKILLS_DST="release/$SKILLS_ARCHIVE"
+          tar -C "$SKILLS_SRC" -czf "$SKILLS_DST" .
+          _SKILLS_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/release/${VERSION}/${SKILLS_ARCHIVE}"
+          echo "      - url: '$_SKILLS_URL'" >> release/manifest.generated.yml
+          fi
+        fi
+
         echo "    files:" >> release/manifest.generated.yml
         echo "      - file: '$PLUGIN_NAME.tgp'" >> release/manifest.generated.yml
         echo "        destination: '$_DEST'" >> release/manifest.generated.yml
         echo "        checksum: 'sha256:$_CHECKSUM'" >> release/manifest.generated.yml
+
+        if [ -n "$SKILLS_ARCHIVE" ]; then
+          while IFS= read -r SKILL_NAME; do
+            if [ ! -f "$SKILLS_SRC/$SKILL_NAME/SKILL.md" ]; then
+              continue
+            fi
+            while IFS= read -r REL; do
+              echo "      - file: '$SKILLS_ARCHIVE'" >> release/manifest.generated.yml
+              echo "        source: '$SKILL_NAME/$REL'" >> release/manifest.generated.yml
+              echo "        destination: 'skills/$PLUGIN_DIR/$SKILL_NAME/$REL'" >> release/manifest.generated.yml
+            done < <(find "$SKILLS_SRC/$SKILL_NAME" -type f | sed "s|^$SKILLS_SRC/$SKILL_NAME/||" | sort)
+          done < <(find "$SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+
+          echo "    skills:" >> release/manifest.generated.yml
+          while IFS= read -r SKILL_NAME; do
+            if [ ! -f "$SKILLS_SRC/$SKILL_NAME/SKILL.md" ]; then
+              continue
+            fi
+            echo "      - name: '$SKILL_NAME'" >> release/manifest.generated.yml
+            echo "        root: 'skills/$PLUGIN_DIR/$SKILL_NAME'" >> release/manifest.generated.yml
+          done < <(find "$SKILLS_SRC" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+        fi
       done
 
       if [ -f "manifest.overrides.yml" ]; then
@@ -217,6 +253,15 @@ deploy_all:
 
           FILE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/release/${VERSION}/${PLUGIN_NAME}.tgp"
           ASSETS_LINKS=$(echo "$ASSETS_LINKS" | jq --arg name "${PLUGIN_NAME}.tgp" --arg url "$FILE_URL" '. += [{"name": $name, "url": $url}]')
+
+          if [ -f "release/${PLUGIN_NAME}-skills.tar.gz" ]; then
+            echo "Uploading ${PLUGIN_NAME}-skills.tar.gz"
+            curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+              --upload-file "release/${PLUGIN_NAME}-skills.tar.gz" \
+              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/release/${VERSION}/${PLUGIN_NAME}-skills.tar.gz" > /dev/null
+            FILE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/release/${VERSION}/${PLUGIN_NAME}-skills.tar.gz"
+            ASSETS_LINKS=$(echo "$ASSETS_LINKS" | jq --arg name "${PLUGIN_NAME}-skills.tar.gz" --arg url "$FILE_URL" '. += [{"name": $name, "url": $url}]')
+          fi
         fi
       done
 

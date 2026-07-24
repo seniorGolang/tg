@@ -14,6 +14,7 @@ type Installation struct {
 	Descr        string          `yaml:"descr,omitempty"`
 	InstalledAt  time.Time       `yaml:"installed_at"`
 	Files        []InstalledFile `yaml:"files"`
+	Skills       []SkillState    `yaml:"skills,omitempty"`
 	Dependencies []string        `yaml:"dependencies,omitempty"`
 
 	Commands         []CommandInfo     `yaml:"commands,omitempty"`
@@ -36,6 +37,13 @@ type InstalledFile struct {
 	Source   string `yaml:"source,omitempty"`
 	Checksum string `yaml:"checksum,omitempty"`
 	Size     int64  `yaml:"size"`
+}
+
+// SkillState — установленный skill и пути, куда он опубликован.
+type SkillState struct {
+	Name      string   `yaml:"name"`
+	Root      string   `yaml:"root"`
+	Published []string `yaml:"published,omitempty"`
 }
 
 type CommandInfo struct {

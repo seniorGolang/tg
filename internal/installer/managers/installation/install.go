@@ -675,6 +675,10 @@ func (m *manager) installPackage(ctx context.Context, pkg *models.Package, v mod
 	default:
 	}
 
+	if err = m.activatePackageSkills(ctx, pkg, installation, scopeConfig.InstallPrefix); err != nil {
+		return
+	}
+
 	if err = m.databaseManager.RecordInstallation(ctx, installation); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to record installation in database: %w"), err)
 	}

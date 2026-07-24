@@ -25,7 +25,7 @@ func generateManifest(outDir string, version string, built []builtPlugin) (genPa
 	for _, b := range built {
 		url := "file://" + filepath.Join(absOut, b.Name+".tgp")
 		dest := "plugins/" + b.Dir + "/" + version + "/" + b.Name + ".tgp"
-		packages = append(packages, models.Package{
+		pkg := models.Package{
 			Name:         b.Name,
 			Descr:        b.Info.Description,
 			Dependencies: b.Info.Dependencies,
@@ -35,7 +35,27 @@ func generateManifest(outDir string, version string, built []builtPlugin) (genPa
 				Destination: dest,
 				Checksum:    b.Checksum,
 			}},
-		})
+		}
+
+		if b.SkillsArchive != "" && len(b.Skills) > 0 {
+			skillsURL := "file://" + filepath.Join(absOut, b.SkillsArchive)
+			pkg.Downloads = append(pkg.Downloads, models.PlatformDownload{URL: skillsURL})
+			for _, skill := range b.Skills {
+				for _, rel := range skill.Files {
+					pkg.Files = append(pkg.Files, models.FileInstallation{
+						File:        b.SkillsArchive,
+						Source:      skill.Name + "/" + rel,
+						Destination: skill.Root + "/" + rel,
+					})
+				}
+				pkg.Skills = append(pkg.Skills, models.SkillSpec{
+					Name: skill.Name,
+					Root: skill.Root,
+				})
+			}
+		}
+
+		packages = append(packages, pkg)
 	}
 
 	gen := models.Manifest{

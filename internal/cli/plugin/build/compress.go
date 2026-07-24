@@ -43,11 +43,8 @@ func compressAll(ctx context.Context, outDir string, pluginDirs []string) (err e
 			path := filepath.Join(outDir, "plugin_"+d+".tgp")
 			slog.Debug("compressing plugin", "plugin", d, "path", path)
 			if runErr := gzipFileInPlace(path); runErr != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = runErr
-				}
-				mu.Unlock()
+				failure := newBuildFailure(d, phaseCompress, runErr, "")
+				recordFirstFailure(ctx, &mu, &firstErr, failure)
 				return
 			}
 		}(dir)

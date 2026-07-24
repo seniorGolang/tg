@@ -11,4 +11,5 @@ const (
 	TreeCollector       Key = "treeCollector"
 	SkipDatabaseUpdate  Key = "skipDatabaseUpdate"
 	SessionInstalledIDs Key = "sessionInstalledIDs"
+	Skills              Key = "skills"
 )

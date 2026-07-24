@@ -46,40 +46,28 @@ func extractMetadata(ctx context.Context, outDir string, scopeName string, plugi
 			slog.Debug("loading plugin info", "plugin", d, "path", srcPath)
 			info, loadErr := loader.LoadInfoFromTGP(ctx, scopeName, srcPath)
 			if loadErr != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = fmt.Errorf(i18n.Msg("plugin %s failed: %w"), d, loadErr)
-				}
-				mu.Unlock()
+				failure := newBuildFailure(d, phaseMetadata, loadErr, "")
+				recordFirstFailure(ctx, &mu, &firstErr, failure)
 				return
 			}
 
 			if info.Name == "" {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = fmt.Errorf("%s: plugin %s", i18n.Msg("invalid plugin: missing name"), d)
-				}
-				mu.Unlock()
+				failure := newBuildFailure(d, phaseMetadata, fmt.Errorf("%s", i18n.Msg("invalid plugin: missing name")), "")
+				recordFirstFailure(ctx, &mu, &firstErr, failure)
 				return
 			}
 
 			destPath := filepath.Join(outDir, info.Name+plugin.FileExtTGP)
 			if renameErr := os.Rename(srcPath, destPath); renameErr != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = renameErr
-				}
-				mu.Unlock()
+				failure := newBuildFailure(d, phaseMetadata, renameErr, "")
+				recordFirstFailure(ctx, &mu, &firstErr, failure)
 				return
 			}
 
 			checksumHex, sumErr := fileSHA256Hex(destPath)
 			if sumErr != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = sumErr
-				}
-				mu.Unlock()
+				failure := newBuildFailure(d, phaseMetadata, sumErr, "")
+				recordFirstFailure(ctx, &mu, &firstErr, failure)
 				return
 			}
 

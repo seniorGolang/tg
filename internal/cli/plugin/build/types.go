@@ -21,9 +21,17 @@ type Params struct {
 }
 
 type builtPlugin struct {
-	Dir      string
-	Name     string
-	Info     plugin.Info
-	TgpPath  string
-	Checksum string
+	Dir           string
+	Name          string
+	Info          plugin.Info
+	TgpPath       string
+	Checksum      string
+	SkillsArchive string
+	Skills        []builtSkill
+}
+
+type builtSkill struct {
+	Name  string
+	Root  string
+	Files []string
 }

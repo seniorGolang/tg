@@ -177,7 +177,7 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 		var header *tar.Header
 		if header, err = trArch.Next(); err != nil {
 			if err == io.EOF {
-				break
+				return nil
 			}
 			return fmt.Errorf(i18n.Msg("Error reading tar archive: %w"), err)
 		}
@@ -214,8 +214,6 @@ func (m *manager) extractTarGz(ctx context.Context, archivePath string, extractD
 			_ = outFile.Close()
 		}
 	}
-
-	return
 }
 
 func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir string) (err error) {
@@ -238,7 +236,7 @@ func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir
 		var header *tar.Header
 		if header, err = trArch.Next(); err != nil {
 			if err == io.EOF {
-				break
+				return nil
 			}
 			return fmt.Errorf(i18n.Msg("Error reading tar archive: %w"), err)
 		}
@@ -272,8 +270,6 @@ func (m *manager) extractTar(ctx context.Context, archivePath string, extractDir
 			_ = outFile.Close()
 		}
 	}
-
-	return
 }
 
 func (m *manager) isArchive(filePath string) (isArchive bool) {

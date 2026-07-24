@@ -180,6 +180,24 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 				Description: i18n.Msg("Verbose output"),
 				Required:    false,
 			},
+			{
+				Name:        "no-skills",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Do not activate agent skills after install"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-targets",
+				Type:        optionTypeString,
+				Description: i18n.Msg("Skills targets (comma-separated: agents,cursor,claude,codex)"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-mkdir",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Create missing skills target directories"),
+				Required:    false,
+			},
 		},
 		executor: builtin.HandlePluginInstall,
 	}
@@ -278,6 +296,59 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 	}
 	if err = tree.RegisterCommand(pkgUpdateCmd); err != nil {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg update", err)
+	}
+
+	pkgSkillsInstallCmd := &BuiltinCommand{
+		path:        []string{cmdPathPkgSkills, cmdSubPkgSkills, cmdSubSkillsInstall},
+		description: i18n.Msg("Install skills for installed packages"),
+		options: []Option{
+			{
+				Name:         "package",
+				Type:         optionTypeString,
+				Description:  i18n.Msg("Package name (all packages if omitted)"),
+				Required:     false,
+				IsPositional: true,
+			},
+			{
+				Name:        "skills-targets",
+				Type:        optionTypeString,
+				Description: i18n.Msg("Skills targets (comma-separated: agents,cursor,claude,codex)"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-mkdir",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Create missing skills target directories"),
+				Required:    false,
+			},
+		},
+		executor: builtin.HandlePkgSkillsInstall,
+	}
+	if err = tree.RegisterCommand(pkgSkillsInstallCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg skills install", err)
+	}
+
+	skillsInstallCmd := &BuiltinCommand{
+		path:        []string{cmdPathSkills, cmdSubSkillsInstall},
+		description: i18n.Msg("Install built-in tg skills"),
+		options: []Option{
+			{
+				Name:        "skills-targets",
+				Type:        optionTypeString,
+				Description: i18n.Msg("Skills targets (comma-separated: agents,cursor,claude,codex)"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-mkdir",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Create missing skills target directories"),
+				Required:    false,
+			},
+		},
+		executor: builtin.HandleHostSkillsInstall,
+	}
+	if err = tree.RegisterCommand(skillsInstallCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "skills install", err)
 	}
 
 	pluginUpdateCmd := &BuiltinCommand{

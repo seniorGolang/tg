@@ -69,6 +69,10 @@ func (m *manager) Uninstall(ctx context.Context, packageID string, keepFiles boo
 		}
 	}
 
+	if err = m.deactivateInstallationSkills(installation); err != nil {
+		return
+	}
+
 	// Согласно архитектуре, файлы всегда удаляются при удалении пакета
 	// Параметр keepFiles оставлен для обратной совместимости, но всегда должен быть false
 	for _, file := range installation.Files {
