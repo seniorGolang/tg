@@ -21,12 +21,13 @@ func getSubcommandPriority(subcommandName string) (priority int) {
 		"list":    2,
 		"search":  3,
 		"upgrade": 4,
-		"del":     5,
-		"info":    6,
-		"repo":    7,
-		"doc":     8,
-		"update":  9,
-		"init":    10,
+		"prune":   5,
+		"del":     6,
+		"info":    7,
+		"repo":    8,
+		"doc":     9,
+		"update":  10,
+		"init":    11,
 	}
 
 	var exists bool

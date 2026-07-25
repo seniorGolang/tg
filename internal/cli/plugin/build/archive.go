@@ -128,7 +128,7 @@ func writeSkillsArchive(pluginDir string, archivePath string, entries []skillEnt
 	return
 }
 
-func packagePluginSkills(rootDir string, outDir string, b *builtPlugin) (err error) {
+func packagePluginSkills(rootDir string, outDir string, version string, b *builtPlugin) (err error) {
 
 	pluginDir := filepath.Join(rootDir, "plugins", b.Dir)
 	var entries []skillEntry
@@ -151,7 +151,7 @@ func packagePluginSkills(rootDir string, outDir string, b *builtPlugin) (err err
 		b.Skills = append(b.Skills, builtSkill{
 			Name:  entry.Name,
 			Files: entry.Files,
-			Root:  skillsDirName + "/" + b.Dir + "/" + entry.Name,
+			Root:  skillsDirName + "/" + b.Dir + "/" + version + "/" + entry.Name,
 		})
 	}
 	return

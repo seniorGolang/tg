@@ -80,6 +80,11 @@ func (inst *Installer) removeSinglePackage(ctx context.Context, packageName stri
 		}
 	}
 
+	// Published skills адресуются по имени: снятие одной версии стирает общий путь, поэтому skills оставшихся версий переустанавливаются.
+	if err = inst.installationManager.InstallSkills(ctx, []string{packageName}); err != nil {
+		return fmt.Errorf(i18n.Msg("Failed to install skills: %w"), err)
+	}
+
 	return
 }
 

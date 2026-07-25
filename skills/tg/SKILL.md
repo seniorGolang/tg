@@ -2,10 +2,11 @@
 name: tg
 description: >-
   Diagnoses Tool Gateway host failures: missing plugins/commands, wrong scope,
-  skills not published to ~/.agents (silent skip), host vs package skills.
-  Use when tgp/plugin commands are missing, pkg add/list/scope, or skills absent
-  under ~/.agents — not for @tg contracts, generators, or authoring .tgp plugins
-  (use package skills or /tg-plugin).
+  skills not published to ~/.agents (silent skip), host vs package skills,
+  multi-version installs, pkg upgrade/prune. Use when tgp/plugin commands are
+  missing, pkg add/list/upgrade/prune/scope, or skills absent under ~/.agents —
+  not for @tg contracts, generators, or authoring .tgp plugins (use package
+  skills or /tg-plugin).
 ---
 
 # tg
@@ -16,8 +17,30 @@ Platform troubleshooting only. Prefer `tg --help` for flag lists.
 
 1. `tg pkg list` — is the package installed in the **current** scope?
 2. `tg pkg scope list` / `tg pkg scope use <name>` — wrong scope → commands vanish.
-3. Install if needed: `tg pkg add <source>` (e.g. GitHub URL of the package repo).
+3. Install if needed: `tg pkg add <source>` (e.g. GitHub URL or `file:///…/dist`).
 4. Runtime docs: `tg plugin doc <name>` — usage of an **installed** plugin, not agent workflow.
+
+## Install / replace versions
+
+Multiple versions of the same package may coexist in a scope. Canonical plugin and skill paths include the version (`plugins/<pkg>/<ver>/…`, `skills/<pkg>/<ver>/<skill>/…`). Published agent skills stay unversioned (`~/.agents/skills/<skill>/`).
+
+| Goal | Command |
+|---|---|
+| Install (keep other versions) | `tg pkg add <source>` |
+| Install every package from a multi-package source (no multiselect) | `tg pkg add <source> --all` |
+| Reinstall the **same** version | `tg pkg add <source> --force` |
+| Replace with the latest available; remove other installed versions | `tg pkg upgrade [name…]` |
+| Keep only the latest **already installed** version; remove older ones | `tg pkg prune [name…]` |
+
+- `--force` does **not** upgrade across versions; it only bypasses conflicts for the same package@version.
+- After `pkg del` of one version, remaining versions re-publish their skills automatically.
+
+```bash
+tg pkg add file:///path/to/dist --all --force   # all packages, silent
+tg pkg upgrade                                  # every installed package → latest available
+tg pkg upgrade astg                             # one package
+tg pkg prune                                    # drop older installed versions, keep latest
+```
 
 ## Skills not appearing (main trap)
 
@@ -50,3 +73,4 @@ tg skills install                     # built-in host skills only (tg, tg-plugin
 - Author `@tg` contracts → package skill (e.g. `/tgp-contracts`)
 - Generate server/clients/swagger/kafka → matching package skill
 - Scaffold / build / local `file://` reinstall of `.tgp` → `/tg-plugin`
+- Treat `--force` as upgrade across versions → use `pkg upgrade` or `pkg prune`

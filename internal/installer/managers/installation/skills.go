@@ -18,7 +18,7 @@ func (m *manager) activatePackageSkills(ctx context.Context, pkg *models.Package
 	opts := skills.FromContext(ctx)
 
 	var roots []skills.Root
-	if roots, err = skills.ResolveRoots(installPrefix, pkg.Name, pkg.Skills, installation.Skills); err != nil {
+	if roots, err = skills.ResolveRoots(installPrefix, pkg.Name, installation.Version, pkg.Skills, installation.Skills); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to resolve skills: %w"), err)
 	}
 	if len(roots) == 0 {
@@ -94,13 +94,8 @@ func (m *manager) InstallSkills(ctx context.Context, packageNames []string) (err
 		}
 
 		var roots []skills.Root
-		if roots, err = skills.ResolveRoots(scopeConfig.InstallPrefix, installation.Package, nil, installation.Skills); err != nil {
+		if roots, err = skills.ResolveRoots(scopeConfig.InstallPrefix, installation.Package, installation.Version, nil, installation.Skills); err != nil {
 			return fmt.Errorf(i18n.Msg("Failed to resolve skills: %w"), err)
-		}
-		if len(roots) == 0 {
-			if roots, err = skills.Scan(scopeConfig.InstallPrefix, installation.Package); err != nil {
-				return fmt.Errorf(i18n.Msg("Failed to resolve skills: %w"), err)
-			}
 		}
 		if len(roots) == 0 {
 			continue

@@ -92,7 +92,7 @@ func Run(ctx context.Context, p Params) (err error) {
 	slog.Debug("extract metadata done", "built", len(built))
 
 	for i := range built {
-		if err = packagePluginSkills(p.RootDir, p.OutDir, &built[i]); err != nil {
+		if err = packagePluginSkills(p.RootDir, p.OutDir, version, &built[i]); err != nil {
 			return
 		}
 	}

@@ -40,10 +40,10 @@ func FromStates(states []models.SkillState) (roots []Root) {
 	return
 }
 
-// Scan ищет skills/<package>/*/SKILL.md под installPrefix.
-func Scan(installPrefix string, packageName string) (roots []Root, err error) {
+// Scan ищет skills/<package>/<version>/*/SKILL.md под installPrefix.
+func Scan(installPrefix string, packageName string, version string) (roots []Root, err error) {
 
-	base := filepath.Join(installPrefix, "skills", packageName)
+	base := filepath.Join(installPrefix, "skills", packageName, version)
 	var entries []os.DirEntry
 	if entries, err = os.ReadDir(base); err != nil {
 		if os.IsNotExist(err) {
@@ -67,7 +67,7 @@ func Scan(installPrefix string, packageName string) (roots []Root, err error) {
 }
 
 // ResolveRoots выбирает roots из specs, иначе из states, иначе Scan.
-func ResolveRoots(installPrefix string, packageName string, specs []models.SkillSpec, states []models.SkillState) (roots []Root, err error) {
+func ResolveRoots(installPrefix string, packageName string, version string, specs []models.SkillSpec, states []models.SkillState) (roots []Root, err error) {
 
 	if roots = FromSpecs(installPrefix, specs); len(roots) > 0 {
 		return
@@ -75,5 +75,5 @@ func ResolveRoots(installPrefix string, packageName string, specs []models.Skill
 	if roots = FromStates(states); len(roots) > 0 {
 		return
 	}
-	return Scan(installPrefix, packageName)
+	return Scan(installPrefix, packageName, version)
 }

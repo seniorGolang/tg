@@ -71,6 +71,7 @@ const (
 	optionKeyKind              = "kind"
 	optionKeyName              = "name"
 	optionKeyForce             = "force"
+	optionKeyAll               = "all"
 	optionKeyClean             = "clean"
 	optionKeyDryRun            = "dry-run"
 	optionKeyCommand           = "command"

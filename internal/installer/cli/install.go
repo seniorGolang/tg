@@ -23,7 +23,7 @@ import (
 	"github.com/seniorGolang/tg/v3/internal/installer/version"
 )
 
-func (inst *Installer) HandleInstall(ctx context.Context, args []string, version string, force bool, dryRun bool, verbose bool) (err error) {
+func (inst *Installer) HandleInstall(ctx context.Context, args []string, version string, force bool, dryRun bool, verbose bool, all bool) (err error) {
 
 	if len(args) == 0 {
 		return errors.New(i18n.Msg("Package not specified for installation"))
@@ -75,7 +75,7 @@ func (inst *Installer) HandleInstall(ctx context.Context, args []string, version
 		default:
 		}
 
-		if err = inst.installSinglePackage(ctx, packageSpec, version, force, verbose); err != nil {
+		if err = inst.installSinglePackage(ctx, packageSpec, version, force, verbose, all); err != nil {
 			return fmt.Errorf(i18n.Msg("Installation error from %s: %w"), packageSpec, err)
 		}
 	}
@@ -128,7 +128,7 @@ func (inst *Installer) normalizeURI(ctx context.Context, spec string) (normalize
 	return
 }
 
-func (inst *Installer) installSinglePackage(ctx context.Context, packageSpec string, versionOpt string, force bool, verbose bool) (err error) {
+func (inst *Installer) installSinglePackage(ctx context.Context, packageSpec string, versionOpt string, force bool, verbose bool, all bool) (err error) {
 
 	var parsedURI uri.URI
 	if parsedURI, err = inst.normalizeURI(ctx, packageSpec); err != nil {
@@ -178,13 +178,13 @@ func (inst *Installer) installSinglePackage(ctx context.Context, packageSpec str
 	}
 
 	if packageName == "" {
-		return inst.handleInstallFromSource(ctx, source, versionStr, force)
+		return inst.handleInstallFromSource(ctx, source, versionStr, force, all)
 	}
 
 	return inst.handleInstallPackageFromSource(ctx, source, packageName, versionStr, force)
 }
 
-func (inst *Installer) handleInstallFromSource(ctx context.Context, source string, versionStr string, force bool) (err error) {
+func (inst *Installer) handleInstallFromSource(ctx context.Context, source string, versionStr string, force bool, all bool) (err error) {
 
 	slog.Debug(i18n.Msg("Handling install from source"), slog.String("source", source), slog.String("version", versionStr), slog.Bool("force", force))
 
@@ -212,7 +212,7 @@ func (inst *Installer) handleInstallFromSource(ctx context.Context, source strin
 					slog.Error(i18n.Msg("Failed to reload index after loading manifest cascade"), slog.String("source", source), slog.Any("error", err))
 					return fmt.Errorf(i18n.Msg("Failed to reload index: %w"), err)
 				}
-				return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources)
+				return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources, all)
 			}
 			slog.Debug(i18n.Msg("JSON manifest fallback also failed"), slog.String("source", source), slog.String("jsonURL", jsonURL), slog.Any("error", jsonErr))
 		}
@@ -225,10 +225,10 @@ func (inst *Installer) handleInstallFromSource(ctx context.Context, source strin
 		return fmt.Errorf(i18n.Msg("Failed to reload index: %w"), err)
 	}
 
-	return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources)
+	return inst.processAllPackagesFromManifests(ctx, versionStr, force, source, loadedSources, all)
 }
 
-func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, versionStr string, force bool, source string, loadedSources map[string]bool) (err error) {
+func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, versionStr string, force bool, source string, loadedSources map[string]bool, all bool) (err error) {
 
 	var allPackages []models.Package
 	if allPackages, err = inst.manifestManager.ListPackagesFromSources(ctx, loadedSources); err != nil {
@@ -298,7 +298,12 @@ func (inst *Installer) processAllPackagesFromManifests(ctx context.Context, vers
 	}
 
 	var selectedPackages []*models.Package
-	if selectedPackages, err = inst.selectPackagesInteractively(ctx, allPackages, versionStr, &selectedSourceForConflict); err != nil {
+	if all {
+		selectedPackages = make([]*models.Package, 0, len(allPackages))
+		for i := range allPackages {
+			selectedPackages = append(selectedPackages, &allPackages[i])
+		}
+	} else if selectedPackages, err = inst.selectPackagesInteractively(ctx, allPackages, versionStr, &selectedSourceForConflict); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to select packages: %w"), err)
 	}
 

@@ -168,6 +168,12 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 				Required:    false,
 			},
 			{
+				Name:        "all",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Install all packages from source without interactive selection"),
+				Required:    false,
+			},
+			{
 				Name:        "dry-run",
 				Type:        optionTypeBool,
 				Description: i18n.Msg("Simulate installation without actual actions"),
@@ -353,7 +359,7 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 
 	pluginUpdateCmd := &BuiltinCommand{
 		path:        []string{cmdPathPluginUpdate, cmdSubPluginUpdate},
-		description: i18n.Msg("Update installed packages"),
+		description: i18n.Msg("Update generated plugin files"),
 		options:     []Option{},
 		executor:    builtin.HandlePluginUpgrade,
 	}
@@ -451,7 +457,7 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 
 	pkgUpgradeCmd := &BuiltinCommand{
 		path:        []string{cmdPathPkgUpgrade, cmdSubPkgUpgrade},
-		description: i18n.Msg("Update installed packages"),
+		description: i18n.Msg("Replace installed packages with the latest available version"),
 		options: []Option{
 			{
 				Name:         "package",
@@ -460,11 +466,53 @@ func registerBuiltinCommands(tree *CommandTree) (err error) {
 				Required:     false,
 				IsPositional: true,
 			},
+			{
+				Name:        "skills-targets",
+				Type:        optionTypeString,
+				Description: i18n.Msg("Skills targets (comma-separated: agents,cursor,claude,codex)"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-mkdir",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Create missing skills target directories"),
+				Required:    false,
+			},
 		},
-		executor: builtin.HandlePluginUpgrade,
+		executor: builtin.HandlePluginUpgradePackages,
 	}
 	if err = tree.RegisterCommand(pkgUpgradeCmd); err != nil {
 		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg upgrade", err)
+	}
+
+	pkgPruneCmd := &BuiltinCommand{
+		path:        []string{cmdPathPkgPrune, cmdSubPkgPrune},
+		description: i18n.Msg("Keep only the latest installed version of packages"),
+		options: []Option{
+			{
+				Name:         "package",
+				Type:         optionTypeString,
+				Description:  i18n.Msg("Package name (optional)"),
+				Required:     false,
+				IsPositional: true,
+			},
+			{
+				Name:        "skills-targets",
+				Type:        optionTypeString,
+				Description: i18n.Msg("Skills targets (comma-separated: agents,cursor,claude,codex)"),
+				Required:    false,
+			},
+			{
+				Name:        "skills-mkdir",
+				Type:        optionTypeBool,
+				Description: i18n.Msg("Create missing skills target directories"),
+				Required:    false,
+			},
+		},
+		executor: builtin.HandlePluginPrunePackages,
+	}
+	if err = tree.RegisterCommand(pkgPruneCmd); err != nil {
+		return fmt.Errorf(i18n.Msg("Error registering command %s")+": %w", "pkg prune", err)
 	}
 
 	completionBashCmd := &BuiltinCommand{

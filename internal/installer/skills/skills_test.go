@@ -186,20 +186,66 @@ func TestActivateDisabled(t *testing.T) {
 func TestScan(t *testing.T) {
 
 	prefix := t.TempDir()
-	skillDir := filepath.Join(prefix, "skills", "server", "tgp-server")
+	skillDir := filepath.Join(prefix, "skills", "server", "1.0.8", "tgp-server")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("x"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_ = os.MkdirAll(filepath.Join(prefix, "skills", "server", "empty"), 0755)
+	_ = os.MkdirAll(filepath.Join(prefix, "skills", "server", "1.0.8", "empty"), 0755)
 
-	roots, err := Scan(prefix, "server")
+	roots, err := Scan(prefix, "server", "1.0.8")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(roots) != 1 || roots[0].Name != "tgp-server" {
+		t.Fatalf("roots=%+v", roots)
+	}
+}
+
+// Scan видит только запрошенную версию: версии в scope сосуществуют независимо.
+func TestScanIsolatesVersions(t *testing.T) {
+
+	prefix := t.TempDir()
+	for _, version := range []string{"1.0.7", "1.0.8"} {
+		skillDir := filepath.Join(prefix, "skills", "server", version, "tgp-server")
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(version), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	roots, err := Scan(prefix, "server", "1.0.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(roots) != 1 {
+		t.Fatalf("roots=%+v", roots)
+	}
+	if want := filepath.Join(prefix, "skills", "server", "1.0.7", "tgp-server"); roots[0].Path != want {
+		t.Fatalf("path=%s want=%s", roots[0].Path, want)
+	}
+}
+
+func TestScanMissingVersion(t *testing.T) {
+
+	prefix := t.TempDir()
+	skillDir := filepath.Join(prefix, "skills", "server", "1.0.8", "tgp-server")
+	if err := os.MkdirAll(skillDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	roots, err := Scan(prefix, "server", "9.9.9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(roots) != 0 {
 		t.Fatalf("roots=%+v", roots)
 	}
 }

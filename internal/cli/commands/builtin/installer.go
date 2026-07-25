@@ -50,11 +50,12 @@ func HandlePluginInstall(ctx types.CommandContext) (err error) {
 
 	version := getStringOption(ctx, optionKeyVersion)
 	force := getBoolOption(ctx, optionKeyForce)
+	all := getBoolOption(ctx, optionKeyAll)
 	dryRun := getBoolOption(ctx, optionKeyDryRun)
 	verbose := getBoolOption(ctx, optionKeyVerbose)
 	cmdCtx = skills.WithContext(cmdCtx, skillsOptionsFromCommand(ctx))
 
-	return installer.HandleInstall(cmdCtx, ctx.Args, version, force, dryRun, verbose)
+	return installer.HandleInstall(cmdCtx, ctx.Args, version, force, dryRun, verbose, all)
 }
 
 func HandlePluginRemove(ctx types.CommandContext) (err error) {
@@ -130,8 +131,20 @@ func HandlePluginUpgradePackages(ctx types.CommandContext) (err error) {
 	if cmdCtx, err = prepareInstallerContext(ctx); err != nil {
 		return
 	}
+	cmdCtx = skills.WithContext(cmdCtx, skillsInstallOptionsFromCommand(ctx))
 
 	return installer.HandleUpgrade(cmdCtx, ctx.Args)
+}
+
+func HandlePluginPrunePackages(ctx types.CommandContext) (err error) {
+
+	var cmdCtx context.Context
+	if cmdCtx, err = prepareInstallerContext(ctx); err != nil {
+		return
+	}
+	cmdCtx = skills.WithContext(cmdCtx, skillsInstallOptionsFromCommand(ctx))
+
+	return installer.HandlePrune(cmdCtx, ctx.Args)
 }
 
 func HandlePkgSkillsInstall(ctx types.CommandContext) (err error) {
