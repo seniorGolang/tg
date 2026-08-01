@@ -5,6 +5,7 @@ package commands
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/seniorGolang/tg/v3/internal/i18n"
@@ -19,7 +20,7 @@ func showBuiltCommand(cmd Command, options map[string]any, args []string, comman
 
 	fullCmd := buildCommandString(commandPath, options, args, false)
 	slog.Info(i18n.Msg("run"), "cmd", fullCmd)
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 }
 
 func buildCommandString(commandPath []string, options map[string]any, args []string, useAliases bool) (commandStr string) {

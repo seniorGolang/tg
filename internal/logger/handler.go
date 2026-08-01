@@ -5,6 +5,7 @@ package logger
 import (
 	"context"
 	"log/slog"
+	"os"
 	"sync"
 
 	"github.com/pterm/pterm"
@@ -39,7 +40,7 @@ func (h *PTermHandler) Handle(_ context.Context, record slog.Record) (err error)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	logger := pterm.DefaultLogger.WithLevel(pterm.LogLevelDebug)
+	logger := pterm.DefaultLogger.WithLevel(pterm.LogLevelDebug).WithWriter(os.Stderr)
 
 	var loggerArgs []pterm.LoggerArgument
 	if len(args) > 0 {
