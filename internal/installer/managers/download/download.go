@@ -69,7 +69,7 @@ func (m *manager) Download(ctx context.Context, url string, destination string) 
 	return
 }
 
-func (m *manager) DownloadWithProgress(ctx context.Context, url string, destination string, progress chan<- int) (err error) {
+func (m *manager) DownloadWithProgress(ctx context.Context, url string, destination string, onProgress func(percent int)) (err error) {
 
 	if strings.HasPrefix(url, protocolFile) {
 		path := strings.TrimPrefix(url, protocolFile)
@@ -100,53 +100,58 @@ func (m *manager) DownloadWithProgress(ctx context.Context, url string, destinat
 	if file, err = os.Create(destination); err != nil {
 		return fmt.Errorf(i18n.Msg("Failed to create %s: %w"), "file", err)
 	}
-	defer func() { _ = file.Close() }()
-
-	totalSize := resp.ContentLength
-	downloaded := int64(0)
-
-	buf := make([]byte, 32*1024)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	fileClosed := false
+	defer func() {
+		if !fileClosed {
+			_ = file.Close()
 		}
+	}()
 
-		var n int
-		var readErr error
-		if n, readErr = resp.Body.Read(buf); n > 0 {
-			var writeErr error
-			if _, writeErr = file.Write(buf[:n]); writeErr != nil {
-				return fmt.Errorf(i18n.Msg("Failed to write file: %w"), writeErr)
-			}
-			downloaded += int64(n)
-
-			if totalSize > 0 && progress != nil {
-				percent := int((downloaded * 100) / totalSize)
-				select {
-				case progress <- percent:
-				default:
-				}
-			}
-		}
-
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return fmt.Errorf(i18n.Msg("Read error: %w"), readErr)
+	var writer io.Writer = file
+	if onProgress != nil && resp.ContentLength > 0 {
+		writer = &progressWriter{
+			dst:        file,
+			total:      resp.ContentLength,
+			onProgress: onProgress,
 		}
 	}
 
-	if progress != nil {
-		select {
-		case progress <- 100:
-		default:
-		}
-		close(progress)
+	var written int64
+	if written, err = io.Copy(writer, resp.Body); err != nil {
+		return fmt.Errorf(i18n.Msg("Failed to write file: %w"), err)
 	}
 
+	if err = file.Close(); err != nil {
+		return fmt.Errorf(i18n.Msg("Failed to close file: %w"), err)
+	}
+	fileClosed = true
+
+	if resp.ContentLength > 0 && written != resp.ContentLength {
+		return fmt.Errorf(i18n.Msg("File size on disk (%d) does not match Content-Length (%d)"), written, resp.ContentLength)
+	}
+
+	if onProgress != nil {
+		onProgress(100)
+	}
+
+	return
+}
+
+type progressWriter struct {
+	dst        io.Writer
+	total      int64
+	written    int64
+	onProgress func(percent int)
+}
+
+func (w *progressWriter) Write(p []byte) (n int, err error) {
+
+	if n, err = w.dst.Write(p); n > 0 {
+		w.written += int64(n)
+		if w.total > 0 && w.onProgress != nil {
+			w.onProgress(int((w.written * 100) / w.total))
+		}
+	}
 	return
 }
 

@@ -58,7 +58,7 @@ type DependencyResolver interface {
 // DownloadManager управляет загрузкой файлов.
 type DownloadManager interface {
 	Download(ctx context.Context, url string, destination string) (err error)
-	DownloadWithProgress(ctx context.Context, url string, destination string, progress chan<- int) (err error)
+	DownloadWithProgress(ctx context.Context, url string, destination string, onProgress func(percent int)) (err error)
 }
 
 type ValidationEngine interface {

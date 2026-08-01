@@ -926,50 +926,16 @@ func (m *manager) downloadWithProgress(ctx context.Context, url string, destinat
 		return m.downloadManager.Download(ctx, url, destination)
 	}
 
-	progressChan := make(chan int, 10)
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- m.downloadManager.DownloadWithProgress(ctx, url, destination, progressChan)
-	}()
-
-	var downloadErr error
-
-	for {
-		select {
-		case percent, ok := <-progressChan:
-			if !ok {
-				bar.SetCurrent(100)
-				bar.Print()
-				if downloadErr != nil {
-					return downloadErr
-				}
-				select {
-				case downloadErr = <-errChan:
-					return downloadErr
-				case <-ctx.Done():
-					return ctx.Err()
-				}
-			}
-			bar.SetCurrent(percent)
-			bar.Print()
-		case downloadErr = <-errChan:
-			if downloadErr != nil {
-				return downloadErr
-			}
-			select {
-			case _, ok := <-progressChan:
-				_ = ok // Игнорируем значение, просто проверяем закрытие канала
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-			bar.SetCurrent(100)
-			bar.Print()
-			return
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	err = m.downloadManager.DownloadWithProgress(ctx, url, destination, func(percent int) {
+		bar.SetCurrent(percent)
+		bar.Print()
+	})
+	if err != nil {
+		return err
 	}
+	bar.SetCurrent(100)
+	bar.Print()
+	return
 }
 
 type packageToInstallInfo struct {
