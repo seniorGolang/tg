@@ -114,7 +114,7 @@ func (svc *service) httpServeMethodFunc(method *method) Code {
 			bg.If().List(Id("response"), Err()).Op("=").Id("http").Dot(method.lccName()).Call(Id(_ctx_).Dot("UserContext").Call(), Id("request")).Op(";").Err().Op("==").Nil().BlockFunc(func(bf *Group) {
 				var ex Statement
 				if len(method.retCookieMap()) > 0 {
-					for retName := range method.retCookieMap() {
+					for _, retName := range sortedMapKeys(method.retCookieMap()) {
 						if ret := method.resultByName(retName); ret != nil {
 							ex.If(List(Id("rCookie"), Id("ok")).Op(":=").
 								Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().

@@ -119,7 +119,7 @@ services:
 
 			var parameters []swParameter
 			var retHeaders map[string]swHeader
-			for argName, headerKey := range method.varHeaderMap() {
+			for argName, headerKey := range sortedMapByKeys(method.varHeaderMap()) {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
 						In:       "header",
@@ -137,7 +137,7 @@ services:
 					}
 				}
 			}
-			for argName, headerKey := range method.argPathMap() {
+			for argName, headerKey := range sortedMapByKeys(method.argPathMap()) {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
 						In:       "path",
@@ -155,7 +155,7 @@ services:
 					}
 				}
 			}
-			for argName, queryName := range method.argParamMap() {
+			for argName, queryName := range sortedMapByKeys(method.argParamMap()) {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
 						In:       "query",
@@ -165,7 +165,7 @@ services:
 					})
 				}
 			}
-			for argName, cookieName := range method.varCookieMap() {
+			for argName, cookieName := range sortedMapByKeys(method.varCookieMap()) {
 				if arg := method.argByName(argName); arg != nil {
 					parameters = append(parameters, swParameter{
 						In:       "cookie",

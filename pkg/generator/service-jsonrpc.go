@@ -133,7 +133,7 @@ func (svc *service) rpcMethodFunc(method *method, outDir string) Code {
 		})
 		if len(method.retCookieMap()) > 0 {
 			bg.If(Id("ftx").Op("!=").Nil()).BlockFunc(func(cg *Group) {
-				for retName := range method.retCookieMap() {
+				for _, retName := range sortedMapKeys(method.retCookieMap()) {
 					if ret := method.resultByName(retName); ret != nil {
 						cg.If(List(Id("rCookie"), Id("ok")).Op(":=").
 							Qual(packageReflect, "ValueOf").Call(Id("response").Dot(utils.ToCamel(retName))).Dot("Interface").Call().

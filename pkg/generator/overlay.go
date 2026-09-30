@@ -4,7 +4,6 @@
 package generator
 
 import (
-	"sort"
 	"strings"
 
 	. "github.com/dave/jennifer/jen" // nolint:staticcheck
@@ -37,7 +36,7 @@ func (tr *Transport) jsonRPCOverlayKeys() (headerNames []string, cookieNames []s
 			}
 		}
 	}
-	return sortedOverlayKeys(headers), sortedOverlayKeys(cookies)
+	return sortedMapKeys(headers), sortedMapKeys(cookies)
 }
 
 func (tr *Transport) jsonRPCNeedsOverlay() (ok bool) {
@@ -54,16 +53,6 @@ func (svc *service) jsonRPCNeedsOverlay() (ok bool) {
 		}
 	}
 	return false
-}
-
-func sortedOverlayKeys(keys map[string]struct{}) (out []string) {
-
-	out = make([]string, 0, len(keys))
-	for key := range keys {
-		out = append(out, key)
-	}
-	sort.Strings(out)
-	return
 }
 
 func overlayKeyToFieldName(key string) (name string) {

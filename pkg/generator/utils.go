@@ -5,11 +5,15 @@ package generator
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"fmt"
+	"iter"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	. "github.com/dave/jennifer/jen" // nolint:staticcheck
@@ -367,4 +371,20 @@ func parseType(relPath, name string) (retType types.Type, constants []types.Cons
 		return
 	})
 	return
+}
+
+func sortedMapKeys[K cmp.Ordered, V any](m map[K]V) (result []K) {
+	result = slices.Collect(maps.Keys(m))
+	slices.Sort(result)
+	return
+}
+
+func sortedMapByKeys[K cmp.Ordered, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for _, k := range sortedMapKeys(m) {
+			if !yield(k, m[k]) {
+				return
+			}
+		}
+	}
 }
